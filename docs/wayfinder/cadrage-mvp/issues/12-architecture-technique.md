@@ -15,7 +15,7 @@ Quelle architecture pour un SaaS multi-centres en Angular 22 et .NET 10 ?
 - **Authentification et comptes** : ASP.NET Core Identity ou fournisseur externe.
 - **Documents** : reçus PDF, import/export Excel, impressions.
 - **Arabe** : écriture de droite à gauche dans Angular, documents bilingues.
-- **Notifications** : intégration du canal retenu au ticket 09.
+- **Notifications** : abstraction d'envoi (liens `wa.me` et email dans le MVP, puis API WhatsApp et SMS), reçus PDF servis par URL à jeton. Voir [Canaux de notification en Tunisie](09-canaux-notification.md).
 - **Sauvegardes, journal d'audit, reprise après incident.**
 
 Chaque décision difficile à défaire donne un ADR dans `docs/adr/`.
