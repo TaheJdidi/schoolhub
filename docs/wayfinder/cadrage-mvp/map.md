@@ -19,7 +19,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 
 <!-- une ligne par ticket résolu : [titre](lien) : résumé de la réponse en une ligne -->
 
-*Aucune pour l'instant.*
+- [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
 
