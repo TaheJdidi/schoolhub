@@ -1,0 +1,20 @@
+# 10. Caisse et reçus
+
+Type: grilling
+Mode: HITL
+Status: open
+Blocked by: 01
+
+## Question
+
+Comment la secrétaire encaisse-t-elle et remet-elle les reçus, et comment le propriétaire contrôle-t-il la caisse ?
+
+- **Encaissement groupé** : marquer 20 élèves payés en une action et sortir les reçus d'un coup.
+- **Moyens de paiement** : espèces, chèque, virement, D17 ?
+- **Reçu** : numéroté et non supprimable (annulation tracée) ? Impression thermique ou A5, PDF envoyé par WhatsApp ou email, version FR/AR ?
+- **Journal et clôture de caisse** : par jour et par utilisateur, écart de caisse, validation par le propriétaire.
+
+## Contexte
+
+- Remarques « reçus » et « clôture de caisse » dans [cadrage.md](../../../cadrage.md).
+- [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8, rang 3 (caisse « cash-first »).
