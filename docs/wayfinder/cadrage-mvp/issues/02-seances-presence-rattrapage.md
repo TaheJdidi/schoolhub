@@ -19,3 +19,4 @@ Comment les **Séances** sont-elles créées, et comment la **Présence** et le 
 
 - Le cahier des charges impose que la présence et le paiement ne soient pas liés au groupe.
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md) : aucun acteur maghrébin ne gère ce modèle « séance » ; c'est le premier trou du marché.
+- [Programmes, inscriptions et tarification](01-programmes-inscriptions-tarification.md), Q17c à Q17f : une séance annulée ne compte pas dans le Mois, une séance de remplacement compte à sa place. Ce ticket décide comment on annule, remplace ou ajoute une séance, et comment le centre déclare ses jours de fermeture.

@@ -32,6 +32,10 @@ _Avoid_ : étudiant, apprenant
 Ensemble d'élèves qui suivent les séances d'un même professeur sur un horaire hebdomadaire fixe, par exemple « Groupe Lundi 8h→10h ». Chaque groupe est de type Étude, Révision ou Formation.
 _Avoid_ : classe, section, programme
 
+**Type de groupe** :
+Catégorie d'un groupe : Étude, Révision ou Formation. Elle détermine comment ses élèves peuvent payer.
+_Avoid_ : section, espace, catégorie
+
 **Étude** :
 Type de groupe qui dure toute l'année scolaire.
 _Avoid_ : espace étude, cours annuel
@@ -45,12 +49,28 @@ Type de groupe dont le prix et le nombre de séances sont fixés à l'avance, pa
 _Avoid_ : espace formation, atelier
 
 **Mode de tarification** :
-Manière dont un élève paie son inscription, fixée par le type du groupe : chaque mois pour une Étude, le montant total pour une Révision, en une fois ou en tranches pour une Formation.
+Manière dont un élève paie son inscription. Le type de groupe fixe les choix possibles : chaque Mois pour une Étude ; à la séance ou en une fois pour une Révision ; en une fois ou en tranches pour une Formation.
 _Avoid_ : type de paiement, formule
 
 **Séance** :
 Occurrence datée d'un cours, pour un groupe.
 _Avoid_ : cours, leçon, session
+
+**Mois** :
+Lot de 4 séances d'un groupe d'Étude, numéroté depuis la rentrée (Mois 1, Mois 2…) et commun à tous les élèves du groupe. C'est l'unité de paiement d'une Étude ; il ne correspond pas au mois du calendrier.
+_Avoid_ : cycle, période, mois calendaire
+
+**Séance annulée** :
+Séance prévue qui n'a pas lieu (professeur absent, jour férié, vacances). Elle ne compte pas dans le Mois.
+_Avoid_ : séance supprimée, séance reportée
+
+**Séance de remplacement** :
+Séance ajoutée à une autre date pour remplacer une séance annulée. Elle compte à sa place dans le Mois.
+_Avoid_ : séance de rattrapage
+
+**Séance supplémentaire** :
+Séance ajoutée en plus des séances prévues, par exemple avant un examen. Elle est offerte et ne compte pas dans le Mois.
+_Avoid_ : séance bonus, séance de rattrapage
 
 ### Le suivi des élèves
 
@@ -63,11 +83,11 @@ Partie du prix d'une Formation, due à un moment fixé à l'avance, quand l'él�
 _Avoid_ : échéance, acompte
 
 **Prix spécial** :
-Prix accordé à un élève à la place du prix normal, pour une raison particulière (famille en difficulté, proche du centre…). Il peut être nul : l'élève ne paie alors rien.
+Prix accordé à un élève pour une inscription précise, à la place du prix normal du groupe, pour une raison particulière (famille en difficulté, proche du centre…). Il peut être nul : l'élève ne paie alors rien.
 _Avoid_ : remise, réduction, geste
 
 **Assurance** :
-Somme que chaque élève paie au centre une fois par année scolaire.
+Somme annuelle payée au centre par les élèves des groupes d'Étude. Chaque centre fixe son montant.
 _Avoid_ : cotisation
 
 **Paiement** :

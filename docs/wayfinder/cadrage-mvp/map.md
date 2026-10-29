@@ -19,6 +19,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 
 <!-- une ligne par ticket résolu : [titre](lien) : résumé de la réponse en une ligne -->
 
+- [Programmes, inscriptions et tarification](issues/01-programmes-inscriptions-tarification.md) : pas de Programme, une inscription relie un élève à un groupe de type Étude, Révision ou Formation ; Étude payée par Mois de 4 séances communs au groupe ; Révision à la séance (total ÷ séances) ou en totalité ; Formation en une fois ou en tranches ; ni paiement partiel ni remboursement ; orange à k+1, rouge à k+2.
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié

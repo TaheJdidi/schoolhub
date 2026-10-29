@@ -139,7 +139,7 @@ Qui développe ? Une technologie préférée ? Une échéance ?
 - **Marché (Q2)** : lancement en Tunisie, avec un centre pilote déjà disponible. Monnaie : TND. Français d'abord, arabe (droite à gauche) prévu dès la conception. *(28/10/2026)*
 - **Modèle produit (Q3)** : plateforme multi-centres dès le départ, données de chaque centre séparées ; pas d'inscription en libre-service ni de facturation de l'abonnement dans le MVP. *(28/10/2026)*
 - **Périmètre (Q4)** : le MVP couvre tout le cahier des charges (Étude, Révision, Formation, bibliothèque, RH, achats). *(28/10/2026)*
-- **Modèle du domaine (Q5)** : un concept **Programme** (types Étude, Révision, Formation) ; un élève a plusieurs **Inscriptions** ; les paiements sont liés à l'inscription ; trois modes de tarification : mensuel, par séance, forfait. *(28/10/2026)*
+- **Modèle du domaine (Q5)** : un concept **Programme** (types Étude, Révision, Formation) ; un élève a plusieurs **Inscriptions** ; les paiements sont liés à l'inscription ; trois modes de tarification : mensuel, par séance, forfait. *(28/10/2026)* **Remplacé le 29/10/2026** par le ticket [Programmes, inscriptions et tarification](wayfinder/cadrage-mvp/issues/01-programmes-inscriptions-tarification.md) : il n'y a pas de Programme ; une inscription relie un élève à un groupe de type Étude, Révision ou Formation, et l'Étude se paie par Mois de 4 séances.
 - **Outil de suivi (Q6)** : carte et tickets en Markdown dans `docs/wayfinder/`. *(28/10/2026)*
 - **Technologies (Q7)** : Angular 22 et .NET 10. *(28/10/2026)*
 - **Juridique** : pas d'étude juridique ou réglementaire, le projet avance dans tous les cas. Le ticket [Cadre légal tunisien](wayfinder/cadrage-mvp/issues/08-cadre-legal-tunisien.md) est hors périmètre. *(28/10/2026)*

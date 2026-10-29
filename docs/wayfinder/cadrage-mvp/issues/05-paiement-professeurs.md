@@ -11,6 +11,7 @@ Selon quelles règles SchoolHub calcule-t-il la rémunération des professeurs ?
 
 - **Mode de calcul** : pourcentage du chiffre de ses groupes (par exemple 80/20), montant par séance, par élève présent, forfait, ou un mélange selon le professeur ?
 - Les impayés d'un élève réduisent-ils la part du professeur ? Et les rattrapages dans le groupe d'un autre professeur ?
+- **Séances annulées ou ajoutées** : une séance annulée parce que le professeur est absent est-elle retirée de sa rémunération ? Une séance supplémentaire offerte aux élèves ([ticket 01](01-programmes-inscriptions-tarification.md), Q17e) lui est-elle payée ?
 - **Avances** sur rémunération.
 - **Fiche mensuelle** : quand et comment le propriétaire paie-t-il ? Faut-il un état imprimable ?
 
