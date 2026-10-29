@@ -23,34 +23,30 @@ Personne qui anime un ou plusieurs groupes au centre.
 _Avoid_ : enseignant, prof, formateur
 
 **Élève** :
-Personne qui suit un ou plusieurs programmes au centre.
+Personne inscrite dans un ou plusieurs groupes du centre.
 _Avoid_ : étudiant, apprenant
 
 ### L'offre d'enseignement
 
-**Programme** :
-Offre d'enseignement proposée par le centre, d'un type donné (Étude, Révision ou Formation), sur une période donnée et avec un mode de tarification.
-_Avoid_ : espace, offre, cours
+**Groupe** :
+Ensemble d'élèves qui suivent les séances d'un même professeur sur un horaire hebdomadaire fixe, par exemple « Groupe Lundi 8h→10h ». Chaque groupe est de type Étude, Révision ou Formation.
+_Avoid_ : classe, section, programme
 
 **Étude** :
-Programme qui dure toute l'année scolaire.
+Type de groupe qui dure toute l'année scolaire.
 _Avoid_ : espace étude, cours annuel
 
 **Révision** :
-Programme court de quelques séances, par exemple avant un examen.
+Type de groupe court, de quelques séances, par exemple avant un examen.
 _Avoid_ : espace révision, stage
 
 **Formation** :
-Programme dont le prix et le nombre de séances sont fixés à l'avance, par exemple une formation en informatique.
+Type de groupe dont le prix et le nombre de séances sont fixés à l'avance, par exemple une formation en informatique.
 _Avoid_ : espace formation, atelier
 
 **Mode de tarification** :
-Manière dont une inscription est facturée : mensuel, par séance ou forfait.
+Manière dont un élève paie son inscription, fixée par le type du groupe : chaque mois pour une Étude, le montant total pour une Révision, en une fois ou en tranches pour une Formation.
 _Avoid_ : type de paiement, formule
-
-**Groupe** :
-Ensemble d'élèves d'un programme qui suivent les séances d'un même professeur sur un horaire hebdomadaire fixe, par exemple « Groupe Lundi 8h→10h ».
-_Avoid_ : classe, section
 
 **Séance** :
 Occurrence datée d'un cours, pour un groupe.
@@ -59,11 +55,23 @@ _Avoid_ : cours, leçon, session
 ### Le suivi des élèves
 
 **Inscription** :
-Rattachement d'un élève à un programme. Elle porte le mode de tarification et reçoit les paiements. Un élève peut avoir plusieurs inscriptions.
+Rattachement d'un élève à un groupe. Elle reçoit les paiements. Un élève peut avoir plusieurs inscriptions, dans des groupes de professeurs différents.
 _Avoid_ : abonnement, adhésion
 
+**Tranche** :
+Partie du prix d'une Formation, due à un moment fixé à l'avance, quand l'élève ne paie pas tout au début.
+_Avoid_ : échéance, acompte
+
+**Prix spécial** :
+Prix accordé à un élève à la place du prix normal, pour une raison particulière (famille en difficulté, proche du centre…). Il peut être nul : l'élève ne paie alors rien.
+_Avoid_ : remise, réduction, geste
+
+**Assurance** :
+Somme que chaque élève paie au centre une fois par année scolaire.
+_Avoid_ : cotisation
+
 **Paiement** :
-Somme encaissée par le centre au titre d'une inscription.
+Somme encaissée par le centre auprès d'un élève, pour une inscription ou pour l'assurance.
 _Avoid_ : versement, règlement
 
 **Présence** :
