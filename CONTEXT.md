@@ -101,7 +101,7 @@ Salle où les élèves viennent réviser seuls, en payant une entrée à la jour
 _Avoid_ : salle de révision, salle d'étude
 
 **Entrée à la journée** :
-Droit de venir à la bibliothèque pour une journée, payé en arrivant. La secrétaire note l'heure d'arrivée et l'heure de départ.
+Droit de venir à la bibliothèque pour une journée, payé en arrivant, au même prix pour tous. La secrétaire note l'heure d'arrivée, et l'heure de départ si elle la connaît.
 _Avoid_ : ticket, abonnement, séance
 
 ### Le suivi des élèves

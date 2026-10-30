@@ -21,3 +21,4 @@ Comment la secrétaire encaisse-t-elle et remet-elle les reçus, et comment le p
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8, rang 3 (caisse « cash-first »).
 - [Rôles, comptes et accès](03-roles-comptes-acces.md) : la secrétaire encaisse ; reste à décider qui peut annuler un reçu. Chaque encaissement et chaque annulation va au journal, que seul le propriétaire consulte.
 - [Parcours d'inscription d'un élève](04-parcours-inscription-eleve.md), Q4 : les frères et sœurs ne sont pas reliés. Comment encaisser un parent qui paie pour deux enfants ?
+- [Bibliothèque](06-bibliotheque.md) : chaque entrée à la journée se paie en arrivant. Faut-il un reçu pour chaque entrée ?
