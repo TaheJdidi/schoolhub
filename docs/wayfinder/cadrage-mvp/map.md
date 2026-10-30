@@ -22,6 +22,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - [Programmes, inscriptions et tarification](issues/01-programmes-inscriptions-tarification.md) : pas de Programme, une inscription relie un élève à un groupe de type Étude, Révision ou Formation ; Étude payée par Mois de 4 séances communs au groupe ; Révision à la séance (total ÷ séances) ou en totalité ; Formation en une fois ou en tranches ; ni paiement partiel ni remboursement ; orange à k+1, rouge à k+2.
 - [Séances, présence et rattrapage](issues/02-seances-presence-rattrapage.md) : séances créées depuis l'horaire du groupe ; annuler, déplacer, ajouter une séance ou changer l'horaire ; appel sur la plateforme ou sur feuille imprimée, élèves présents par défaut ; rattrapage chez le même professeur, même matière et même niveau, payé dans le groupe d'origine ; groupe fermé gardé avec son historique ; ni jours fériés, ni QR code, ni professeur remplaçant.
 - [Rôles, comptes et accès](issues/03-roles-comptes-acces.md) : deux rôles fixes, Propriétaire (plusieurs possibles, un seul centre chacun) et Secrétaire ; un compte par centre ; ni professeurs ni familles connectés dans le MVP ; seul le propriétaire accorde un prix spécial et consulte le journal ; comptes désactivés, jamais supprimés.
+- [Parcours d'inscription d'un élève](issues/04-parcours-inscription-eleve.md) : au guichet, ou par un formulaire public (lien et QR code) qui crée une demande d'inscription, enregistrée ensuite à la main ; amis cités pour être dans le même groupe ; parent, niveau, téléphone et email de l'élève (dès le collège) obligatoires ; ni fratrie ni liste d'attente ; capacité de groupe qui prévient sans bloquer.
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
@@ -30,6 +31,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Application mobile ou web responsive seulement** : pour le propriétaire et la secrétaire, les seuls à se connecter dans le MVP ([ticket 03](issues/03-roles-comptes-acces.md)). Dépend de l'architecture.
 - **Compte professeur** : appel sur son téléphone, consultation de sa rémunération. Écarté pour le moment par le [ticket 03](issues/03-roles-comptes-acces.md).
 - **Portail parent par lien sécurisé** (solde, présences, reçus) : l'étude le classe 8ᵉ ; écarté du MVP par le [ticket 03](issues/03-roles-comptes-acces.md).
+- **Fratries et second contact parent** : relier frères et sœurs pour un seul message et un reçu groupé. Écarté pour le moment par le [ticket 04](issues/04-parcours-inscription-eleve.md).
 - **Reprise des données du centre pilote** : import Excel guidé et accompagnement au démarrage.
 - **Arabe** : faut-il des reçus et messages bilingues FR/AR dès le MVP, avant l'interface en arabe ? L'étude classe ce point 5ᵉ sur 15 améliorations.
 - **Planning des salles** et détection des conflits d'horaire entre groupes, salles et professeurs.

@@ -34,6 +34,10 @@ _Avoid_ : log, audit, historique
 Personne inscrite dans un ou plusieurs groupes du centre.
 _Avoid_ : étudiant, apprenant
 
+**Parent** :
+Personne responsable d'un élève, que le centre contacte par WhatsApp. Chaque élève a un parent enregistré, sauf un élève majeur, pour qui il est facultatif.
+_Avoid_ : tuteur, responsable légal, famille
+
 ### L'offre d'enseignement
 
 **Groupe** :
