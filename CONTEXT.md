@@ -22,6 +22,10 @@ _Avoid_ : admin, réceptionniste, bibliothécaire
 Personne qui anime un ou plusieurs groupes au centre. Il n'a pas de compte sur SchoolHub.
 _Avoid_ : enseignant, prof, formateur
 
+**Employé** :
+Personne qui travaille pour le centre, hors professeurs : secrétaire, agent de ménage, gardien… Elle a une fiche dans les ressources humaines, et un compte seulement si elle est secrétaire.
+_Avoid_ : salarié, personnel
+
 **Compte désactivé** :
 Compte d'une personne qui a quitté le centre. Il ne permet plus de se connecter, mais son nom reste sur les paiements, les reçus et les appels qu'elle a faits.
 _Avoid_ : compte supprimé
@@ -130,6 +134,10 @@ _Avoid_ : cotisation
 Somme encaissée par le centre auprès d'un élève, pour une inscription ou pour l'assurance.
 _Avoid_ : versement, règlement
 
+**Impayé** :
+Somme qu'un élève devait payer et n'a pas encore payée. Elle reste une perte pour le centre seul : le professeur reçoit sa part quand même.
+_Avoid_ : dette, retard
+
 **Présence** :
 Statut d'un élève à une séance : présent ou absent.
 _Avoid_ : pointage, assiduité
@@ -163,3 +171,13 @@ _Avoid_ : commission, marge
 **Avance** :
 Somme versée à un professeur avant qu'il ait droit à sa part. Elle est déduite de son paiement suivant.
 _Avoid_ : prêt, acompte
+
+### La gestion du centre
+
+**Achat** :
+Dépense du centre, de catégorie Matériel (papier, produits, appareils) ou Service (ménage, jardinage, électricité).
+_Avoid_ : frais, charge
+
+**Tableau de bord** :
+Vue du propriétaire sur un mois du calendrier ou une année : encaissé, impayés, dépenses (parts des professeurs, salaires, achats) et bénéfice, avec le détail par groupe.
+_Avoid_ : statistiques, rapport, bilan

@@ -16,6 +16,7 @@ Blocked by: 01, 02, 03, 10
 - feuille d'appel imprimable ([Séances, présence et rattrapage](02-seances-presence-rattrapage.md), Q11) ;
 - formulaire public d'inscription et liste des demandes ([Parcours d'inscription d'un élève](04-parcours-inscription-eleve.md)) ;
 - parts des professeurs à payer, avec la case « payée » ([Paiement des professeurs](05-paiement-professeurs.md)) ;
+- tableau de bord du propriétaire ([RH, achats et tableau de bord](07-rh-achats-tableau-de-bord.md)) ;
 - encaissement groupé et reçu ;
 - fiche élève : ses inscriptions, paiements et présences ;
 - bibliothèque : liste du jour ;
