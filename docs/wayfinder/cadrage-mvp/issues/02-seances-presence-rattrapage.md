@@ -55,7 +55,16 @@ La recommandation est donnée après ➡️.
 - **Q13. Changement de groupe : crédit restant** : Ali garde 45 TND de séances non suivies, et le nouveau groupe coûte 40 TND le Mois. Que deviennent les 5 TND en trop ? Le nouveau groupe doit-il avoir le même professeur ? ➡️ Le reste est reporté sur ses paiements suivants dans le nouveau groupe, sans remboursement. N'importe quel groupe du même type, même avec un autre professeur.
 - **Q14. Professeur remplaçant** : le professeur est absent, mais un collègue fait la séance à sa place. (a) Impossible : la séance est annulée, puis éventuellement remplacée. (b) Possible : la séance a lieu, compte normalement dans le Mois, et la plateforme garde qui l'a faite. ➡️ (b). Qui est payé pour cette séance se décide au ticket 05.
 
-### Questions ouvertes (tour 3)
+### Décisions prises (tour 3, 30/10/2026)
+
+- **Q15. Révision payée à la séance : une séance manquée ne se paie pas.** L'élève ne paie que les séances où il est présent ; c'est l'inverse de l'Étude, où la séance manquée compte. Conséquence de Q8 : une séance rattrapée dans un autre groupe se paie dans son propre groupe.
+- **Q16. Fermeture d'un groupe** : le groupe est retiré de la liste des groupes, et les élèves qui veulent continuer passent dans d'autres groupes (changement de groupe, Q9 et Q13). Les autres arrêtent, sans remboursement.
+
+### Questions ouvertes (tour 4)
+
+- **Q17. « Effacer » un groupe fermé** : (a) supprimer le groupe avec tout son historique ; (b) le retirer de la liste des groupes actifs, mais garder son historique (séances, présences, paiements, reçus) consultable. ➡️ (b). Les paiements et les reçus doivent rester, sinon la caisse et les bilans deviennent faux.
+
+### Questions du tour 3 (répondues le 30/10/2026)
 
 - **Q15. Révision payée à la séance, élève absent** : doit-il payer la séance qu'il a manquée ? ➡️ Oui, comme pour l'Étude : la séance a eu lieu, elle se paie. S'il la rattrape dans un autre groupe, il la paie quand même dans son groupe (Q8).
 - **Q16. Fermeture d'un groupe en cours d'année** (trop peu d'élèves, professeur qui part) : que deviennent ses élèves ? ➡️ Chaque élève qui continue fait un changement de groupe (Q9 et Q13), qui garde la valeur de ses séances payées. Pour celui qui arrête, l'inscription s'arrête, sans remboursement.
