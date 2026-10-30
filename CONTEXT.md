@@ -11,16 +11,24 @@ Plateforme de gestion pour les centres d'étude tunisiens : un centre y gère se
 _Avoid_ : école, établissement
 
 **Propriétaire** :
-Personne qui possède le centre. Il a accès à tout, y compris aux ressources humaines et aux comptes des employés.
+Personne qui possède le centre, seule ou avec des associés : un centre peut avoir plusieurs propriétaires, tous avec les mêmes droits. Il a accès à tout, y compris aux ressources humaines, aux comptes des employés et au journal.
 _Avoid_ : super admin, gérant, directeur
 
 **Secrétaire** :
-Employé qui gère le quotidien du centre. Il a accès à tout sauf aux ressources humaines.
-_Avoid_ : admin, réceptionniste
+Employé qui gère le quotidien du centre ; tout employé qui se connecte à SchoolHub est secrétaire. Il n'a accès ni aux ressources humaines, ni aux comptes des employés, ni à la rémunération des professeurs, ni au tableau de bord de rentabilité, ni au journal.
+_Avoid_ : admin, réceptionniste, bibliothécaire
 
 **Professeur** :
-Personne qui anime un ou plusieurs groupes au centre.
+Personne qui anime un ou plusieurs groupes au centre. Il n'a pas de compte sur SchoolHub.
 _Avoid_ : enseignant, prof, formateur
+
+**Compte désactivé** :
+Compte d'une personne qui a quitté le centre. Il ne permet plus de se connecter, mais son nom reste sur les paiements, les reçus et les appels qu'elle a faits.
+_Avoid_ : compte supprimé
+
+**Journal** :
+Historique des actions qui touchent à l'argent ou à la présence : qui a fait quoi, et quand. Seul le propriétaire le consulte.
+_Avoid_ : log, audit, historique
 
 **Élève** :
 Personne inscrite dans un ou plusieurs groupes du centre.
