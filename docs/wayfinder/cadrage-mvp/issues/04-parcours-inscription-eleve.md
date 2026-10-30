@@ -18,3 +18,4 @@ Comment un élève devient-il inscrit au centre ?
 
 - Remarque « l'inscription par email est fragile » dans [cadrage.md](../../../cadrage.md).
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8 (inscription en ligne, liste d'attente).
+- [Rôles, comptes et accès](03-roles-comptes-acces.md), Q10 : seul le propriétaire accorde un prix spécial ; la secrétaire inscrit l'élève au prix normal et le prévient.

@@ -17,3 +17,4 @@ Jusqu'où vont les modules Ressources humaines et Achats dans le MVP, et que mon
 ## Contexte
 
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8, rang 9 (tableau de bord de rentabilité).
+- [Rôles, comptes et accès](03-roles-comptes-acces.md), Q8 : la secrétaire voit les achats, mais ni les ressources humaines ni le tableau de bord de rentabilité.

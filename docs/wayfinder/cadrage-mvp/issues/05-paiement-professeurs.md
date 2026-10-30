@@ -20,3 +20,4 @@ Selon quelles règles SchoolHub calcule-t-il la rémunération des professeurs ?
 - Absent du cahier des charges, ajouté par les remarques de [cadrage.md](../../../cadrage.md).
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8, rang 2 : c'est « la 2ᵉ question du propriétaire » après celle des impayés.
 - [Séances, présence et rattrapage](02-seances-presence-rattrapage.md), Q8 : un élève en rattrapage paie dans son groupe d'origine. Le professeur qui l'accueille est-il payé pour lui ?
+- [Rôles, comptes et accès](03-roles-comptes-acces.md) : les professeurs n'ont pas de compte, et la secrétaire ne voit pas leur rémunération. Comment le professeur reçoit-il sa fiche ?

@@ -11,7 +11,7 @@ Plateforme de gestion pour les centres d'étude tunisiens : un centre y gère se
 _Avoid_ : école, établissement
 
 **Propriétaire** :
-Personne qui possède le centre, seule ou avec des associés : un centre peut avoir plusieurs propriétaires, tous avec les mêmes droits. Il a accès à tout, y compris aux ressources humaines, aux comptes des employés et au journal.
+Personne qui possède le centre, seule ou avec des associés : un centre peut avoir plusieurs propriétaires, tous avec les mêmes droits, et un propriétaire ne possède qu'un centre. Il a accès à tout, y compris aux ressources humaines, aux comptes des employés et au journal.
 _Avoid_ : super admin, gérant, directeur
 
 **Secrétaire** :
