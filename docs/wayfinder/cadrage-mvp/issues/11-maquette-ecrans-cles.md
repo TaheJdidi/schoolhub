@@ -15,6 +15,7 @@ Blocked by: 01, 02, 03, 10
 - fiche groupe : présence de la séance du jour et code couleur des élèves ;
 - feuille d'appel imprimable ([Séances, présence et rattrapage](02-seances-presence-rattrapage.md), Q11) ;
 - formulaire public d'inscription et liste des demandes ([Parcours d'inscription d'un élève](04-parcours-inscription-eleve.md)) ;
+- parts des professeurs à payer, avec la case « payée » ([Paiement des professeurs](05-paiement-professeurs.md)) ;
 - encaissement groupé et reçu ;
 - fiche élève : ses inscriptions, paiements et présences ;
 - bibliothèque : liste du jour ;

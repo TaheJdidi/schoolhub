@@ -144,8 +144,12 @@ _Avoid_ : transfert, mutation
 
 ### La rémunération des professeurs
 
+**Montant du groupe** :
+Somme de ce que les élèves d'un groupe doivent pour un Mois, ou pour toute une Révision ou Formation, prix spéciaux compris, qu'ils aient payé ou non. Le professeur reçoit ce montant moins la part du centre.
+_Avoid_ : chiffre, recette, encaissé
+
 **Part du centre** :
-Pourcentage que le centre garde sur ce que paient les élèves d'un groupe, par exemple 5 %. Le reste revient au professeur.
+Pourcentage que le centre garde sur le montant du groupe, par exemple 5 %. Le reste revient au professeur.
 _Avoid_ : commission, marge
 
 **Avance** :
