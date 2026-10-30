@@ -20,6 +20,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 <!-- une ligne par ticket résolu : [titre](lien) : résumé de la réponse en une ligne -->
 
 - [Programmes, inscriptions et tarification](issues/01-programmes-inscriptions-tarification.md) : pas de Programme, une inscription relie un élève à un groupe de type Étude, Révision ou Formation ; Étude payée par Mois de 4 séances communs au groupe ; Révision à la séance (total ÷ séances) ou en totalité ; Formation en une fois ou en tranches ; ni paiement partiel ni remboursement ; orange à k+1, rouge à k+2.
+- [Séances, présence et rattrapage](issues/02-seances-presence-rattrapage.md) : séances créées depuis l'horaire du groupe ; annuler, déplacer, ajouter une séance ou changer l'horaire ; appel sur la plateforme ou sur feuille imprimée, élèves présents par défaut ; rattrapage chez le même professeur, même matière et même niveau, payé dans le groupe d'origine ; groupe fermé gardé avec son historique ; ni jours fériés, ni QR code, ni professeur remplaçant.
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
@@ -31,6 +32,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Planning des salles** et détection des conflits d'horaire entre groupes, salles et professeurs.
 - **Paiement en ligne des familles** (Konnect, Flouci, D17) : l'étude le juge utile plus tard, l'espèce dominant.
 - **Exploitation** : sauvegardes, supervision, support du centre pilote.
+- **Jours fériés et vacances scolaires** : un calendrier de fermeture du centre qui annulerait les séances concernées. Écarté pour le moment par le [ticket 02](issues/02-seances-presence-rattrapage.md) : la secrétaire annule ou déplace les séances à la main.
 
 ## Hors périmètre
 
@@ -38,3 +40,4 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Grille tarifaire, stratégie commerciale et e-facture TTN des abonnements** : ils concernent la société qui vend SchoolHub, pas le dossier de développement. Les pistes de prix sont dans l'[étude de l'existant](../../../research/etude-de-l-existant.md), section 7.
 - **[Cadre légal tunisien](issues/08-cadre-legal-tunisien.md)** (données des mineurs, hébergement, reçus et facture électronique, licence des centres) : pas d'étude juridique ou réglementaire, le projet avance dans tous les cas (décision du 28/10/2026).
 - **Alias d'enseignants pour masquer leur identité** : proposés par l'étude à cause du décret 2015-1619. Non retenus, car ils serviraient à contourner une réglementation. La question de ne pas demander certains identifiants (CIN, matricule) reste dans [Parcours d'inscription d'un élève](issues/04-parcours-inscription-eleve.md).
+- **Pointage des élèves par QR code ou par badge** : proposé par l'étude (rang 6), écarté par le [ticket 02](issues/02-seances-presence-rattrapage.md) ; l'appel se fait sur la plateforme ou sur une feuille d'appel.

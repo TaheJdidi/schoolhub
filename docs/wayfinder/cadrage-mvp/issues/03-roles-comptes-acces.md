@@ -19,3 +19,4 @@ Qui se connecte à SchoolHub, et que peut voir et faire chacun ?
 
 - Tour 1, Q3 de [cadrage.md](../../../cadrage.md).
 - [Étude de l'existant](../../../../research/etude-de-l-existant.md), section 8 (portail parent par lien, journal d'audit).
+- [Séances, présence et rattrapage](02-seances-presence-rattrapage.md) : décider qui peut annuler, déplacer ou ajouter une séance, changer l'horaire d'un groupe, faire l'appel (le professeur a-t-il un compte ?) et corriger une présence.

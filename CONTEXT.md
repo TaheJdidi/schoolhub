@@ -32,6 +32,10 @@ _Avoid_ : étudiant, apprenant
 Ensemble d'élèves qui suivent les séances d'un même professeur, en général sur un horaire hebdomadaire, par exemple « Groupe Lundi 8h→10h ». Chaque groupe a un type (Étude, Révision ou Formation), une matière et un niveau, facultatif pour une Formation.
 _Avoid_ : classe, section, programme
 
+**Groupe fermé** :
+Groupe arrêté en cours d'année. Il n'apparaît plus dans la liste des groupes, mais son historique (séances, présences, paiements, reçus) reste consultable.
+_Avoid_ : groupe supprimé, groupe effacé
+
 **Type de groupe** :
 Catégorie d'un groupe : Étude, Révision ou Formation. Elle détermine comment ses élèves peuvent payer.
 _Avoid_ : section, espace, catégorie

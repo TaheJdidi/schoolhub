@@ -2,7 +2,7 @@
 
 Type: grilling
 Mode: HITL
-Status: claimed (Taha)
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -23,7 +23,7 @@ Comment les **Séances** sont-elles créées, et comment la **Présence** et le 
 
 ## Avancement
 
-> Grilling commencé le 30/10/2026. [CONTEXT.md](../../../../CONTEXT.md) est à jour avec les décisions prises.
+> Grilling terminé le 30/10/2026 : toutes les questions sont tranchées, et la synthèse est dans « Réponse », en bas du ticket. [CONTEXT.md](../../../../CONTEXT.md) est à jour.
 
 ### Décisions prises (tour 1, 30/10/2026)
 
@@ -60,11 +60,58 @@ La recommandation est donnée après ➡️.
 - **Q15. Révision payée à la séance : une séance manquée ne se paie pas.** L'élève ne paie que les séances où il est présent ; c'est l'inverse de l'Étude, où la séance manquée compte. Conséquence de Q8 : une séance rattrapée dans un autre groupe se paie dans son propre groupe.
 - **Q16. Fermeture d'un groupe** : le groupe est retiré de la liste des groupes, et les élèves qui veulent continuer passent dans d'autres groupes (changement de groupe, Q9 et Q13). Les autres arrêtent, sans remboursement.
 
-### Questions ouvertes (tour 4)
+### Décisions prises (tour 4, 30/10/2026)
 
-- **Q17. « Effacer » un groupe fermé** : (a) supprimer le groupe avec tout son historique ; (b) le retirer de la liste des groupes actifs, mais garder son historique (séances, présences, paiements, reçus) consultable. ➡️ (b). Les paiements et les reçus doivent rester, sinon la caisse et les bilans deviennent faux.
+- **Q17. Un groupe fermé garde son historique.** « Effacer » un groupe veut dire le retirer de la liste des groupes actifs ; ses séances, présences, paiements et reçus restent consultables. C'est un **groupe fermé**. L'autre option, supprimer le groupe avec tout son historique, est écartée : la caisse et les bilans deviendraient faux.
 
 ### Questions du tour 3 (répondues le 30/10/2026)
 
 - **Q15. Révision payée à la séance, élève absent** : doit-il payer la séance qu'il a manquée ? ➡️ Oui, comme pour l'Étude : la séance a eu lieu, elle se paie. S'il la rattrape dans un autre groupe, il la paie quand même dans son groupe (Q8).
 - **Q16. Fermeture d'un groupe en cours d'année** (trop peu d'élèves, professeur qui part) : que deviennent ses élèves ? ➡️ Chaque élève qui continue fait un changement de groupe (Q9 et Q13), qui garde la valeur de ses séances payées. Pour celui qui arrête, l'inscription s'arrête, sans remboursement.
+
+## Réponse
+
+Résolu le 30/10/2026, par grilling. Le détail des échanges est dans « Avancement » ci-dessus ; le vocabulaire est dans [CONTEXT.md](../../../../CONTEXT.md).
+
+### Séances
+
+- **Créées automatiquement** à partir du ou des créneaux hebdomadaires du groupe. Étude : de la date de début du groupe jusqu'à la fin de l'année scolaire fixée par le centre. Révision et Formation : jusqu'au nombre de séances prévu. Les dates irrégulières d'une Révision se saisissent à la main, à la création du groupe.
+- **Quatre actions** : annuler (avec un motif), déplacer (une annulation et une séance de remplacement en une seule action), ajouter une séance supplémentaire, changer l'horaire du groupe à partir d'une date. Le changement d'horaire couvre aussi le Ramadan.
+- **Message WhatsApp** (lien `wa.me`) préparé pour les parents du groupe à chaque annulation ou déplacement.
+- **Pas de gestion des jours fériés ni des vacances** : ni calendrier, ni annulation groupée. Un jour férié peut même accueillir une séance déplacée.
+- **Pas de professeur remplaçant** : si le professeur est absent, la séance est annulée, puis éventuellement remplacée.
+
+### Appel et présence
+
+- **Sur la plateforme** (téléphone ou ordinateur) **ou sur une feuille d'appel** que la secrétaire imprime à tout moment. La feuille porte le nom du groupe et, pour chaque élève, le nom, le prénom, la présence et une signature, avec des lignes vides pour les élèves en rattrapage. Elle ne montre ni téléphone ni paiement.
+- **Tous les élèves sont présents par défaut** : on ne marque que les absents.
+- **Chaque séance est « appel fait » ou « appel à faire »** : la secrétaire voit les appels à faire et recopie les feuilles dès leur retour. Une séance non annulée compte à sa date, même sans appel.
+- **Les corrections sont possibles à tout moment** et tracées (qui, quand, ancienne valeur), visibles par le propriétaire.
+- **Message WhatsApp** proposé aux parents des absents après l'appel.
+- **Pas de pointage par QR code ni par badge.**
+
+### Absence et rattrapage
+
+- **Étude** : une séance manquée compte. **Révision payée à la séance** : une séance manquée ne se paie pas.
+- **Rattrapage** dans un groupe du même professeur, de la même matière et du même niveau. Il compense une seule séance précise, déjà manquée ou à venir, sans délai.
+- **Le paiement reste dans le groupe d'origine.** L'élève en rattrapage n'entre ni dans le badge « groupe payé » ni dans le code couleur du groupe d'accueil, et il apparaît à part dans son appel.
+
+### Groupes
+
+- **Matière et niveau** : chaque groupe a une matière et un niveau. Le niveau vient d'une liste fixe des niveaux scolaires tunisiens, que le centre peut compléter ; il est facultatif pour une Formation, et il n'y en a qu'un par groupe.
+- **Changement de groupe** entre groupes du même type, même avec un autre professeur. La valeur des séances payées et non suivies est déduite de ce que l'élève doit dans le nouveau groupe, et le surplus est reporté sur ses paiements suivants. Pas de remboursement.
+- **Groupe fermé** : retiré de la liste des groupes, avec son historique conservé. Les élèves qui continuent changent de groupe ; les autres arrêtent, sans remboursement.
+
+### Renvoyé à d'autres tickets
+
+- **[Rôles, comptes et accès](03-roles-comptes-acces.md)** : qui peut annuler, déplacer ou ajouter une séance, changer l'horaire d'un groupe, faire l'appel (le professeur a-t-il un compte ?) et corriger une présence.
+- **[Paiement des professeurs](05-paiement-professeurs.md)** : rémunération du professeur qui accueille un élève en rattrapage.
+- **[Maquette des écrans clés](11-maquette-ecrans-cles.md)** : mise en page de la feuille d'appel.
+
+### Écarté
+
+- Calendrier des jours fériés et des vacances scolaires, pour le moment.
+- Annulation groupée des séances.
+- Pointage par QR code ou par badge.
+- Professeur remplaçant.
+- Suppression d'un groupe avec son historique.
