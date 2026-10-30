@@ -31,7 +31,7 @@ Historique des actions qui touchent à l'argent ou à la présence : qui a fait 
 _Avoid_ : log, audit, historique
 
 **Élève** :
-Personne inscrite dans un ou plusieurs groupes du centre.
+Personne inscrite dans un ou plusieurs groupes du centre, ou qui vient seulement à la bibliothèque.
 _Avoid_ : étudiant, apprenant
 
 **Parent** :
@@ -95,6 +95,14 @@ _Avoid_ : séance de rattrapage
 **Séance supplémentaire** :
 Séance ajoutée en plus des séances prévues, par exemple avant un examen. Elle est offerte et ne compte pas dans le Mois.
 _Avoid_ : séance bonus, séance de rattrapage
+
+**Bibliothèque** :
+Salle où les élèves viennent réviser seuls, en payant une entrée à la journée. Elle est ouverte aux élèves des groupes comme à des personnes de l'extérieur.
+_Avoid_ : salle de révision, salle d'étude
+
+**Entrée à la journée** :
+Droit de venir à la bibliothèque pour une journée, payé en arrivant. La secrétaire note l'heure d'arrivée et l'heure de départ.
+_Avoid_ : ticket, abonnement, séance
 
 ### Le suivi des élèves
 
