@@ -29,7 +29,7 @@ _Avoid_ : étudiant, apprenant
 ### L'offre d'enseignement
 
 **Groupe** :
-Ensemble d'élèves qui suivent les séances d'un même professeur sur un horaire hebdomadaire fixe, par exemple « Groupe Lundi 8h→10h ». Chaque groupe est de type Étude, Révision ou Formation.
+Ensemble d'élèves qui suivent les séances d'un même professeur, en général sur un horaire hebdomadaire, par exemple « Groupe Lundi 8h→10h ». Chaque groupe est de type Étude, Révision ou Formation.
 _Avoid_ : classe, section, programme
 
 **Type de groupe** :
@@ -47,6 +47,10 @@ _Avoid_ : espace révision, stage
 **Formation** :
 Type de groupe dont le prix et le nombre de séances sont fixés à l'avance, par exemple une formation en informatique.
 _Avoid_ : espace formation, atelier
+
+**Niveau** :
+Classe scolaire que vise un groupe, par exemple 9ᵉ année de base ou 4ᵉ année secondaire, section mathématiques.
+_Avoid_ : classe, année
 
 **Mode de tarification** :
 Manière dont un élève paie son inscription. Le type de groupe fixe les choix possibles : chaque Mois pour une Étude ; à la séance ou en une fois pour une Révision ; en une fois ou en tranches pour une Formation.
@@ -98,6 +102,18 @@ _Avoid_ : versement, règlement
 Statut d'un élève à une séance : présent ou absent.
 _Avoid_ : pointage, assiduité
 
+**Appel** :
+Relevé de la présence des élèves à une séance, fait sur la plateforme ou sur une feuille d'appel. Un élève est présent sauf s'il est marqué absent.
+_Avoid_ : pointage, contrôle
+
+**Feuille d'appel** :
+Liste imprimée depuis la plateforme des élèves d'un groupe et des séances d'une période, par exemple les 4 séances du Mois 2, pour faire l'appel sur papier.
+_Avoid_ : cahier d'appel, liste de présence
+
 **Rattrapage** :
-Participation d'un élève à une séance d'un autre groupe que le sien, en général après une absence.
+Participation d'un élève à une séance d'un autre groupe du même professeur et du même niveau, à la place d'une séance de son groupe qu'il manque. L'élève continue de payer dans son propre groupe.
 _Avoid_ : remplacement, changement de séance
+
+**Changement de groupe** :
+Passage définitif d'un élève d'un groupe à un autre du même type. Les séances déjà payées et non suivies dans l'ancien groupe sont déduites de ce qu'il doit dans le nouveau.
+_Avoid_ : transfert, mutation
