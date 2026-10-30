@@ -26,6 +26,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - [Paiement des professeurs](issues/05-paiement-professeurs.md) : au pourcentage seulement ; le centre garde sa part (par exemple 5 %, modifiable par professeur) sur le montant du groupe, payé ou non, et le professeur reçoit le reste après chaque Mois, ou à la fin d'une Révision ou d'une Formation ; avances déduites ; le propriétaire marque chaque part payée ou non, sans fiche détaillée.
 - [Bibliothèque](issues/06-bibliotheque.md) : ouverte aux élèves des groupes et à l'extérieur ; une seule formule, l'entrée à la journée payée en arrivant, au même prix pour tous et sans prix spécial ; liste du jour avec l'heure d'arrivée et, si elle est connue, l'heure de départ ; capacité qui prévient sans bloquer.
 - [RH, achats et tableau de bord](issues/07-rh-achats-tableau-de-bord.md) : RH simples (fiche, horaires, congés notés par le propriétaire, salaire marqué payé chaque mois), sans les professeurs ; achats Matériel ou Service avec totaux, sans répétition automatique ; tableau de bord du propriétaire par mois ou par année : encaissé, impayés, dépenses, bénéfice et détail par groupe.
+- [Caisse et reçus](issues/10-caisse-recus.md) : espèces seulement ; encaissement par élève ou groupé, un reçu par élève, numéroté et jamais supprimé ; reçu imprimé, envoyé par un message WhatsApp qui reprend son contenu, ou par email ; annulation par la secrétaire le jour même, ensuite par le propriétaire ; clôture de caisse chaque soir avec écart, contrôlée par le propriétaire.
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
@@ -39,6 +40,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Arabe** : faut-il des reçus et messages bilingues FR/AR dès le MVP, avant l'interface en arabe ? L'étude classe ce point 5ᵉ sur 15 améliorations.
 - **Planning des salles** et détection des conflits d'horaire entre groupes, salles et professeurs.
 - **Paiement en ligne des familles** (Konnect, Flouci, D17) : l'étude le juge utile plus tard, l'espèce dominant.
+- **Chèque, virement et D17** : seules les espèces sont gérées dans le MVP ([ticket 10](issues/10-caisse-recus.md)).
 - **Exploitation** : sauvegardes, supervision, support du centre pilote.
 - **Jours fériés et vacances scolaires** : un calendrier de fermeture du centre qui annulerait les séances concernées. Écarté pour le moment par le [ticket 02](issues/02-seances-presence-rattrapage.md) : la secrétaire annule ou déplace les séances à la main.
 

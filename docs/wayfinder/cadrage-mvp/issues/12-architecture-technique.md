@@ -19,6 +19,7 @@ Quelle architecture pour un SaaS multi-centres en Angular 22 et .NET 10 ?
 - **Photos des factures d'achat**, facultatives, jointes à chaque achat. Voir [RH, achats et tableau de bord](07-rh-achats-tableau-de-bord.md).
 - **Arabe** : écriture de droite à gauche dans Angular, documents bilingues.
 - **Notifications** : abstraction d'envoi (liens `wa.me` et email dans le MVP, puis API WhatsApp et SMS), reçus PDF servis par URL à jeton. Voir [Canaux de notification en Tunisie](09-canaux-notification.md).
+- **Reçus** : numérotation sans trou par centre, PDF au format A5 pour l'impression et l'email, texte complet pour le message WhatsApp (sans lien vers le PDF). Voir [Caisse et reçus](10-caisse-recus.md).
 - **Sauvegardes, journal d'audit, reprise après incident.**
 
 Chaque décision difficile à défaire donne un ADR dans `docs/adr/`.

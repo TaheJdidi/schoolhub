@@ -18,6 +18,7 @@ Blocked by: 01, 02, 03, 10
 - parts des professeurs à payer, avec la case « payée » ([Paiement des professeurs](05-paiement-professeurs.md)) ;
 - tableau de bord du propriétaire ([RH, achats et tableau de bord](07-rh-achats-tableau-de-bord.md)) ;
 - encaissement groupé et reçu ;
+- remise du reçu au choix (impression, WhatsApp ou email) et clôture de caisse du soir ([Caisse et reçus](10-caisse-recus.md)) ;
 - fiche élève : ses inscriptions, paiements et présences ;
 - bibliothèque : liste du jour ;
 - version mobile pour la secrétaire.

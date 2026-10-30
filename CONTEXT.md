@@ -131,7 +131,7 @@ Somme annuelle payée au centre par les élèves des groupes d'Étude. Chaque ce
 _Avoid_ : cotisation
 
 **Paiement** :
-Somme encaissée par le centre auprès d'un élève, pour une inscription ou pour l'assurance.
+Somme en espèces encaissée par le centre auprès d'un élève, pour une inscription, pour l'assurance ou pour une entrée à la bibliothèque.
 _Avoid_ : versement, règlement
 
 **Impayé** :
@@ -157,6 +157,28 @@ _Avoid_ : remplacement, changement de séance
 **Changement de groupe** :
 Passage définitif d'un élève d'un groupe à un autre du même type. Les séances déjà payées et non suivies dans l'ancien groupe sont déduites de ce qu'il doit dans le nouveau.
 _Avoid_ : transfert, mutation
+
+### La caisse
+
+**Encaissement groupé** :
+Enregistrement en une seule action des paiements de plusieurs élèves d'un groupe pour le Mois en cours, avec un reçu par élève.
+_Avoid_ : paiement de masse
+
+**Reçu** :
+Preuve d'un paiement, numérotée à la suite pour tout le centre, jamais supprimée ni modifiée. Il se remet imprimé, par un message WhatsApp qui en reprend le contenu, ou par email.
+_Avoid_ : facture, ticket, bon
+
+**Reçu annulé** :
+Reçu qui reste visible avec la mention « annulé » et un motif. La secrétaire peut annuler le jour même, avant sa clôture ; ensuite, seul le propriétaire le peut.
+_Avoid_ : reçu supprimé
+
+**Caisse** :
+Espèces encaissées par une secrétaire dans la journée, moins les achats qu'elle a payés en espèces (sorties de caisse).
+_Avoid_ : tiroir, trésorerie
+
+**Clôture de caisse** :
+Comptage des espèces que fait chaque secrétaire le soir. La plateforme compare le montant compté aux espèces attendues et garde l'écart ; le propriétaire marque « argent reçu » quand il récupère les espèces.
+_Avoid_ : fermeture, arrêté de caisse
 
 ### La rémunération des professeurs
 
