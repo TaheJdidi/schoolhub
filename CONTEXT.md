@@ -29,7 +29,7 @@ _Avoid_ : étudiant, apprenant
 ### L'offre d'enseignement
 
 **Groupe** :
-Ensemble d'élèves qui suivent les séances d'un même professeur, en général sur un horaire hebdomadaire, par exemple « Groupe Lundi 8h→10h ». Chaque groupe est de type Étude, Révision ou Formation.
+Ensemble d'élèves qui suivent les séances d'un même professeur, en général sur un horaire hebdomadaire, par exemple « Groupe Lundi 8h→10h ». Chaque groupe a un type (Étude, Révision ou Formation), une matière et un niveau, facultatif pour une Formation.
 _Avoid_ : classe, section, programme
 
 **Type de groupe** :
@@ -47,6 +47,10 @@ _Avoid_ : espace révision, stage
 **Formation** :
 Type de groupe dont le prix et le nombre de séances sont fixés à l'avance, par exemple une formation en informatique.
 _Avoid_ : espace formation, atelier
+
+**Matière** :
+Discipline enseignée dans un groupe, par exemple les mathématiques, la physique ou l'informatique.
+_Avoid_ : sujet, cours
 
 **Niveau** :
 Classe scolaire que vise un groupe, par exemple 9ᵉ année de base ou 4ᵉ année secondaire, section mathématiques.
@@ -111,7 +115,7 @@ Liste imprimée depuis la plateforme des élèves d'un groupe et des séances d'
 _Avoid_ : cahier d'appel, liste de présence
 
 **Rattrapage** :
-Participation d'un élève à une séance d'un autre groupe du même professeur et du même niveau, à la place d'une séance de son groupe qu'il manque. L'élève continue de payer dans son propre groupe.
+Participation d'un élève à une séance d'un autre groupe du même professeur, de la même matière et du même niveau, à la place d'une séance de son groupe qu'il manque. L'élève continue de payer dans son propre groupe.
 _Avoid_ : remplacement, changement de séance
 
 **Changement de groupe** :
