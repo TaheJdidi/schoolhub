@@ -141,3 +141,13 @@ _Avoid_ : remplacement, changement de séance
 **Changement de groupe** :
 Passage définitif d'un élève d'un groupe à un autre du même type. Les séances déjà payées et non suivies dans l'ancien groupe sont déduites de ce qu'il doit dans le nouveau.
 _Avoid_ : transfert, mutation
+
+### La rémunération des professeurs
+
+**Part du centre** :
+Pourcentage que le centre garde sur ce que paient les élèves d'un groupe, par exemple 5 %. Le reste revient au professeur.
+_Avoid_ : commission, marge
+
+**Avance** :
+Somme versée à un professeur avant qu'il ait droit à sa part. Elle est déduite de son paiement suivant.
+_Avoid_ : prêt, acompte
