@@ -94,6 +94,10 @@ _Avoid_ : séance bonus, séance de rattrapage
 
 ### Le suivi des élèves
 
+**Demande d'inscription** :
+Formulaire envoyé depuis le lien public du centre par un élève qui veut s'inscrire. Ce n'est pas encore une inscription : la secrétaire enregistre ensuite l'élève à la main.
+_Avoid_ : pré-inscription, candidature
+
 **Inscription** :
 Rattachement d'un élève à un groupe. Elle reçoit les paiements. Un élève peut avoir plusieurs inscriptions, dans des groupes de professeurs différents.
 _Avoid_ : abonnement, adhésion
