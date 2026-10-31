@@ -6,7 +6,7 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 
 ## Notes
 
-- **Domaine** : gestion de centres d'étude en Tunisie, en SaaS multi-centres. Un centre pilote est disponible. Monnaie : TND. Français d'abord, arabe (droite à gauche) prévu dès la conception.
+- **Domaine** : gestion de centres d'étude en Tunisie, en SaaS multi-centres. Un centre pilote est disponible. Monnaie : TND. Français seulement ([ticket 12](issues/12-architecture-technique.md), Q6).
 - **Technologies imposées** : Angular 22 (front-end), .NET 10 (back-end).
 - **Décisions de départ** : voir [cadrage.md, Décisions prises](../../cadrage.md#décisions-prises).
 - **Étude de marché** : [etude-de-l-existant.md](../../../research/etude-de-l-existant.md). À relire avant chaque ticket : elle donne les pratiques des concurrents et les contraintes tunisiennes.
@@ -19,17 +19,29 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 
 <!-- une ligne par ticket résolu : [titre](lien) : résumé de la réponse en une ligne -->
 
+- [Programmes, inscriptions et tarification](issues/01-programmes-inscriptions-tarification.md) : pas de Programme, une inscription relie un élève à un groupe de type Étude, Révision ou Formation ; Étude payée par Mois de 4 séances communs au groupe ; Révision à la séance (total ÷ séances) ou en totalité ; Formation en une fois ou en tranches ; ni paiement partiel ni remboursement ; orange à k+1, rouge à k+2.
+- [Séances, présence et rattrapage](issues/02-seances-presence-rattrapage.md) : séances créées depuis l'horaire du groupe ; annuler, déplacer, ajouter une séance ou changer l'horaire ; appel sur la plateforme ou sur feuille imprimée, élèves présents par défaut ; rattrapage chez le même professeur, même matière et même niveau, payé dans le groupe d'origine ; groupe fermé gardé avec son historique ; ni jours fériés, ni QR code, ni professeur remplaçant.
+- [Rôles, comptes et accès](issues/03-roles-comptes-acces.md) : deux rôles fixes, Propriétaire (plusieurs possibles, un seul centre chacun) et Secrétaire ; un compte par centre ; ni professeurs ni familles connectés dans le MVP ; seul le propriétaire accorde un prix spécial et consulte le journal ; comptes désactivés, jamais supprimés.
+- [Parcours d'inscription d'un élève](issues/04-parcours-inscription-eleve.md) : au guichet, ou par un formulaire public (lien et QR code) qui crée une demande d'inscription, enregistrée ensuite à la main ; amis cités pour être dans le même groupe ; parent, niveau, téléphone et email de l'élève (dès le collège) obligatoires ; ni fratrie ni liste d'attente ; capacité de groupe qui prévient sans bloquer.
+- [Paiement des professeurs](issues/05-paiement-professeurs.md) : au pourcentage seulement ; le centre garde sa part (par exemple 5 %, modifiable par professeur) sur le montant du groupe, payé ou non, et le professeur reçoit le reste après chaque Mois, ou à la fin d'une Révision ou d'une Formation ; avances déduites ; le propriétaire marque chaque part payée ou non, sans fiche détaillée.
+- [Bibliothèque](issues/06-bibliotheque.md) : ouverte aux élèves des groupes et à l'extérieur ; une seule formule, l'entrée à la journée payée en arrivant, au même prix pour tous et sans prix spécial ; liste du jour avec l'heure d'arrivée et, si elle est connue, l'heure de départ ; capacité qui prévient sans bloquer.
+- [RH, achats et tableau de bord](issues/07-rh-achats-tableau-de-bord.md) : RH simples (fiche, horaires, congés notés par le propriétaire, salaire marqué payé chaque mois), sans les professeurs ; achats Matériel ou Service avec totaux, sans répétition automatique ; tableau de bord du propriétaire par mois ou par année : encaissé, impayés, dépenses, bénéfice et détail par groupe.
+- [Caisse et reçus](issues/10-caisse-recus.md) : espèces seulement ; encaissement par élève ou groupé, un reçu par élève, numéroté et jamais supprimé ; reçu imprimé, envoyé par un message WhatsApp qui reprend son contenu, ou par email ; annulation par la secrétaire le jour même, ensuite par le propriétaire ; clôture de caisse chaque soir avec écart, contrôlée par le propriétaire.
+- [Maquette des écrans clés](issues/11-maquette-ecrans-cles.md) : maquette cliquable validée le 31/10/2026 ([docs/maquette/index.html](../../maquette/index.html)) ; accueil « Aujourd'hui » (séances du jour), professeurs et groupes dans le menu, recherche d'un élève toujours en haut ; secrétaire ou propriétaire, ordinateur ou téléphone.
+- [Architecture technique](issues/12-architecture-technique.md) : une seule application .NET 10 qui sert Angular 22, découpée en modules, à une seule adresse ; une base PostgreSQL partagée avec filtre par centre ; ASP.NET Core Identity ; PWA sans hors connexion ; français seulement ; Azure région France (≈ 30-40 $/mois) ; production seule, mise en production manuelle ; sauvegardes 7 jours ; alertes à Taha et Lassad. ADR 0001 à 0005.
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
 
-- **Fonctionnement hors connexion** : appel saisi hors ligne puis synchronisé (PWA). Coût élevé selon l'étude ; à revoir une fois l'architecture choisie.
-- **Application mobile ou web responsive seulement** : pour la secrétaire, les professeurs et les parents. Dépend des rôles et de l'architecture.
+- **Compte professeur** : appel sur son téléphone, consultation de sa rémunération. Écarté pour le moment par le [ticket 03](issues/03-roles-comptes-acces.md).
+- **Portail parent par lien sécurisé** (solde, présences, reçus) : l'étude le classe 8ᵉ ; écarté du MVP par le [ticket 03](issues/03-roles-comptes-acces.md).
+- **Fratries et second contact parent** : relier frères et sœurs pour un seul message et un reçu groupé. Écarté pour le moment par le [ticket 04](issues/04-parcours-inscription-eleve.md).
 - **Reprise des données du centre pilote** : import Excel guidé et accompagnement au démarrage.
-- **Arabe** : faut-il des reçus et messages bilingues FR/AR dès le MVP, avant l'interface en arabe ? L'étude classe ce point 5ᵉ sur 15 améliorations.
 - **Planning des salles** et détection des conflits d'horaire entre groupes, salles et professeurs.
 - **Paiement en ligne des familles** (Konnect, Flouci, D17) : l'étude le juge utile plus tard, l'espèce dominant.
-- **Exploitation** : sauvegardes, supervision, support du centre pilote.
+- **Chèque, virement et D17** : seules les espèces sont gérées dans le MVP ([ticket 10](issues/10-caisse-recus.md)).
+- **Support du centre pilote** : qui répond aux questions de la secrétaire, et comment. Les sauvegardes et la surveillance sont tranchées au [ticket 12](issues/12-architecture-technique.md).
+- **Jours fériés et vacances scolaires** : un calendrier de fermeture du centre qui annulerait les séances concernées. Écarté pour le moment par le [ticket 02](issues/02-seances-presence-rattrapage.md) : la secrétaire annule ou déplace les séances à la main.
 
 ## Hors périmètre
 
@@ -37,3 +49,5 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Grille tarifaire, stratégie commerciale et e-facture TTN des abonnements** : ils concernent la société qui vend SchoolHub, pas le dossier de développement. Les pistes de prix sont dans l'[étude de l'existant](../../../research/etude-de-l-existant.md), section 7.
 - **[Cadre légal tunisien](issues/08-cadre-legal-tunisien.md)** (données des mineurs, hébergement, reçus et facture électronique, licence des centres) : pas d'étude juridique ou réglementaire, le projet avance dans tous les cas (décision du 28/10/2026).
 - **Alias d'enseignants pour masquer leur identité** : proposés par l'étude à cause du décret 2015-1619. Non retenus, car ils serviraient à contourner une réglementation. La question de ne pas demander certains identifiants (CIN, matricule) reste dans [Parcours d'inscription d'un élève](issues/04-parcours-inscription-eleve.md).
+- **Arabe** (interface, reçus, messages) : français seulement, sans préparation pour l'arabe ([ticket 12](issues/12-architecture-technique.md), Q6, 31/10/2026). L'ajouter plus tard demandera de repasser sur tous les écrans.
+- **Pointage des élèves par QR code ou par badge** : proposé par l'étude (rang 6), écarté par le [ticket 02](issues/02-seances-presence-rattrapage.md) ; l'appel se fait sur la plateforme ou sur une feuille d'appel.
