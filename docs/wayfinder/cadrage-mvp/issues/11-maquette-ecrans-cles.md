@@ -2,7 +2,7 @@
 
 Type: prototype
 Mode: HITL
-Status: claimed (Taha)
+Status: resolved
 Blocked by: 01, 02, 03, 10
 
 ## Question
@@ -33,3 +33,27 @@ La maquette est liée depuis ce ticket, pas collée dedans.
 - **Q2. Mélange retenu** : la journée (B) est la page d'accueil ; les professeurs et leurs groupes (A) sont dans le menu ; la recherche d'un élève (C) reste toujours en haut de l'écran, pour encaisser vite au guichet, sur ordinateur comme sur téléphone.
 - **Q3. Format** : une maquette cliquable, en une seule page HTML avec des données fictives, qui s'ouvre sans serveur : [docs/maquette/index.html](../../../maquette/index.html).
 - **Maquette v1 livrée le 31/10/2026** : les 11 écrans du ticket, plus l'accueil « Aujourd'hui », en rôle secrétaire ou propriétaire et en vue ordinateur ou téléphone. Données fictives (« Centre Les Jasmins »). Reste à la valider avec le centre pilote avant de résoudre le ticket.
+- **Maquette validée le 31/10/2026.**
+
+## Réponse
+
+Résolu le 31/10/2026 : la maquette v1 est validée. Elle se trouve dans [docs/maquette/index.html](../../../maquette/index.html) : une page HTML cliquable, avec des données fictives, qui s'ouvre sans serveur.
+
+- **Accueil « Aujourd'hui »** : les séances du jour, heure par heure.
+- **Professeurs et leurs groupes** dans le menu : un cadre par groupe, avec un filtre par jour.
+- **Recherche d'un élève** toujours en haut de l'écran, pour encaisser vite au guichet.
+- **Les 11 écrans du ticket** :
+  - fiche groupe, avec l'appel et le code couleur ;
+  - feuille d'appel imprimable ;
+  - formulaire public d'inscription et liste des demandes ;
+  - parts des professeurs ;
+  - tableau de bord du propriétaire ;
+  - encaissement groupé et reçu ;
+  - remise du reçu et clôture de caisse ;
+  - fiche élève ;
+  - bibliothèque ;
+  - version téléphone ;
+  - liste des professeurs.
+- **Deux rôles** (secrétaire, propriétaire) et **deux vues** (ordinateur, téléphone).
+
+La maquette sert de référence pour les [user stories du MVP](13-user-stories-mvp.md).
