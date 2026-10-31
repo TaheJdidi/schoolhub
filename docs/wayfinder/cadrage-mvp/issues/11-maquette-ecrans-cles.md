@@ -2,7 +2,7 @@
 
 Type: prototype
 Mode: HITL
-Status: open
+Status: claimed (Taha)
 Blocked by: 01, 02, 03, 10
 
 ## Question
@@ -24,3 +24,12 @@ Blocked by: 01, 02, 03, 10
 - version mobile pour la secrétaire.
 
 La maquette est liée depuis ce ticket, pas collée dedans.
+
+## Avancement
+
+### Décisions prises (tour 1, 31/10/2026)
+
+- **Q1. Trois styles comparés** sur le chemin quotidien de la secrétaire : A, par professeur (ses groupes en cadres, filtrés par jour) ; B, la journée (les séances du jour, heure par heure) ; C, le guichet (recherche d'un élève, sur téléphone).
+- **Q2. Mélange retenu** : la journée (B) est la page d'accueil ; les professeurs et leurs groupes (A) sont dans le menu ; la recherche d'un élève (C) reste toujours en haut de l'écran, pour encaisser vite au guichet, sur ordinateur comme sur téléphone.
+- **Q3. Format** : une maquette cliquable, en une seule page HTML avec des données fictives, qui s'ouvre sans serveur : [docs/maquette/index.html](../../../maquette/index.html).
+- **Maquette v1 livrée le 31/10/2026** : les 11 écrans du ticket, plus l'accueil « Aujourd'hui », en rôle secrétaire ou propriétaire et en vue ordinateur ou téléphone. Données fictives (« Centre Les Jasmins »). Reste à la valider avec le centre pilote avant de résoudre le ticket.
