@@ -22,6 +22,10 @@ _Avoid_ : admin, réceptionniste, bibliothécaire
 Personne qui anime un ou plusieurs groupes au centre. Il n'a pas de compte sur SchoolHub.
 _Avoid_ : enseignant, prof, formateur
 
+**Professeur parti** :
+Professeur qui a quitté le centre et n'a plus de groupe ouvert. Il n'apparaît plus dans la liste des professeurs, mais son historique et ses parts restent consultables.
+_Avoid_ : professeur supprimé, professeur archivé
+
 **Employé** :
 Personne qui travaille pour le centre, hors professeurs : secrétaire, agent de ménage, gardien… Elle a une fiche dans les ressources humaines, et un compte seulement si elle est secrétaire.
 _Avoid_ : salarié, personnel
@@ -39,7 +43,7 @@ Personne inscrite dans un ou plusieurs groupes du centre, ou qui vient seulement
 _Avoid_ : étudiant, apprenant
 
 **Parent** :
-Personne responsable d'un élève, que le centre contacte par WhatsApp. Chaque élève a un parent enregistré, sauf un élève majeur, pour qui il est facultatif.
+Personne responsable d'un élève, que le centre contacte par WhatsApp. Chaque élève a un parent enregistré, sauf un élève majeur, pour qui il est facultatif. Tant que l'élève est mineur, chaque message du centre part à l'élève et à son parent, ou au parent seul si l'élève n'a pas de téléphone ; un élève majeur reçoit seul ses messages.
 _Avoid_ : tuteur, responsable légal, famille
 
 ### L'offre d'enseignement
@@ -49,8 +53,16 @@ Ensemble d'élèves qui suivent les séances d'un même professeur, en général
 _Avoid_ : classe, section, programme
 
 **Groupe fermé** :
-Groupe arrêté en cours d'année. Il n'apparaît plus dans la liste des groupes, mais son historique (séances, présences, paiements, reçus) reste consultable.
+Groupe arrêté avant sa fin, par exemple en cours d'année. Il n'apparaît plus dans la liste des groupes, mais son historique (séances, présences, paiements, reçus) reste consultable.
 _Avoid_ : groupe supprimé, groupe effacé
+
+**Groupe terminé** :
+Groupe arrivé au bout : un groupe d'Étude à la fin de l'année scolaire, une Révision ou une Formation après sa dernière séance. Comme un groupe fermé, il sort de la liste des groupes et garde son historique. À la rentrée, les nouveaux groupes se créent comme au premier jour.
+_Avoid_ : groupe archivé, groupe clos
+
+**Année scolaire** :
+Période fixée par chaque centre, de la rentrée à la fin des cours, par exemple du 15/09/2027 au 30/06/2028. Les groupes d'Étude durent toute l'année scolaire, et l'assurance se paie une fois par année scolaire.
+_Avoid_ : saison, exercice
 
 **Type de groupe** :
 Catégorie d'un groupe : Étude, Révision ou Formation. Elle détermine comment ses élèves peuvent payer.
@@ -137,6 +149,10 @@ _Avoid_ : versement, règlement
 **Impayé** :
 Somme qu'un élève devait payer et n'a pas encore payée. Elle reste une perte pour le centre seul : le professeur reçoit sa part quand même.
 _Avoid_ : dette, retard
+
+**Relance** :
+Message WhatsApp préparé par la plateforme pour un élève en orange ou en rouge, et pour son parent s'il est mineur, avec ce qu'il doit. La date de la dernière relance reste visible, pour ne pas relancer deux fois.
+_Avoid_ : rappel, réclamation
 
 **Présence** :
 Statut d'un élève à une séance : présent ou absent.
