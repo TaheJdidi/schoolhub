@@ -1,0 +1,16 @@
+# PostgreSQL sur le poste du développeur (ADR 0002), même version qu'Azure.
+# Lancer : docker compose up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: schoolhub
+      POSTGRES_USER: schoolhub
+      POSTGRES_PASSWORD: schoolhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - donnees-postgres:/var/lib/postgresql/data
+
+volumes:
+  donnees-postgres:
