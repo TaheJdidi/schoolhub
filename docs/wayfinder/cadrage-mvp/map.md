@@ -4,6 +4,8 @@
 
 Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [cahier des charges](../../cahier-des-charges.md) : glossaire ([CONTEXT.md](../../../CONTEXT.md)), user stories par ordre de priorité, maquette des écrans clés validée, architecture avec ADR, estimation et plan de livraison.
 
+> **Destination atteinte le 01/11/2026** : tous les tickets sont résolus ou hors périmètre. Les user stories sont rangées dans l'ordre de construction plutôt que par priorité ([ticket 13](issues/13-user-stories-mvp.md)), et l'estimation est mise de côté ([ticket 14](issues/14-estimation-plan-livraison.md)).
+
 ## Notes
 
 - **Domaine** : gestion de centres d'étude en Tunisie, en SaaS multi-centres. Un centre pilote est disponible. Monnaie : TND. Français seulement ([ticket 12](issues/12-architecture-technique.md), Q6).
@@ -29,7 +31,8 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - [Caisse et reçus](issues/10-caisse-recus.md) : espèces seulement ; encaissement par élève ou groupé, un reçu par élève, numéroté et jamais supprimé ; reçu imprimé, envoyé par un message WhatsApp qui reprend son contenu, ou par email ; annulation par la secrétaire le jour même, ensuite par le propriétaire ; clôture de caisse chaque soir avec écart, contrôlée par le propriétaire.
 - [Maquette des écrans clés](issues/11-maquette-ecrans-cles.md) : maquette cliquable validée le 31/10/2026 ([docs/maquette/index.html](../../maquette/index.html)) ; accueil « Aujourd'hui » (séances du jour), professeurs et groupes dans le menu, recherche d'un élève toujours en haut ; secrétaire ou propriétaire, ordinateur ou téléphone.
 - [Architecture technique](issues/12-architecture-technique.md) : une seule application .NET 10 qui sert Angular 22, découpée en modules, à une seule adresse ; une base PostgreSQL partagée avec filtre par centre ; ASP.NET Core Identity ; PWA sans hors connexion ; français seulement ; Azure région France (≈ 30-40 $/mois) ; production seule, mise en production manuelle ; sauvegardes 7 jours ; alertes à Taha et Lassad. ADR 0001 à 0005.
-- [User stories du MVP](issues/13-user-stories-mvp.md) : 78 stories en 12 épopées dans [docs/user-stories/](../../user-stories/README.md), plus des exigences communes et des travaux techniques ; une seule livraison complète pour la rentrée 2027-2028, sans priorité ; démarrage en cours d'année sans recopier le passé ; groupes terminés en fin d'année ; montants au millime ; ce qui a commencé garde l'ancien prix ; messages à l'élève, et aussi à son parent s'il est mineur.
+- [User stories du MVP](issues/13-user-stories-mvp.md) : 78 stories en 12 épopées dans [docs/user-stories/](../../user-stories/README.md), plus des exigences communes et des travaux techniques ; une seule livraison complète, sans priorité ; démarrage en cours d'année sans recopier le passé ; groupes terminés en fin d'année ; montants au millime ; ce qui a commencé garde l'ancien prix ; messages à l'élève, et aussi à son parent s'il est mineur.
+- [Estimation et plan de livraison](issues/14-estimation-plan-livraison.md) : Lassad et Taha développent avec Claude, sans heures fixes ; le plus tôt possible et avant juin 2027, quand commence la saison des Révisions, des Formations d'été et de la bibliothèque ; pas d'estimation ni de date pour le moment ; une seule livraison, tout testé avant ; pas de démonstration ni d'essai ; contacts Lassad et Taha, erreur bloquante corrigée le jour même. Plan dans [docs/plan-de-livraison.md](../../plan-de-livraison.md).
 - [Canaux de notification en Tunisie](issues/09-canaux-notification.md) : MVP en liens `wa.me` manuels plus email (0 TND), API WhatsApp (≈ 8-17 TND/mois) et SMS local en V2 ; WhatsApp ou Messenger reste à confirmer avec le pilote.
 
 ## Pas encore spécifié
@@ -37,11 +40,9 @@ Un dossier prêt à développer pour le MVP de SchoolHub, qui couvre tout le [ca
 - **Compte professeur** : appel sur son téléphone, consultation de sa rémunération. Écarté pour le moment par le [ticket 03](issues/03-roles-comptes-acces.md).
 - **Portail parent par lien sécurisé** (solde, présences, reçus) : l'étude le classe 8ᵉ ; écarté du MVP par le [ticket 03](issues/03-roles-comptes-acces.md).
 - **Fratries et second contact parent** : relier frères et sœurs pour un seul message et un reçu groupé. Écarté pour le moment par le [ticket 04](issues/04-parcours-inscription-eleve.md).
-- **Accompagnement du centre pilote au démarrage** : l'import Excel et le démarrage en cours d'année sont tranchés par le [ticket 13](issues/13-user-stories-mvp.md) (LST-03, LST-04, GRP-07, ELV-07) ; reste à organiser la préparation des fichiers avec le centre.
 - **Planning des salles** et détection des conflits d'horaire entre groupes, salles et professeurs.
 - **Paiement en ligne des familles** (Konnect, Flouci, D17) : l'étude le juge utile plus tard, l'espèce dominant.
 - **Chèque, virement et D17** : seules les espèces sont gérées dans le MVP ([ticket 10](issues/10-caisse-recus.md)).
-- **Support du centre pilote** : qui répond aux questions de la secrétaire, et comment. Les sauvegardes et la surveillance sont tranchées au [ticket 12](issues/12-architecture-technique.md).
 - **Jours fériés et vacances scolaires** : un calendrier de fermeture du centre qui annulerait les séances concernées. Écarté pour le moment par le [ticket 02](issues/02-seances-presence-rattrapage.md) : la secrétaire annule ou déplace les séances à la main.
 
 ## Hors périmètre

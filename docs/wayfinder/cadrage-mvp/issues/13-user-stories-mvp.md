@@ -145,7 +145,7 @@ La recommandation est donnée après ➡️.
 
 ## Réponse
 
-Résolu le 01/11/2026, par grilling avec Taha. Le détail des échanges est dans « Avancement » ci-dessus ; le vocabulaire est dans [CONTEXT.md](../../../../CONTEXT.md).
+Résolu le 01/11/2026, par grilling avec Lassad et Taha. Le détail des échanges est dans « Avancement » ci-dessus ; le vocabulaire est dans [CONTEXT.md](../../../../CONTEXT.md).
 
 ### Les stories
 
@@ -155,7 +155,7 @@ Résolu le 01/11/2026, par grilling avec Taha. Le détail des échanges est dans
 
 ### Livraison
 
-- **Une seule livraison, complète, pour la rentrée scolaire 2027-2028.** Pas d'étiquette de priorité : le sommaire range les épopées dans l'ordre où on les construit.
+- **Une seule livraison, complète.** *Échéance corrigée le 01/11/2026 ([ticket 14](14-estimation-plan-livraison.md), Q2) : le plus tôt possible, et avant juin 2027, au lieu de la rentrée 2027-2028.* Pas d'étiquette de priorité : le sommaire range les épopées dans l'ordre où on les construit.
 
 ### Règles ajoutées par ce ticket
 

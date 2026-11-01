@@ -8,9 +8,11 @@
 | Besoin initial | [cahier-des-charges.md](cahier-des-charges.md) |
 | Glossaire | [CONTEXT.md](../CONTEXT.md) |
 | Carte de décisions | [wayfinder/cadrage-mvp/map.md](wayfinder/cadrage-mvp/map.md) |
+| User stories | [user-stories/README.md](user-stories/README.md) |
+| Plan de livraison | [plan-de-livraison.md](plan-de-livraison.md) |
 | Étude de l'existant | [../research/etude-de-l-existant.md](../research/etude-de-l-existant.md) |
 | Méthode | *Wayfinder* : on fixe d'abord la destination, puis on tranche les décisions une par une jusqu'à ce que le chemin soit clair |
-| Dernière mise à jour | 28/10/2026 |
+| Dernière mise à jour | 01/11/2026 |
 
 ## Le projet en une phrase
 
@@ -22,7 +24,7 @@ Une application web pour aider les propriétaires de centres d'étude (professeu
 - [x] Tour 1 : destination fixée (voir [Décisions prises](#décisions-prises))
 - [x] Carte de décisions et tickets créés
 - [x] Étude de l'existant : l'idée est-elle déjà « consommée » ? (voir [ci-dessous](#étude-de-lexistant--lidée-est-elle-consommée-))
-- [ ] Résolution des tickets de la carte, un par un
+- [x] Résolution des tickets de la carte, un par un (terminée le 01/11/2026)
 
 ## Étude de l'existant : l'idée est-elle consommée ?
 

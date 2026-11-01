@@ -1,6 +1,6 @@
 # User stories du MVP
 
-Les 78 user stories du MVP de SchoolHub, issues du [ticket 13](../wayfinder/cadrage-mvp/issues/13-user-stories-mvp.md). Le MVP couvre tout le [cahier des charges](../cahier-des-charges.md), plus les ajouts décidés dans la [carte de décisions](../wayfinder/cadrage-mvp/map.md). Il est livré **en une seule fois, complet, pour la rentrée scolaire 2027-2028**.
+Les 78 user stories du MVP de SchoolHub, issues du [ticket 13](../wayfinder/cadrage-mvp/issues/13-user-stories-mvp.md). Le MVP couvre tout le [cahier des charges](../cahier-des-charges.md), plus les ajouts décidés dans la [carte de décisions](../wayfinder/cadrage-mvp/map.md). Il est livré **en une seule fois, complet, le plus tôt possible et avant juin 2027**, quand commence la saison des Révisions, des Formations d'été et de la bibliothèque ([ticket 14](../wayfinder/cadrage-mvp/issues/14-estimation-plan-livraison.md), Q2).
 
 | | |
 |---|---|
