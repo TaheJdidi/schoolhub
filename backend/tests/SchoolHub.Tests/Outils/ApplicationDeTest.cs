@@ -8,15 +8,21 @@ using Microsoft.Extensions.Time.Testing;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Emails;
 
 namespace SchoolHub.Tests.Outils;
 
 /// <summary>
 /// L'application SchoolHub lancée en mémoire pour les tests, avec de vraies requêtes HTTP,
-/// sur sa propre base dans le PostgreSQL jetable. Elle a une horloge de test, et le contexte
-/// de test (<see cref="ContexteDeTest"/>) pour que les tests d'isolation aient leurs notes.
+/// sur sa propre base dans le PostgreSQL jetable. Elle a une horloge de test, un faux expéditeur
+/// d'emails, et le contexte de test (<see cref="ContexteDeTest"/>) pour que les tests d'isolation
+/// aient leurs notes. <paramref name="reglages"/> change les services en dernier, par exemple
+/// la durée d'un lien.
 /// </summary>
-public sealed class ApplicationDeTest(PostgreSqlDeTest postgreSql, string nomDeLaBase) : WebApplicationFactory<Program>
+public sealed class ApplicationDeTest(
+    PostgreSqlDeTest postgreSql,
+    string nomDeLaBase,
+    Action<IServiceCollection>? reglages = null) : WebApplicationFactory<Program>
 {
     /// <summary>
     /// L'horloge du cookie de session. Elle part du vrai « maintenant » : le client HTTP,
@@ -25,6 +31,9 @@ public sealed class ApplicationDeTest(PostgreSqlDeTest postgreSql, string nomDeL
     /// </summary>
     public FakeTimeProvider Horloge { get; } = new(DateTimeOffset.UtcNow);
 
+    /// <summary>Les emails que l'application « envoie » : ils sont gardés ici, pas écrits dans la console.</summary>
+    public EmailsCaptures Emails { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -32,11 +41,15 @@ public sealed class ApplicationDeTest(PostgreSqlDeTest postgreSql, string nomDeL
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<TimeProvider>(Horloge);
+            services.RemoveAll<IEnvoiEmail>();
+            services.AddSingleton<IEnvoiEmail>(Emails);
             services.RemoveAll<SchoolHubDbContext>();
             services.AddScoped<SchoolHubDbContext, ContexteDeTest>();
 
             // Les adresses /api/test, pour vérifier les rôles et la séparation des centres.
             services.AddSingleton<IStartupFilter, AdressesDeTest>();
+
+            reglages?.Invoke(services);
         });
     }
 

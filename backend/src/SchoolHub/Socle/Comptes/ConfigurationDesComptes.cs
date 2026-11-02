@@ -38,7 +38,10 @@ public static class ConfigurationDesComptes
             })
             .AddEntityFrameworkStores<SchoolHubDbContext>()
             .AddSignInManager()
-            .AddClaimsPrincipalFactory<RevendicationsDuCompte>();
+            .AddClaimsPrincipalFactory<RevendicationsDuCompte>()
+            .AddTokenProvider<JetonDInvitation>(JetonDInvitation.Nom);
+
+        services.AddScoped<Invitations>();
 
         services
             .AddAuthentication(IdentityConstants.ApplicationScheme)
