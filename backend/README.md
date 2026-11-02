@@ -18,6 +18,27 @@ dotnet run --project src/SchoolHub
 
 Puis ouvrir http://localhost:5087/api/sante : la page répond « SchoolHub fonctionne. ».
 
+## Créer un centre
+
+L'équipe SchoolHub ouvre un nouveau centre avec une commande de l'application elle-même (CEN-01). Elle crée le centre et son premier propriétaire, puis envoie à celui-ci l'invitation pour choisir son mot de passe. Ensuite, le propriétaire fait le reste.
+
+En développement (PostgreSQL démarré et migrations appliquées, comme ci-dessus) :
+
+```bash
+dotnet run --project src/SchoolHub -- creer-centre --nom "Centre Les Jasmins" --code les-jasmins --prenom Hedi --nom-proprietaire "Ben Salah" --email hedi@exemple.tn
+```
+
+En production, depuis la console SSH de l'App Service, qui a déjà la base et la configuration des emails :
+
+```bash
+dotnet SchoolHub.dll creer-centre --nom "…" --code … --prenom … --nom-proprietaire "…" --email …
+```
+
+- Le code ne contient que des lettres minuscules, des chiffres et des tirets (il va dans l'adresse du formulaire public).
+- C'est tout ou rien : si le code ou l'email est déjà pris, ou si l'email d'invitation ne part pas, rien n'est créé. On corrige et on relance la commande.
+- La commande écrit son résultat, puis s'arrête avec le code de sortie 0 (centre créé) ou 1 (refusé). Le serveur ne démarre pas.
+- En développement, l'email d'invitation, lien compris, est écrit dans la console. En production, la commande refuse de s'exécuter tant que l'envoi des emails n'est pas branché (Brevo).
+
 ## Lancer les tests
 
 ```bash
