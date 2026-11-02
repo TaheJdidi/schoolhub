@@ -87,13 +87,13 @@ Les erreurs répondent `{ "message": "…" }`, en français.
 - Le blocage (5 essais, 15 minutes) est celui d'Identity. Un essai réussi remet le compteur à zéro.
 - Le message de blocage laisse deviner que l'email existe, mais seulement après 5 essais faux sur ce compte. C'est un compromis accepté, plus clair pour la secrétaire qu'un message qui ne change jamais.
 - Un compte *invité* n'a pas de mot de passe : tout essai échoue, avec le message général.
-- Le compte *désactivé* est refusé par la vérification « peut-il se connecter ? » d'Identity (`CanSignInAsync`), qui exige l'état `Actif`. Ce message n'apparaît qu'avec le bon mot de passe, il ne révèle donc rien.
+- L'état du compte n'est regardé **qu'après** la vérification du mot de passe. Le message « désactivé » n'apparaît donc qu'avec le bon mot de passe, et il ne révèle rien. On n'utilise pas pour cela `CanSignInAsync` d'Identity, qui passe avant le mot de passe.
 
 ### La session
 
 - **Un cookie protégé** : `HttpOnly` (illisible par le JavaScript), `Secure` (envoyé seulement en HTTPS), `SameSite=Strict` (jamais envoyé depuis un autre site, ce qui bloque aussi les attaques par faux formulaire).
 - **Il expire après 12 heures sans activité.** Le cookie est renouvelé **à chaque requête**, et pas seulement à mi-parcours comme le fait ASP.NET par défaut. Sinon, une personne inactive pourrait être déconnectée au bout de 6 heures seulement.
-- **À chaque requête**, le serveur relit le compte et vérifie son tampon de sécurité (`SecurityStamp`, vérifié sans délai). Désactiver un compte (CPT-05) changera ce tampon : la personne sera déconnectée dès sa prochaine action. Cela coûte une petite requête SQL par appel, ce qui est négligeable pour un centre.
+- **À chaque requête**, le serveur relit le compte et vérifie qu'il est toujours *actif* et que son tampon de sécurité (`SecurityStamp`) n'a pas changé. Désactiver un compte (CPT-05) déconnectera donc la personne dès sa prochaine action. Cette vérification est écrite par nous, et pas celle d'Identity, qui ne regarde que le tampon et seulement après un délai. Elle coûte une petite requête SQL par appel, ce qui est négligeable pour un centre.
 - Le cookie contient l'identifiant du compte, son centre et son rôle. Il est reconstruit à chaque vérification, à partir de la base.
 - **Aucune réponse de l'API n'est gardée en cache** (`Cache-Control: no-store`) : après « Se déconnecter », le bouton « retour » du navigateur ne montre plus aucune donnée.
 - Sans cookie valable, l'API répond **401**, sans redirection vers une page de connexion. C'est l'application Angular qui affichera la page de connexion.
@@ -203,7 +203,7 @@ Ils passent par de **vraies requêtes HTTP** (`WebApplicationFactory`), sur le P
 **Les outils de test :**
 
 - un **faux expéditeur** qui garde les emails envoyés, pour lire les liens et les suivre ;
-- une **horloge de test** (`FakeTimeProvider`), passée au cookie et aux jetons, pour vérifier les délais (12 heures, 7 jours, 1 heure) sans attendre. Pour le blocage de 15 minutes, si Identity ne lit pas cette horloge, le test avance la date de fin de blocage en base ;
+- une **horloge de test** (`FakeTimeProvider`), passée au cookie, pour vérifier la session de 12 heures sans attendre. Identity ne lit pas cette horloge pour le blocage ni pour les jetons (vérifié le 02/11/2026) : il prend l'heure réelle. Le test du blocage avance donc la date de fin de blocage en base. Ceux des liens vérifient la durée réglée (7 jours, 1 heure), puis qu'un lien dont la durée est écoulée est refusé ;
 - un client HTTP qui garde les cookies, et qui parle en HTTPS, puisque le cookie est `Secure`.
 
 **Un test par critère d'acceptation :**
