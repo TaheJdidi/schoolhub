@@ -38,7 +38,8 @@ public static class ConnexionEndpoints
         SchoolHubDbContext contexte)
     {
         var email = demande.Email?.Trim();
-        if (string.IsNullOrEmpty(email) || demande.MotDePasse is null)
+        // Un mot de passe vide (ce qu'envoie un formulaire vide) n'est pas un essai : il ne compte pas dans les 5 avant blocage.
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(demande.MotDePasse))
             return Refus(StatusCodes.Status401Unauthorized, Incorrect);
 
         // L'email est normalisé par Identity : les majuscules ne comptent pas.
@@ -47,7 +48,10 @@ public static class ConnexionEndpoints
             return Refus(StatusCodes.Status401Unauthorized, Incorrect);
 
         // Identity compte les essais faux de suite : au 5e, le compte est bloqué 15 minutes.
-        var resultat = await connexion.CheckPasswordSignInAsync(compte, demande.MotDePasse, lockoutOnFailure: true);
+        // Un compte invité n'a pas de mot de passe : tout essai échoue, sans jamais le bloquer,
+        // pour qu'il ne se distingue pas d'un email inconnu ni ne soit bloqué après avoir choisi son mot de passe.
+        var resultat = await connexion.CheckPasswordSignInAsync(
+            compte, demande.MotDePasse, lockoutOnFailure: compte.Etat != EtatDuCompte.Invite);
         if (resultat.IsLockedOut)
             return Refus(StatusCodes.Status401Unauthorized, TropDEssais);
         if (!resultat.Succeeded)

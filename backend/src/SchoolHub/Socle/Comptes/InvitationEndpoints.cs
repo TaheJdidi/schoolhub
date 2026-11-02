@@ -79,5 +79,8 @@ public static class InvitationEndpoints
 /// <summary>Ce que la page d'invitation affiche pour accueillir la personne : son prénom et son centre.</summary>
 public sealed record Accueil(string Prenom, string Centre);
 
-/// <summary>Ce que la page d'invitation envoie : le lien reçu par email (compte et jeton) et le mot de passe choisi.</summary>
+/// <summary>
+/// Ce que la page envoie pour choisir un mot de passe : le lien reçu par email (compte et jeton) et le mot de passe choisi.
+/// Elle sert à l'invitation (premier mot de passe) et au mot de passe oublié (nouveau mot de passe).
+/// </summary>
 public sealed record ChoixDuMotDePasse(string? Compte, string? Jeton, string? MotDePasse);

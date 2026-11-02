@@ -70,6 +70,36 @@ public sealed class ConnexionTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Un_compte_invite_n_est_jamais_bloque()
+    {
+        var invitee = await _application.CreerCompteAsync(_jasmins, etat: EtatDuCompte.Invite, motDePasse: null);
+        var client = _application.Client();
+
+        // Un invité n'a pas de mot de passe : tout essai échoue avec le message général, jamais « Trop d'essais »,
+        // sinon il se distinguerait d'un email inconnu et pourrait être bloqué juste après avoir choisi son mot de passe.
+        for (var essai = 1; essai <= 6; essai++)
+            await VerifierRefus(await Connexion(client, invitee.Email, MauvaisMotDePasse), HttpStatusCode.Unauthorized, Incorrect);
+
+        var enBase = await _application.DansUnScopeAsync(async services =>
+            (await services.GetRequiredService<UserManager<Compte>>().FindByIdAsync(invitee.Id.ToString()))!);
+        Assert.Equal(0, enBase.AccessFailedCount);
+        Assert.Null(enBase.LockoutEnd);
+    }
+
+    [Fact]
+    public async Task Un_mot_de_passe_vide_ne_bloque_pas_le_compte()
+    {
+        var amira = await _application.CreerCompteAsync(_jasmins);
+        var client = _application.Client();
+
+        // Un formulaire vide envoie "" : ce n'est pas un essai, il ne compte pas dans les 5 avant blocage.
+        for (var essai = 1; essai <= 5; essai++)
+            await VerifierRefus(await Connexion(client, amira.Email, ""), HttpStatusCode.Unauthorized, Incorrect);
+
+        Assert.Equal(HttpStatusCode.OK, (await Connexion(client, amira.Email, MotDePasse)).StatusCode);
+    }
+
+    [Fact]
     public async Task Au_cinquieme_essai_faux_le_compte_est_bloque_15_minutes()
     {
         var amira = await _application.CreerCompteAsync(_jasmins);
@@ -182,6 +212,23 @@ public sealed class ConnexionTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Contains("secure", cookie);
         Assert.Contains("samesite=strict", cookie);
         Assert.Contains("expires=", cookie);
+    }
+
+    [Fact]
+    public async Task Le_cookie_est_secure_meme_sur_une_requete_http()
+    {
+        var amira = await _application.CreerCompteAsync(_jasmins);
+
+        // Derrière App Service, le HTTPS est terminé en amont et l'application reçoit une requête HTTP :
+        // le cookie doit rester Secure. Le réglage par défaut (SameAsRequest) ne le poserait pas ici.
+        var http = _application.CreateClient(new() { BaseAddress = new Uri("http://localhost"), AllowAutoRedirect = false });
+
+        var reponse = await Connexion(http, amira.Email, MotDePasse);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        // On compare l'attribut entier : le mot « secure » ne doit pas venir par hasard de la valeur du cookie.
+        var attributs = string.Join("; ", reponse.Headers.GetValues("Set-Cookie")).Split(';').Select(a => a.Trim().ToLowerInvariant());
+        Assert.Contains("secure", attributs);
     }
 
     [Fact]

@@ -19,6 +19,8 @@ builder.Services.AddScoped<CreationDeCentre>();
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
 // processus que le serveur web, parfois lancé depuis un autre dossier (console SSH) : par défaut, la protection
 // dépend de ce dossier et le serveur ne pourrait pas lire le lien. Avec un nom fixe, les deux se comprennent.
+// Ce nom commun est nécessaire mais pas suffisant : la commande et le serveur doivent aussi lire le même anneau
+// de clés (le dossier où ASP.NET garde ses clés). À vérifier au déploiement sur App Service.
 builder.Services.AddDataProtection().SetApplicationName("SchoolHub");
 
 // Les liens des emails partent de l'adresse de l'application : sans elle, l'application ne démarre pas.
@@ -38,8 +40,14 @@ if (app.Services.GetService<IEnvoiEmail>() is null)
     throw new InvalidOperationException("Aucun envoi d'email configuré");
 
 // La commande s'exécute puis l'application s'arrête, avec le code de sortie de la commande : le serveur ne démarre pas.
+// L'application est libérée avant de rendre la main : la console écrit ses journaux en arrière-plan,
+// et l'email d'invitation (écrit dans le journal en développement) pourrait sinon se perdre.
 if (enCommande)
-    return await CommandeCreerCentre.ExecuterAsync(app.Services, args[1..], Console.Out);
+{
+    var codeDeSortie = await CommandeCreerCentre.ExecuterAsync(app.Services, args[1..], Console.Out);
+    await app.DisposeAsync();
+    return codeDeSortie;
+}
 
 app.UtiliserLaSession();
 
