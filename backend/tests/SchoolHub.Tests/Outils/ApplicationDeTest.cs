@@ -34,6 +34,9 @@ public sealed class ApplicationDeTest(PostgreSqlDeTest postgreSql, string nomDeL
             services.AddSingleton<TimeProvider>(Horloge);
             services.RemoveAll<SchoolHubDbContext>();
             services.AddScoped<SchoolHubDbContext, ContexteDeTest>();
+
+            // Les adresses /api/test, pour vérifier les rôles et la séparation des centres.
+            services.AddSingleton<IStartupFilter, AdressesDeTest>();
         });
     }
 
@@ -94,6 +97,18 @@ public sealed class ApplicationDeTest(PostgreSqlDeTest postgreSql, string nomDeL
                     "Le compte de test n'a pas pu être créé : " + string.Join(" ", resultat.Errors.Select(e => e.Description)));
 
             return compte;
+        });
+
+    /// <summary>Une nouvelle note dans ce centre, que seul ce centre peut lire.</summary>
+    public Task<NoteDeTest> AjouterNoteAsync(Centre centre, string texte) =>
+        DansUnScopeAsync(async services =>
+        {
+            services.GetRequiredService<CentreCourant>().Definir(centre.Id);
+            var contexte = services.GetRequiredService<SchoolHubDbContext>();
+            var note = new NoteDeTest(texte);
+            contexte.Set<NoteDeTest>().Add(note);
+            await contexte.SaveChangesAsync();
+            return note;
         });
 
     /// <summary>Lit ou modifie la base depuis un test, avec les services de l'application.</summary>

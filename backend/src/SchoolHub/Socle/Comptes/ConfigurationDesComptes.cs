@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Donnees;
 
 namespace SchoolHub.Socle.Comptes;
@@ -83,8 +84,8 @@ public static class ConfigurationDesComptes
     }
 
     /// <summary>
-    /// La session de la requête : rien de l'API n'est gardé en cache, puis le cookie est lu
-    /// et les droits sont vérifiés.
+    /// La session de la requête : rien de l'API n'est gardé en cache, puis le cookie est lu,
+    /// le centre du compte devient le centre courant, et les droits sont vérifiés.
     /// </summary>
     public static IApplicationBuilder UtiliserLaSession(this IApplicationBuilder app)
     {
@@ -97,6 +98,17 @@ public static class ConfigurationDesComptes
         });
 
         app.UseAuthentication();
+
+        // Dès que le compte est connu, avant toute lecture de données : le filtre automatique
+        // ne montre que les données de son centre. Sans compte connecté, il n'y a pas de centre courant.
+        app.Use((contexte, suite) =>
+        {
+            var centre = contexte.User.FindFirst(RevendicationsDuCompte.Centre)?.Value;
+            if (centre is not null)
+                contexte.RequestServices.GetRequiredService<CentreCourant>().Definir(Guid.Parse(centre));
+            return suite(contexte);
+        });
+
         app.UseAuthorization();
         return app;
     }
