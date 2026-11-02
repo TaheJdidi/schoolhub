@@ -30,3 +30,28 @@ public sealed class OptionsDuJetonDInvitation : DataProtectionTokenProviderOptio
         TokenLifespan = TimeSpan.FromDays(7);
     }
 }
+
+/// <summary>
+/// Le fournisseur de jetons du mot de passe oublié. Il est à part de celui des invitations, avec son propre nom
+/// et sa propre durée : un lien de mot de passe oublié est valable 1 heure, et ne sert pas à accepter une invitation.
+/// Son usage est celui d'Identity (<c>UserManager&lt;Compte&gt;.ResetPasswordTokenPurpose</c>).
+/// </summary>
+public sealed class JetonDeMotDePasseOublie(
+    IDataProtectionProvider protection,
+    IOptions<OptionsDuJetonDeMotDePasseOublie> options,
+    ILogger<DataProtectorTokenProvider<Compte>> journal)
+    : DataProtectorTokenProvider<Compte>(protection, options, journal)
+{
+    /// <summary>Le nom du fournisseur, que <c>Tokens.PasswordResetTokenProvider</c> désigne.</summary>
+    public const string Nom = "MotDePasseOublie";
+}
+
+/// <summary>Les réglages du jeton du mot de passe oublié : son nom, et 1 heure de validité.</summary>
+public sealed class OptionsDuJetonDeMotDePasseOublie : DataProtectionTokenProviderOptions
+{
+    public OptionsDuJetonDeMotDePasseOublie()
+    {
+        Name = JetonDeMotDePasseOublie.Nom;
+        TokenLifespan = TimeSpan.FromHours(1);
+    }
+}

@@ -35,11 +35,15 @@ public static class ConfigurationDesComptes
                 // L'email sert de nom d'utilisateur : tous ses caractères sont permis.
                 options.User.RequireUniqueEmail = true;
                 options.User.AllowedUserNameCharacters = "";
+
+                // Le lien du mot de passe oublié vient de son propre fournisseur de jetons, à part de celui des invitations.
+                options.Tokens.PasswordResetTokenProvider = JetonDeMotDePasseOublie.Nom;
             })
             .AddEntityFrameworkStores<SchoolHubDbContext>()
             .AddSignInManager()
             .AddClaimsPrincipalFactory<RevendicationsDuCompte>()
-            .AddTokenProvider<JetonDInvitation>(JetonDInvitation.Nom);
+            .AddTokenProvider<JetonDInvitation>(JetonDInvitation.Nom)
+            .AddTokenProvider<JetonDeMotDePasseOublie>(JetonDeMotDePasseOublie.Nom);
 
         services.AddScoped<Invitations>();
 

@@ -89,7 +89,8 @@ public static class ConnexionEndpoints
     internal static Task OuvrirLaSessionAsync(SignInManager<Compte> connexion, Compte compte) =>
         connexion.SignInAsync(compte, isPersistent: true);
 
-    private static JsonHttpResult<Avis> Refus(int statut, string message) =>
+    /// <summary>Un refus de l'API : le statut HTTP, et le message en français.</summary>
+    internal static JsonHttpResult<Avis> Refus(int statut, string message) =>
         TypedResults.Json(new Avis(message), statusCode: statut);
 }
 

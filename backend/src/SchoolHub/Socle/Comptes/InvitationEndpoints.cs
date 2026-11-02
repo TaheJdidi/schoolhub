@@ -27,7 +27,7 @@ public static class InvitationEndpoints
     {
         var invite = await VerifierLeLienAsync(comptes, compte, jeton);
         if (invite is null)
-            return Refus(StatusCodes.Status410Gone, LienExpire);
+            return ConnexionEndpoints.Refus(StatusCodes.Status410Gone, LienExpire);
 
         var moi = await ConnexionEndpoints.MoiAsync(invite, contexte);
         return TypedResults.Ok(new Accueil(moi.Prenom, moi.Centre));
@@ -41,17 +41,17 @@ public static class InvitationEndpoints
     {
         var invite = await VerifierLeLienAsync(comptes, choix.Compte, choix.Jeton);
         if (invite is null)
-            return Refus(StatusCodes.Status410Gone, LienExpire);
+            return ConnexionEndpoints.Refus(StatusCodes.Status410Gone, LienExpire);
 
         if (choix.MotDePasse is null || choix.MotDePasse.Length < ConfigurationDesComptes.LongueurMinimaleDuMotDePasse)
-            return Refus(StatusCodes.Status400BadRequest, ConfigurationDesComptes.MotDePasseTropCourt);
+            return ConnexionEndpoints.Refus(StatusCodes.Status400BadRequest, ConfigurationDesComptes.MotDePasseTropCourt);
 
         // L'enregistrement du mot de passe change le tampon de sécurité du compte : le lien ne sert plus.
         invite.Activer();
         var resultat = await comptes.AddPasswordAsync(invite, choix.MotDePasse);
         if (!resultat.Succeeded)
             // La longueur est déjà vérifiée : il reste le cas où ce même lien vient d'être utilisé par un autre envoi simultané.
-            return Refus(StatusCodes.Status410Gone, LienExpire);
+            return ConnexionEndpoints.Refus(StatusCodes.Status410Gone, LienExpire);
 
         await ConnexionEndpoints.OuvrirLaSessionAsync(connexion, invite);
         return TypedResults.Ok(await ConnexionEndpoints.MoiAsync(invite, contexte));
@@ -74,9 +74,6 @@ public static class InvitationEndpoints
         var valable = await comptes.VerifyUserTokenAsync(invite, JetonDInvitation.Nom, JetonDInvitation.But, jeton ?? "");
         return valable ? invite : null;
     }
-
-    private static JsonHttpResult<Avis> Refus(int statut, string message) =>
-        TypedResults.Json(new Avis(message), statusCode: statut);
 }
 
 /// <summary>Ce que la page d'invitation affiche pour accueillir la personne : son prénom et son centre.</summary>
