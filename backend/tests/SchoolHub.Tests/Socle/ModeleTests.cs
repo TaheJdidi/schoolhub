@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolHub.Socle.Centres;
+using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
 using SchoolHub.Tests.Outils;
 
@@ -12,7 +14,16 @@ namespace SchoolHub.Tests.Socle;
 public sealed class ModeleTests
 {
     // Les seules données communes à tous les centres. Toute autre donnée appartient à un centre.
-    private static readonly Type[] DonneesCommunes = [typeof(Centre)];
+    // Le compte se lit avant de connaître le centre (connexion) : toute autre lecture des comptes
+    // filtre sur le centre courant et a son test d'isolation.
+    private static readonly Type[] DonneesCommunes =
+    [
+        typeof(Centre),
+        typeof(Compte),
+        typeof(IdentityUserClaim<Guid>),
+        typeof(IdentityUserLogin<Guid>),
+        typeof(IdentityUserToken<Guid>),
+    ];
 
     [Fact]
     public void Chaque_donnee_appartient_a_un_centre_sauf_les_donnees_communes()

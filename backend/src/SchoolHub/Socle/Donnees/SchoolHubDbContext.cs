@@ -1,6 +1,9 @@
 using System.Reflection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SchoolHub.Socle.Centres;
+using SchoolHub.Socle.Comptes;
 
 namespace SchoolHub.Socle.Donnees;
 
@@ -9,7 +12,8 @@ namespace SchoolHub.Socle.Donnees;
 /// Chaque donnée d'un centre est filtrée automatiquement : un centre ne voit que ses données,
 /// et ne peut ni ajouter, ni modifier, ni supprimer celles d'un autre.
 /// </summary>
-public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCourant) : DbContext(options)
+public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCourant)
+    : IdentityUserContext<Compte, Guid>(options)
 {
     public const string FiltreDuCentre = "Centre";
 
@@ -23,7 +27,14 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Identity d'abord : nos configurations renomment ensuite ses tables.
+        base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SchoolHubDbContext).Assembly);
+
+        // Les trois tables techniques d'Identity, vides pour l'instant.
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("comptes_revendications");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("comptes_connexions_externes");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("comptes_jetons");
 
         var donneesDesCentres = modelBuilder.Model.GetEntityTypes()
             .Select(t => t.ClrType)
