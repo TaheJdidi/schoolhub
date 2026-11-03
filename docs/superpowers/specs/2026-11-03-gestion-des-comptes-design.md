@@ -106,7 +106,8 @@ Toutes sont **réservées au propriétaire** (politique `Proprietaire`) : une se
 
 | Cas | Statut | Message |
 |---|---|---|
-| Prénom, nom ou rôle manquant | 400 | « Le prénom, le nom et le rôle sont obligatoires » |
+| Prénom, nom ou rôle manquant, ou rôle inconnu | 400 | « Le prénom, le nom et le rôle sont obligatoires » |
+| Prénom ou nom de plus de 100 caractères (la taille des colonnes) | 400 | « Le prénom et le nom font au plus 100 caractères » |
 | Email manquant ou pas valable | 400 | « Cet email n'est pas valable » |
 | Email déjà utilisé, dans ce centre ou dans un autre | 409 | « Cet email est déjà utilisé sur SchoolHub » |
 | L'email d'invitation n'est pas parti | 503 | « L'invitation n'est pas partie : réessayez dans un moment » |
