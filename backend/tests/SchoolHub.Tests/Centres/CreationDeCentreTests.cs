@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Journal;
 using SchoolHub.Tests.Outils;
 
 namespace SchoolHub.Tests.Centres;
@@ -251,6 +252,7 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
         VerifierRefus(resultat, sortie, "Rien n'a été créé : l'invitation n'est pas partie (Brevo ne répond pas).");
         Assert.Null(await CentreAsync(code));
         Assert.Null(await CompteAsync(email));
+        Assert.Equal(0, await LignesDuJournalAsync(email));
 
         // On relance simplement la commande, avec les mêmes valeurs : rien n'est resté de la première fois.
         _application.Emails.Echouer = false;
@@ -258,6 +260,23 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
         Assert.Equal(0, encore);
         Assert.NotNull(await CentreAsync(code));
         Assert.NotNull(await CompteAsync(email));
+        Assert.Equal(1, await LignesDuJournalAsync(email));
+    }
+
+    [Fact]
+    public async Task La_commande_note_la_creation_du_proprietaire_au_journal()
+    {
+        var code = CodeUnique();
+        var email = EmailUnique();
+
+        await LancerAsync(Arguments(code, email));
+
+        var centre = await CentreAsync(code);
+        var ligne = Assert.Single(await _application.JournalAsync(centre!));
+        Assert.Equal(ActionDuJournal.CompteCree, ligne.Action);
+        Assert.Null(ligne.AuteurId);
+        Assert.Equal("SchoolHub", ligne.Auteur);
+        Assert.Equal($"Hedi Ben Salah · Propriétaire · {email}", ligne.Detail);
     }
 
     [Fact]
@@ -308,6 +327,13 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
     private Task<Compte?> CompteAsync(string email) =>
         _application.DansUnScopeAsync(services =>
             services.GetRequiredService<SchoolHubDbContext>().Users.SingleOrDefaultAsync(c => c.Email == email));
+
+    /// <summary>Les lignes du journal qui parlent de cet email, tous centres confondus : le centre peut ne pas exister.</summary>
+    private Task<int> LignesDuJournalAsync(string email) =>
+        _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<SchoolHubDbContext>().LignesDuJournal
+                .IgnoreQueryFilters()
+                .CountAsync(l => l.Detail.Contains(email)));
 
     /// <summary>Un contrôle de plus sur les comptes, qui les refuse tous : pour tester ce que fait la commande quand le compte échoue.</summary>
     private sealed class ValidateurQuiRefuse : IUserValidator<Compte>

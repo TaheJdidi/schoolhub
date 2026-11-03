@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Journal;
 
 namespace SchoolHub.Socle.Centres;
 
@@ -19,10 +20,15 @@ public sealed record ResultatDeCreation(bool Reussi, string Message);
 
 /// <summary>
 /// CEN-01 : crée un centre et son premier propriétaire (invité), puis lui envoie son invitation.
-/// Tout ou rien : le centre, le compte et l'envoi de l'email forment une seule transaction,
+/// Tout ou rien : le centre, le compte, sa ligne au journal et l'envoi de l'email forment une seule transaction,
 /// validée seulement une fois l'email parti.
 /// </summary>
-public sealed partial class CreationDeCentre(SchoolHubDbContext contexte, UserManager<Compte> comptes, Invitations invitations)
+public sealed partial class CreationDeCentre(
+    SchoolHubDbContext contexte,
+    UserManager<Compte> comptes,
+    Invitations invitations,
+    CentreCourant centreCourant,
+    JournalDuCentre journal)
 {
     public async Task<ResultatDeCreation> CreerAsync(NouveauCentre demande, CancellationToken annulation = default)
     {
@@ -45,6 +51,9 @@ public sealed partial class CreationDeCentre(SchoolHubDbContext contexte, UserMa
         contexte.Centres.Add(centre);
         await contexte.SaveChangesAsync(annulation);
 
+        // Personne n'est connecté : la commande travaille pour le centre qu'elle vient de créer, où va la ligne du journal.
+        centreCourant.Definir(centre.Id);
+
         var proprietaire = new Compte(
             centre.Id,
             demande.PrenomDuProprietaire,
@@ -57,6 +66,12 @@ public sealed partial class CreationDeCentre(SchoolHubDbContext contexte, UserMa
             await transaction.RollbackAsync(annulation);
             return Refus(creation.Errors.First().Description);
         }
+
+        journal.Noter(
+            null,
+            ActionDuJournal.CompteCree,
+            $"{proprietaire.Prenom} {proprietaire.Nom} · {LibellesDesComptes.De(RoleDuCompte.Proprietaire)} · {proprietaire.Email}");
+        await contexte.SaveChangesAsync(annulation);
 
         try
         {
