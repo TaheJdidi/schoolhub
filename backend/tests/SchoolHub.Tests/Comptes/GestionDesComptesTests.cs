@@ -24,6 +24,8 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
     private const string EmailDejaUtilise = "Cet email est déjà utilisé sur SchoolHub";
     private const string InvitationPasPartie = "L'invitation n'est pas partie : réessayez dans un moment";
     private const string AccesReserve = "Accès réservé au propriétaire";
+    private const string Introuvable = "Compte introuvable";
+    private const string PlusDInvitation = "Ce compte n'attend plus d'invitation";
 
     private ApplicationDeTest _application = null!;
     private Centre _jasmins = null!;
@@ -180,6 +182,60 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
         await VerifierQueRienNEstCreeAsync(email);
     }
 
+    // ----- Renvoyer l'invitation (CPT-04) -----
+
+    [Fact]
+    public async Task Renvoyer_l_invitation_donne_un_nouveau_lien_et_tue_l_ancien()
+    {
+        var (sonia, premierLien) = await InviterSoniaAsync();
+
+        var reponse = await _client.PostAsync($"/api/comptes/{sonia}/invitation", null);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("Invite", (await reponse.Content.ReadFromJsonAsync<CompteDuCentre>())!.Etat);
+        Assert.Equal(2, _application.Emails.Envoyes.Count);
+        Assert.Equal(HttpStatusCode.Gone, (await OuvrirLeLienAsync(premierLien)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await OuvrirLeLienAsync(_application.Emails.Envoyes.Last())).StatusCode);
+
+        // Renvoyer l'invitation ne va pas au journal : seule la création y est.
+        Assert.Equal(ActionDuJournal.CompteCree, Assert.Single(await _application.JournalAsync(_jasmins)).Action);
+    }
+
+    [Fact]
+    public async Task Renvoyer_l_invitation_d_un_compte_actif_est_refuse()
+    {
+        var bilel = await _application.CreerCompteAsync(_jasmins, "Bilel", "Haddad");
+
+        var reponse = await _client.PostAsync($"/api/comptes/{bilel.Id}/invitation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, PlusDInvitation);
+        Assert.Empty(_application.Emails.Envoyes);
+    }
+
+    [Fact]
+    public async Task Si_le_nouvel_email_ne_part_pas_l_ancien_lien_marche_encore()
+    {
+        var (sonia, premierLien) = await InviterSoniaAsync();
+        _application.Emails.Echouer = true;
+
+        var reponse = await _client.PostAsync($"/api/comptes/{sonia}/invitation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.ServiceUnavailable, InvitationPasPartie);
+        Assert.Equal(HttpStatusCode.OK, (await OuvrirLeLienAsync(premierLien)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Renvoyer_l_invitation_d_un_compte_d_un_autre_centre_repond_introuvable()
+    {
+        var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
+        var karim = await _application.CreerCompteAsync(oliviers, "Karim", "Ben Salah", etat: EtatDuCompte.Invite, motDePasse: null);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{karim.Id}/invitation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.NotFound, Introuvable);
+        Assert.Empty(_application.Emails.Envoyes);
+    }
+
     // ----- La liste -----
 
     [Fact]
@@ -232,6 +288,22 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
 
     private Task<HttpResponseMessage> InviterAsync(string? prenom, string? nom, string? email, string? role) =>
         _client.PostAsJsonAsync("/api/comptes", new NouvelleInvitation(prenom, nom, email, role));
+
+    /// <summary>Hedi invite Sonia par l'API : l'identifiant de son compte, et l'email de son invitation.</summary>
+    private async Task<(Guid Compte, EmailEnvoye Invitation)> InviterSoniaAsync()
+    {
+        var reponse = await InviterAsync("Sonia", "Mabrouk", EmailUnique("sonia"), "Secretaire");
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        var sonia = await reponse.Content.ReadFromJsonAsync<CompteDuCentre>();
+        return (sonia!.Id, _application.Emails.Envoyes.Last());
+    }
+
+    /// <summary>Ouvre le lien d'une invitation, comme la page d'invitation : 200 s'il est valable, 410 sinon.</summary>
+    private Task<HttpResponseMessage> OuvrirLeLienAsync(EmailEnvoye invitation)
+    {
+        var (compte, jeton) = _application.Emails.LireLeLien(invitation);
+        return _application.Client().GetAsync($"/api/invitation?compte={compte}&jeton={Uri.EscapeDataString(jeton)}");
+    }
 
     private Task<Compte?> ChargerAsync(string email) =>
         _application.DansUnScopeAsync(services => services.GetRequiredService<UserManager<Compte>>().FindByEmailAsync(email));

@@ -24,6 +24,8 @@ public sealed class GestionDesComptes(
     private const string EmailPasValable = "Cet email n'est pas valable";
     private const string EmailDejaUtilise = "Cet email est déjà utilisé sur SchoolHub";
     private const string InvitationPasPartie = "L'invitation n'est pas partie : réessayez dans un moment";
+    private const string Introuvable = "Compte introuvable";
+    private const string PlusDInvitation = "Ce compte n'attend plus d'invitation";
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
 
@@ -94,6 +96,41 @@ public sealed class GestionDesComptes(
         await transaction.CommitAsync(annulation);
         return IssueDeLAction.Reussie(compte);
     }
+
+    /// <summary>
+    /// Envoie un nouveau lien à un compte encore invité. Le tampon de sécurité change d'abord, ce qui rend l'ancien lien
+    /// caduc ; si l'email ne part pas, rien ne change et l'ancien lien marche encore. Ce n'est pas noté au journal.
+    /// </summary>
+    public async Task<IssueDeLAction> RenvoyerLInvitationAsync(Guid id, CancellationToken annulation = default)
+    {
+        var compte = await TrouverAsync(id);
+        if (compte is null)
+            return IssueDeLAction.Refusee(StatusCodes.Status404NotFound, Introuvable);
+        if (compte.Etat != EtatDuCompte.Invite)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, PlusDInvitation);
+
+        var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId, annulation);
+        await using var transaction = await contexte.Database.BeginTransactionAsync(annulation);
+        await comptes.UpdateSecurityStampAsync(compte);
+
+        try
+        {
+            await invitations.EnvoyerAsync(compte, centre, annulation);
+        }
+        catch (Exception exception)
+        {
+            journaux.LogError(exception, "La nouvelle invitation de {Email} n'est pas partie : l'ancien lien reste valable", compte.Email);
+            await transaction.RollbackAsync(annulation);
+            return IssueDeLAction.Refusee(StatusCodes.Status503ServiceUnavailable, InvitationPasPartie);
+        }
+
+        await transaction.CommitAsync(annulation);
+        return IssueDeLAction.Reussie(compte);
+    }
+
+    /// <summary>Le compte de ce centre qui a cet identifiant, ou <c>null</c> : un compte d'un autre centre n'est pas trouvé.</summary>
+    private Task<Compte?> TrouverAsync(Guid id) =>
+        contexte.Users.SingleOrDefaultAsync(c => c.Id == id && c.CentreId == CentreId);
 }
 
 /// <summary>Ce que le propriétaire saisit pour inviter une personne. Un champ vide reçoit un refus.</summary>

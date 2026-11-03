@@ -12,10 +12,25 @@ public static class ComptesEndpoints
 {
     public static IEndpointRouteBuilder MapComptes(this IEndpointRouteBuilder api)
     {
-        var comptes = api.MapGroup("/comptes").RequireAuthorization(Politiques.Proprietaire);
-        comptes.MapGet("", ListerAsync);
-        comptes.MapPost("", InviterAsync);
+        var groupe = api.MapGroup("/comptes").RequireAuthorization(Politiques.Proprietaire);
+        groupe.MapGet("", ListerAsync);
+        groupe.MapPost("", InviterAsync);
+        groupe.MapPost("/{id:guid}/invitation", (Guid id, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, GestionDesComptes gestion, CancellationToken annulation) =>
+            RepondreAsync(utilisateur, comptes, () => gestion.RenvoyerLInvitationAsync(id, annulation)));
         return api;
+    }
+
+    /// <summary>La réponse d'une action sur un compte : le compte à jour, ou le refus avec son message.</summary>
+    private static async Task<Results<Ok<CompteDuCentre>, JsonHttpResult<Avis>>> RepondreAsync(
+        ClaimsPrincipal utilisateur,
+        UserManager<Compte> comptes,
+        Func<Task<IssueDeLAction>> action)
+    {
+        var moi = await ConnecteAsync(utilisateur, comptes);
+        var issue = await action();
+        return issue.Compte is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Ok(CompteDuCentre.De(issue.Compte, moi));
     }
 
     private static async Task<Ok<List<CompteDuCentre>>> ListerAsync(
