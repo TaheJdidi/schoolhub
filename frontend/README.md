@@ -54,13 +54,13 @@ src/app/
 ├── cadre/              l'en-tête, le menu, les onglets du téléphone, la page « Plus »,
 │                       et la carte des pages sans connexion
 ├── pages/              une page par dossier : connexion, invitation, mots de passe,
-│                       aujourd'hui, bientôt, accès réservé, introuvable
+│                       aujourd'hui, comptes, bientôt, accès réservé, introuvable
 └── test/               les outils des tests
 ```
 
 ## Les règles
 
-- **Une seule liste de menu** (`socle/menu.ts`). Le menu de gauche, la page « Plus » et les adresses en sont construits. Une story qui construit une page remplace la page « bientôt » de son entrée, dans `app.routes.ts`.
+- **Une seule liste de menu** (`socle/menu.ts`). Le menu de gauche, la page « Plus » et les adresses en sont construits. Une story qui construit une page l'ajoute à `PAGES`, dans `app.routes.ts` : elle remplace la page « bientôt » de son entrée.
 - **Aucun appel au serveur en tâche de fond** : ni minuteur, ni vérification régulière. Chaque appel renouvelle la session, et les 12 heures sans activité ne finiraient jamais.
 - **La personne connectée reste en mémoire** (`Session`), jamais dans le stockage du navigateur.
 - **Le style vient de la maquette validée** (`docs/maquette/index.html`), sans bibliothèque de composants : les couleurs et les éléments communs sont dans `src/styles.css`.

@@ -66,7 +66,9 @@ src/SchoolHub/
 ├── Socle/                 ce qui sert à tous les modules
 │   ├── Centres/           le centre, la séparation des centres, la commande creer-centre
 │   ├── Comptes/           les comptes, la connexion, l'invitation, le mot de passe oublié,
-│   │                      les rôles et le centre courant
+│   │                      les rôles et le centre courant, et la page « Comptes » (inviter,
+│   │                      renvoyer l'invitation, désactiver, réactiver)
+│   ├── Journal/           le journal : qui a fait quoi, et quand
 │   ├── Emails/            l'envoi des emails (dans la console en développement)
 │   ├── Pages/             les pages Angular : fichiers publics, index.html par défaut,
 │   │                      adresse /api inconnue, en-tête Referrer-Policy
@@ -88,6 +90,23 @@ Tous les centres partagent une seule base ([ADR 0001](../docs/adr/0001-une-base-
 Les tests de `ModeleTests` échouent si une nouvelle donnée oublie `IAppartientAuCentre`. Une donnée commune à tous les centres (comme le centre lui-même) doit être ajoutée exprès à leur liste `DonneesCommunes`.
 
 **Les comptes ne sont pas filtrés.** Le compte est une donnée commune : il est lu à la connexion, avant de connaître le centre (c'est lui qui le donne). `UserManager<Compte>` et `contexte.Users` ne sont donc PAS filtrés par centre. Toute autre lecture des comptes (une liste des utilisateurs, par exemple) doit filtrer elle-même sur le centre courant, et avoir son test d'isolation.
+
+## Le journal
+
+Chaque action des [exigences communes](../docs/user-stories/00-exigences-communes.md#journal) (encaissement, reçu annulé, compte désactivé…) écrit une ligne au journal : quand, qui, quoi, et la valeur d'avant et d'après. Personne ne peut modifier ni effacer une ligne.
+
+Une story y écrit ainsi, **avant** l'enregistrement de son action :
+
+```csharp
+journal.Noter(auteur, ActionDuJournal.CompteDesactive, "Sonia Mabrouk · Secrétaire", avant: "Actif", apres: "Désactivé");
+await contexte.SaveChangesAsync();
+```
+
+- `JournalDuCentre.Noter` ajoute la ligne sans l'enregistrer : elle part avec l'action, dans la même transaction. Si l'action échoue, la ligne n'existe pas.
+- L'auteur est le compte connecté, ou `null` quand c'est SchoolHub (la commande `creer-centre`).
+- Une nouvelle action ajoute son nom à `ActionDuJournal`. Le nom est enregistré en texte : l'écran du journal (TDB-04) filtrera dessus.
+- La ligne appartient au centre courant, comme toute donnée d'un centre.
+- Un trigger PostgreSQL refuse toute modification, suppression ou vidage de la table `journal`, même par erreur dans le code. Son SQL est dans `JournalDuCentre.SqlDeLaProtection` : la migration l'exécute, et la base des tests aussi, car `EnsureCreated` ignore les migrations.
 
 ## Ajouter une migration
 
