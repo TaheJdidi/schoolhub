@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -30,7 +29,7 @@ public sealed partial class CreationDeCentre(SchoolHubDbContext contexte, UserMa
         if (!CodeValable().IsMatch(demande.Code))
             return Refus("Le code ne peut contenir que des lettres minuscules, des chiffres et des tirets.");
 
-        if (!EmailValable(demande.EmailDuProprietaire))
+        if (!AdresseEmail.EstValable(demande.EmailDuProprietaire))
             return Refus($"L'email {demande.EmailDuProprietaire} n'est pas valable.");
 
         if (await contexte.Centres.AnyAsync(c => c.Code == demande.Code, annulation))
@@ -74,10 +73,6 @@ public sealed partial class CreationDeCentre(SchoolHubDbContext contexte, UserMa
     }
 
     private static ResultatDeCreation Refus(string message) => new(false, message);
-
-    /// <summary>Une adresse écrite telle quelle (pas de nom devant, pas de liste) et dont le domaine a un point.</summary>
-    private static bool EmailValable(string email) =>
-        MailAddress.TryCreate(email, out var adresse) && adresse.Address == email && adresse.Host.Contains('.');
 
     // Des minuscules et des chiffres, séparés par des tirets seuls : le code va dans l'adresse du formulaire public.
     [GeneratedRegex(@"^[a-z0-9]+(-[a-z0-9]+)*\z")]

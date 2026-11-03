@@ -1,0 +1,127 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using SchoolHub.Socle.Centres;
+using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Journal;
+
+namespace SchoolHub.Socle.Comptes;
+
+/// <summary>
+/// CPT-04 et CPT-05 : les comptes du centre courant, et ce que le propriétaire en fait.
+/// Les comptes ne passent pas par le filtre automatique (on les lit à la connexion, avant de connaître le centre) :
+/// chaque lecture filtre donc elle-même sur le centre courant. Un compte d'un autre centre est « introuvable ».
+/// </summary>
+public sealed class GestionDesComptes(
+    SchoolHubDbContext contexte,
+    UserManager<Compte> comptes,
+    Invitations invitations,
+    JournalDuCentre journal,
+    CentreCourant centreCourant,
+    ILogger<GestionDesComptes> journaux)
+{
+    private const string ChampsObligatoires = "Le prénom, le nom et le rôle sont obligatoires";
+    private const string NomTropLong = "Le prénom et le nom font au plus 100 caractères";
+    private const string EmailPasValable = "Cet email n'est pas valable";
+    private const string EmailDejaUtilise = "Cet email est déjà utilisé sur SchoolHub";
+    private const string InvitationPasPartie = "L'invitation n'est pas partie : réessayez dans un moment";
+
+    private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
+
+    /// <summary>Les comptes du centre : actifs et invités d'abord, puis les désactivés, chacun par prénom puis par nom.</summary>
+    public Task<List<Compte>> ListerAsync() =>
+        contexte.Users
+            .Where(c => c.CentreId == CentreId)
+            .OrderBy(c => c.Etat == EtatDuCompte.Desactive)
+            .ThenBy(c => c.Prenom)
+            .ThenBy(c => c.Nom)
+            .ToListAsync();
+
+    /// <summary>
+    /// Crée le compte invité et lui envoie son invitation. Tout ou rien : le compte, la ligne du journal
+    /// et l'email forment une seule transaction, validée seulement une fois l'email parti.
+    /// </summary>
+    public async Task<IssueDeLAction> InviterAsync(Compte auteur, NouvelleInvitation invitation, CancellationToken annulation = default)
+    {
+        var prenom = invitation.Prenom?.Trim() ?? "";
+        var nom = invitation.Nom?.Trim() ?? "";
+        var email = invitation.Email?.Trim() ?? "";
+
+        // Seuls les noms exacts : Enum.TryParse accepterait aussi « 0 », « 1 » ou « proprietaire ».
+        if (prenom.Length == 0 || nom.Length == 0 || !Enum.GetNames<RoleDuCompte>().Contains(invitation.Role))
+            return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, ChampsObligatoires);
+        var role = Enum.Parse<RoleDuCompte>(invitation.Role!);
+
+        if (prenom.Length > Compte.LongueurMaximaleDuNom || nom.Length > Compte.LongueurMaximaleDuNom)
+            return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, NomTropLong);
+
+        if (!AdresseEmail.EstValable(email))
+            return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, EmailPasValable);
+
+        // Identity compare les emails sans tenir compte de la casse, dans tous les centres.
+        if (await comptes.FindByEmailAsync(email) is not null)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, EmailDejaUtilise);
+
+        var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId, annulation);
+        await using var transaction = await contexte.Database.BeginTransactionAsync(annulation);
+
+        var compte = new Compte(CentreId, prenom, nom, email, role);
+        try
+        {
+            // Sans mot de passe, la création ne peut échouer que sur un email déjà pris :
+            // Identity le voit (DuplicateEmail), ou l'index unique quand deux invitations arrivent ensemble.
+            if (!(await comptes.CreateAsync(compte)).Succeeded)
+                return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, EmailDejaUtilise);
+        }
+        catch (DbUpdateException)
+        {
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, EmailDejaUtilise);
+        }
+
+        journal.Noter(auteur, ActionDuJournal.CompteCree, $"{prenom} {nom} · {LibellesDesComptes.De(role)} · {email}");
+        await contexte.SaveChangesAsync(annulation);
+
+        try
+        {
+            await invitations.EnvoyerAsync(compte, centre, annulation);
+        }
+        catch (Exception exception)
+        {
+            journaux.LogError(exception, "L'invitation de {Email} n'est pas partie : rien n'est créé", email);
+            await transaction.RollbackAsync(annulation);
+            return IssueDeLAction.Refusee(StatusCodes.Status503ServiceUnavailable, InvitationPasPartie);
+        }
+
+        await transaction.CommitAsync(annulation);
+        return IssueDeLAction.Reussie(compte);
+    }
+}
+
+/// <summary>Ce que le propriétaire saisit pour inviter une personne. Un champ vide reçoit un refus.</summary>
+public sealed record NouvelleInvitation(string? Prenom, string? Nom, string? Email, string? Role);
+
+/// <summary>Ce qu'une action sur un compte a donné : le compte à jour, ou un refus (statut HTTP et message).</summary>
+public sealed record IssueDeLAction(Compte? Compte, int Statut, string? Message)
+{
+    public static IssueDeLAction Reussie(Compte compte) => new(compte, StatusCodes.Status200OK, null);
+
+    public static IssueDeLAction Refusee(int statut, string message) => new(null, statut, message);
+}
+
+/// <summary>Les mots que lit le propriétaire, dans le journal et sur la page « Comptes ».</summary>
+public static class LibellesDesComptes
+{
+    public static string De(RoleDuCompte role) => role switch
+    {
+        RoleDuCompte.Proprietaire => "Propriétaire",
+        RoleDuCompte.Secretaire => "Secrétaire",
+        _ => throw new ArgumentOutOfRangeException(nameof(role)),
+    };
+
+    public static string De(EtatDuCompte etat) => etat switch
+    {
+        EtatDuCompte.Invite => "Invité",
+        EtatDuCompte.Actif => "Actif",
+        EtatDuCompte.Desactive => "Désactivé",
+        _ => throw new ArgumentOutOfRangeException(nameof(etat)),
+    };
+}

@@ -17,6 +17,7 @@ builder.Services.AddDbContext<SchoolHubDbContext>(options =>
     SchoolHubDbContext.Configurer(options, builder.Configuration.GetConnectionString("SchoolHub")));
 builder.Services.AjouterLesComptes();
 builder.Services.AddScoped<JournalDuCentre>();
+builder.Services.AddScoped<GestionDesComptes>();
 builder.Services.AddScoped<CreationDeCentre>();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
@@ -61,6 +62,7 @@ api.MapGet("/sante", () => "SchoolHub fonctionne.").AllowAnonymous();
 api.MapConnexion();
 api.MapInvitation();
 api.MapMotDePasseOublie();
+api.MapComptes();
 app.MapPagesDeLApplication(api);
 
 app.Run();

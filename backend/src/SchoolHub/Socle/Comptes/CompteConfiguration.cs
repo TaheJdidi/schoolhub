@@ -10,8 +10,8 @@ internal sealed class CompteConfiguration : IEntityTypeConfiguration<Compte>
     {
         compte.ToTable("comptes");
 
-        compte.Property(c => c.Prenom).HasMaxLength(100);
-        compte.Property(c => c.Nom).HasMaxLength(100);
+        compte.Property(c => c.Prenom).HasMaxLength(Compte.LongueurMaximaleDuNom);
+        compte.Property(c => c.Nom).HasMaxLength(Compte.LongueurMaximaleDuNom);
 
         // Le rôle et l'état sont lisibles en SQL : « Secretaire », « Invite ».
         compte.Property(c => c.Role).HasConversion<string>().HasMaxLength(20);

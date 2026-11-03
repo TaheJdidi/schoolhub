@@ -11,6 +11,9 @@ namespace SchoolHub.Socle.Comptes;
 /// </summary>
 public sealed class Compte : IdentityUser<Guid>
 {
+    /// <summary>La taille des colonnes du prénom et du nom.</summary>
+    public const int LongueurMaximaleDuNom = 100;
+
     public Compte(Guid centreId, string prenom, string nom, string email, RoleDuCompte role)
     {
         Id = Guid.CreateVersion7();
