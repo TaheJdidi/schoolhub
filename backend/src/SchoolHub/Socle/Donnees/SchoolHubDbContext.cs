@@ -22,6 +22,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
 
     public DbSet<LigneDuJournal> LignesDuJournal => Set<LigneDuJournal>();
 
+    public DbSet<AnneeScolaire> AnneesScolaires => Set<AnneeScolaire>();
+
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;
 

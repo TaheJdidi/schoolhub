@@ -150,6 +150,88 @@ public sealed class ParametresDuCentreTests(PostgreSqlDeTest postgreSql) : IAsyn
         Assert.Null((await CentreEnBaseAsync(oliviers)).Telephone);
     }
 
+    // ----- L'année scolaire -----
+
+    [Fact]
+    public async Task La_premiere_annee_est_creee_puis_modifiee()
+    {
+        await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = Annee2027 });
+        Assert.Equal(Annee2027, (await _client.GetFromJsonAsync<ReglagesDuCentre>(Adresse))!.AnneeScolaire);
+
+        var decalee = new AnneeScolaireSaisie(new DateOnly(2027, 9, 16), new DateOnly(2028, 6, 30));
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = decalee });
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal(decalee, (await _client.GetFromJsonAsync<ReglagesDuCentre>(Adresse))!.AnneeScolaire);
+        Assert.Equal(1, await AnneesEnBaseAsync(_jasmins));
+    }
+
+    [Fact]
+    public async Task Une_annee_vide_n_efface_pas_l_annee_existante()
+    {
+        await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = Annee2027 });
+
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides);
+
+        Assert.Equal(Annee2027, (await reponse.Content.ReadFromJsonAsync<ReglagesDuCentre>())!.AnneeScolaire);
+        Assert.Equal(Annee2027, (await _client.GetFromJsonAsync<ReglagesDuCentre>(Adresse))!.AnneeScolaire);
+    }
+
+    [Theory]
+    [InlineData("2027-09-15", null, "L'année scolaire doit avoir une date de début et une date de fin")]
+    [InlineData(null, "2028-06-30", "L'année scolaire doit avoir une date de début et une date de fin")]
+    [InlineData("2028-06-30", "2027-09-15", "La fin de l'année scolaire doit venir après son début")]
+    [InlineData("2027-09-15", "2027-09-15", "La fin de l'année scolaire doit venir après son début")]
+    public async Task Une_annee_mal_saisie_est_refusee(string? debut, string? fin, string message)
+    {
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = Annee(debut, fin) });
+
+        await VerifierLeRefusAsync(reponse, message);
+        Assert.Equal(0, await AnneesEnBaseAsync(_jasmins));
+    }
+
+    [Theory]
+    [InlineData("2028-09-15", false)]
+    [InlineData("2028-09-14", true)]
+    public async Task L_annee_dure_un_an_au_plus(string fin, bool acceptee)
+    {
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = Annee("2027-09-15", fin) });
+
+        if (acceptee)
+            Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        else
+            await VerifierLeRefusAsync(reponse, "L'année scolaire dure un an au plus");
+    }
+
+    [Fact]
+    public async Task Un_centre_ne_voit_pas_l_annee_d_un_autre()
+    {
+        var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
+        var karim = await _application.CreerCompteAsync(oliviers, "Karim", "Ben Salah", RoleDuCompte.Proprietaire);
+        var clientDeKarim = await _application.ClientConnecteAsync(karim);
+
+        await _client.PutAsJsonAsync(Adresse, Valides with { AnneeScolaire = Annee2027 });
+
+        Assert.Null((await clientDeKarim.GetFromJsonAsync<ReglagesDuCentre>(Adresse))!.AnneeScolaire);
+        var anneeDesOliviers = Annee("2027-09-01", "2028-06-15");
+        await clientDeKarim.PutAsJsonAsync(Adresse, new ReglagesDuCentre("Centre Les Oliviers", null, null, anneeDesOliviers, null, null, null, null));
+        Assert.Equal(Annee2027, (await _client.GetFromJsonAsync<ReglagesDuCentre>(Adresse))!.AnneeScolaire);
+        Assert.Equal(1, await AnneesEnBaseAsync(_jasmins));
+    }
+
+    private static readonly AnneeScolaireSaisie Annee2027 = Annee("2027-09-15", "2028-06-30");
+
+    private static AnneeScolaireSaisie Annee(string? debut, string? fin) => new(
+        debut is null ? null : DateOnly.Parse(debut, CultureInfo.InvariantCulture),
+        fin is null ? null : DateOnly.Parse(fin, CultureInfo.InvariantCulture));
+
+    /// <summary>Les années scolaires de ce centre en base, sans passer par le filtre du centre courant.</summary>
+    private Task<int> AnneesEnBaseAsync(Centre centre) =>
+        _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<SchoolHubDbContext>().AnneesScolaires
+                .IgnoreQueryFilters()
+                .CountAsync(a => a.CentreId == centre.Id));
+
     private Task<Centre> CentreEnBaseAsync(Centre centre) =>
         _application.DansUnScopeAsync(services =>
             services.GetRequiredService<SchoolHubDbContext>().Centres.AsNoTracking().SingleAsync(c => c.Id == centre.Id));

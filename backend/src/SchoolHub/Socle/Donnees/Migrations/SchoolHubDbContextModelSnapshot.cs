@@ -103,6 +103,34 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("Debut")
+                        .HasColumnType("date")
+                        .HasColumnName("debut");
+
+                    b.Property<DateOnly>("Fin")
+                        .HasColumnType("date")
+                        .HasColumnName("fin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_annees_scolaires");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_annees_scolaires_centre_id");
+
+                    b.ToTable("annees_scolaires", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Socle.Centres.Centre", b =>
                 {
                     b.Property<Guid>("Id")
@@ -361,6 +389,16 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_annees_scolaires_centres_centre_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Comptes.Compte", b =>

@@ -14,13 +14,16 @@ public sealed class ParametresDuCentre(SchoolHubDbContext contexte, CentreCouran
     private const string NomTropLong = "Le nom du centre fait au plus 200 caractères";
     private const string TelephonePasValable = "Le téléphone doit avoir 8 chiffres";
     private const string EmailPasValable = "Cet email n'est pas valable";
+    private const string AnneeIncomplete = "L'année scolaire doit avoir une date de début et une date de fin";
+    private const string FinAvantLeDebut = "La fin de l'année scolaire doit venir après son début";
+    private const string AnneeTropLongue = "L'année scolaire dure un an au plus";
     private const string MontantPasValable = "Un montant doit être positif, au millime près";
     private const string CapacitePasValable = "La capacité doit être d'au moins 1 place";
     private const string PartPasValable = "La part du centre va de 0 à 100 %";
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
 
-    public async Task<ReglagesDuCentre> LireAsync() => Reglages(await CentreAsync());
+    public async Task<ReglagesDuCentre> LireAsync() => Reglages(await CentreAsync(), await AnneeScolaireAsync());
 
     /// <summary>
     /// Enregistre tout le formulaire d'un coup. Les champs sont vérifiés dans l'ordre de la page : le premier refusé
@@ -46,6 +49,19 @@ public sealed class ParametresDuCentre(SchoolHubDbContext contexte, CentreCouran
         if (email is not null && !AdresseEmail.EstValable(email))
             return Refus(EmailPasValable);
 
+        // Une année sans aucune date ne change rien ; avec une seule, elle est refusée.
+        (DateOnly Debut, DateOnly Fin)? dates = null;
+        if (saisie.AnneeScolaire is { } annee && (annee.Debut is not null || annee.Fin is not null))
+        {
+            if (annee.Debut is not { } debut || annee.Fin is not { } fin)
+                return Refus(AnneeIncomplete);
+            if (fin <= debut)
+                return Refus(FinAvantLeDebut);
+            if (fin >= debut.AddYears(1))
+                return Refus(AnneeTropLongue);
+            dates = (debut, fin);
+        }
+
         if (!MontantValable(saisie.MontantDeLAssurance) || !MontantValable(saisie.PrixDeLEntreeALaBibliotheque))
             return Refus(MontantPasValable);
 
@@ -64,17 +80,35 @@ public sealed class ParametresDuCentre(SchoolHubDbContext contexte, CentreCouran
             saisie.PrixDeLEntreeALaBibliotheque,
             saisie.CapaciteDeLaBibliotheque,
             saisie.PartDuCentreParDefaut);
+
+        // Rien ne disparaît : sans dates, l'année enregistrée reste telle quelle.
+        var anneeScolaire = await AnneeScolaireAsync();
+        if (dates is var (nouveauDebut, nouvelleFin))
+        {
+            if (anneeScolaire is null)
+            {
+                anneeScolaire = new AnneeScolaire(nouveauDebut, nouvelleFin);
+                contexte.AnneesScolaires.Add(anneeScolaire);
+            }
+            else
+                anneeScolaire.Changer(nouveauDebut, nouvelleFin);
+        }
+
         await contexte.SaveChangesAsync();
-        return new IssueDesReglages(Reglages(centre), null);
+        return new IssueDesReglages(Reglages(centre, anneeScolaire), null);
     }
 
     private Task<Centre> CentreAsync() => contexte.Centres.SingleAsync(c => c.Id == CentreId);
 
-    private static ReglagesDuCentre Reglages(Centre centre) => new(
+    /// <summary>L'année réglée sur la page : la plus récente du centre (le filtre automatique garde celles du centre courant).</summary>
+    private Task<AnneeScolaire?> AnneeScolaireAsync() =>
+        contexte.AnneesScolaires.OrderByDescending(a => a.Debut).FirstOrDefaultAsync();
+
+    private static ReglagesDuCentre Reglages(Centre centre, AnneeScolaire? anneeScolaire) => new(
         centre.Nom,
         centre.Telephone is null ? null : TelephoneTunisien.Grouper(centre.Telephone),
         centre.Email,
-        null,
+        anneeScolaire is null ? null : new AnneeScolaireSaisie(anneeScolaire.Debut, anneeScolaire.Fin),
         centre.MontantDeLAssurance,
         centre.PrixDeLEntreeALaBibliotheque,
         centre.CapaciteDeLaBibliotheque,
