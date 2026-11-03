@@ -35,3 +35,12 @@ Ce que personne au centre ne « demande », mais qu'il faut construire pour que 
 - Choisir et acheter le nom de domaine, puis configurer SPF et DKIM pour Brevo.
 - Ouvrir l'abonnement Azure, payé par carte internationale.
 - Préparer avec le centre pilote ses fichiers d'import (élèves, professeurs) et ses groupes de la rentrée 2027.
+
+Laissés par la relecture des comptes et de la connexion (03/11/2026) :
+
+- **Ranger les clés de chiffrement dans PostgreSQL** (`PersistKeysToDbContext`), ou au moins vérifier que la commande `creer-centre`, lancée depuis la console SSH de l'App Service, et le serveur lisent les mêmes clés. Sinon, le lien d'invitation du premier propriétaire répond « Ce lien a expiré ».
+- **Activer « HTTPS uniquement » sur l'App Service** : l'application ne redirige pas elle-même de http vers https.
+- **Vérifier que `Application:Adresse` est une adresse complète en https** en production : elle sert à écrire les liens des emails d'invitation et de mot de passe oublié.
+- **Limiter le nombre d'essais** (`AddRateLimiter`) sur la connexion, le mot de passe oublié, le nouveau mot de passe et l'invitation. Pour un email inconnu, calculer quand même un hachage, et envoyer l'email de mot de passe oublié en dehors de la requête : le temps de réponse ne doit pas dire si l'email existe.
+- **Pouvoir renvoyer l'invitation d'un propriétaire** (le « renvoyer » de CPT-04, ou une commande) : aujourd'hui, un invité qui perd son email n'a aucun recours.
+- **Répondre `{ "message": … }` en cas d'erreur inattendue**, au lieu d'une erreur 500 vide.
