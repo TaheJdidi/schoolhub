@@ -237,7 +237,7 @@ Avec le vrai serveur et PostgreSQL dans Docker :
 
 ## Points d'attention
 
-- **Node 24 est à installer sur le poste** : il a Node 12, et Angular 22 demande Node 22 ou 24. L'Angular CLI 9 installé globalement n'est pas utilisé : les commandes passent par `npm`.
+- **Node 26 est à installer sur le poste** : il a Node 12, alors qu'Angular 22.2 demande au moins Node 22.22, 24.15 ou 26. Node 26 est la version LTS depuis le 28/10/2026. L'Angular CLI 9 installé globalement n'est pas utilisé : les commandes passent par `npm`.
 - **Le cookie `Secure` derrière le proxy de développement** : les navigateurs l'acceptent sur `localhost`. Si ce n'était pas le cas, le profil `https` du serveur (port 7058) servirait de cible au proxy.
 - **Sans service worker**, l'installation sur l'écran d'accueil reste à confirmer sur un vrai téléphone.
 - **`Referrer-Policy: no-referrer` vaut pour toutes les pages**, y compris les futurs liens `wa.me` : WhatsApp n'en a pas besoin.
