@@ -2,7 +2,8 @@
 .carte { display: grid; gap: 14px; padding: 16px; }
 .titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
 .formulaire { display: grid; gap: 14px; }
-.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+/* Les champs d'une ligne s'alignent par le bas, même quand un libellé passe sur deux lignes. */
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
 .groupe { display: grid; gap: 10px; border: 0; margin: 0; padding: 0; min-width: 0; }
 .groupe legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }

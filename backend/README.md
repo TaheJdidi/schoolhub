@@ -64,7 +64,8 @@ Les tests qui touchent à la base lancent eux-mêmes un PostgreSQL jetable dans 
 src/SchoolHub/
 ├── Program.cs
 ├── Socle/                 ce qui sert à tous les modules
-│   ├── Centres/           le centre, la séparation des centres, la commande creer-centre
+│   ├── Centres/           le centre et ses réglages, l'année scolaire, les niveaux (dont les 29
+│   │                      niveaux d'office), la séparation des centres, la commande creer-centre
 │   ├── Comptes/           les comptes, la connexion, l'invitation, le mot de passe oublié,
 │   │                      les rôles et le centre courant, et la page « Comptes » (inviter,
 │   │                      renvoyer l'invitation, désactiver, réactiver)
