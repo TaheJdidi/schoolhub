@@ -1,0 +1,25 @@
+<sh-carte-publique>
+  <h1 class="h1">Se connecter</h1>
+
+  @if (expiree()) {
+    <p class="note">Votre session a expiré : reconnectez-vous</p>
+  }
+
+  <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="seConnecter()" novalidate>
+    <label class="f">
+      Email
+      <input type="email" formControlName="email" autocomplete="username" inputmode="email" />
+    </label>
+    <sh-champ-mot-de-passe [controle]="formulaire.controls.motDePasse" autocomplete="current-password" />
+
+    @if (message(); as message) {
+      <p class="note bad" role="alert">{{ message }}</p>
+    }
+
+    <button type="submit" class="btn primary wide" [disabled]="envoi()">
+      {{ envoi() ? 'Connexion…' : 'Se connecter' }}
+    </button>
+  </form>
+
+  <a class="lnk oubli" routerLink="/mot-de-passe-oublie">Mot de passe oublié</a>
+</sh-carte-publique>

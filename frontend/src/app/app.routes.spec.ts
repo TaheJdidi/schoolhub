@@ -73,6 +73,24 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Caisse · SchoolHub');
   });
 
+  it("une personne déjà connectée qui ouvre la connexion passe à « Aujourd'hui »", async () => {
+    await ouvrir('/connexion', AMIRA);
+
+    expect(adresseActuelle()).toBe('/aujourdhui');
+  });
+
+  it("sans session, la connexion s'affiche sans parler de session expirée", async () => {
+    const navigation = harness.navigateByUrl('/connexion');
+    const requete = await vi.waitFor(() => http.expectOne('/api/moi'));
+    requete.flush(null, { status: 401, statusText: 'Unauthorized' });
+    await navigation;
+    await harness.fixture.whenStable();
+
+    expect(texte()).toContain('Se connecter');
+    expect(texte()).not.toContain('expiré');
+    expect(titre()).toBe('Connexion · SchoolHub');
+  });
+
   it("une adresse inconnue dit que la page n'existe pas", async () => {
     await ouvrir('/nimporte', AMIRA);
 

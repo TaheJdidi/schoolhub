@@ -1,0 +1,21 @@
+<div class="f">
+  <label [for]="identifiant">{{ libelle() }}</label>
+  <div class="saisie">
+    <input
+      [id]="identifiant"
+      [type]="visible() ? 'text' : 'password'"
+      [autocomplete]="autocomplete()"
+      [formControl]="controle()"
+    />
+    <button
+      type="button"
+      class="btn"
+      [attr.aria-pressed]="visible()"
+      [attr.aria-controls]="identifiant"
+      (click)="visible.set(!visible())"
+    >
+      <sh-icone [nom]="visible() ? 'eye-off' : 'eye'" />
+      <span>{{ visible() ? 'Masquer' : 'Afficher' }}</span>
+    </button>
+  </div>
+</div>

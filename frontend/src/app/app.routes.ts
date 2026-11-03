@@ -4,9 +4,10 @@ import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
+import { Connexion } from './pages/connexion/connexion';
 import { Introuvable } from './pages/introuvable/introuvable';
 import { EntreeDuMenu, MENU } from './socle/menu';
-import { estConnecte, estProprietaire } from './socle/session/gardes';
+import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
 
 const titre = (page: string) => `${page} · SchoolHub`;
 
@@ -24,7 +25,8 @@ function adressesDe(entree: EntreeDuMenu): Routes {
 }
 
 export const routes: Routes = [
-  // Les pages sans connexion viendront ici, avant le cadre.
+  // Les pages sans connexion, avant le cadre.
+  { path: 'connexion', component: Connexion, canActivate: [nonConnecte], title: titre('Connexion') },
   {
     path: '',
     component: Cadre,
