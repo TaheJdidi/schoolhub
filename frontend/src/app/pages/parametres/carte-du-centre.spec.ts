@@ -137,6 +137,36 @@ describe('la carte « Le centre »', () => {
     expect(page.textContent).not.toContain('Paramètres enregistrés');
   });
 
+  it("n'enregistre rien tant que les réglages ne sont pas chargés, et propose de réessayer", async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: 'carte', component: CarteDuCentre },
+          { path: '**', component: PageDeTest },
+        ]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    harness = await RouterTestingHarness.create('/carte');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne(ADRESSE))).error(new ProgressEvent('error'));
+    await attendre('Pas de connexion à Internet : réessayez.');
+
+    // Un formulaire vide enregistré effacerait l'assurance, les prix et la part du centre.
+    expect((page.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    envoyer(page);
+    http.expectNone((r) => r.method === 'PUT');
+
+    const reessayer = [...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Réessayer');
+    reessayer!.click();
+    (await vi.waitFor(() => http.expectOne(ADRESSE))).flush(REGLAGES);
+    await vi.waitFor(() => expect(champ('nom').value).toBe('Centre Les Jasmins'));
+    expect((page.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
+    expect(page.textContent).not.toContain('Pas de connexion');
+  });
+
   it("le bouton se bloque pendant l'envoi", async () => {
     await ouvrir(REGLAGES);
     envoyer(page);

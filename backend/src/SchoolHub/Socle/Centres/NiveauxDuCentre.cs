@@ -89,7 +89,8 @@ public sealed class NiveauxDuCentre(SchoolHubDbContext contexte)
         var nom = saisie?.Trim() ?? "";
         if (nom.Length == 0)
             return (nom, IssueSurUnNiveau.Refusee(StatusCodes.Status400BadRequest, NomObligatoire));
-        if (nom.Length > Niveau.LongueurMaximaleDuNom)
+        // La forme normalisée peut s'allonger (« ﷺ » donne 18 caractères) : elle doit tenir dans sa colonne elle aussi.
+        if (nom.Length > Niveau.LongueurMaximaleDuNom || Niveau.Normaliser(nom).Length > Niveau.LongueurMaximaleDuNom)
             return (nom, IssueSurUnNiveau.Refusee(StatusCodes.Status400BadRequest, NomTropLong));
         return (nom, null);
     }

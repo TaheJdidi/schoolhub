@@ -103,6 +103,15 @@ public sealed class NiveauxTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Un_nom_qui_s_allonge_une_fois_normalise_est_refuse_sans_erreur_de_la_base()
+    {
+        // « ﷺ » est un seul caractère, qui en devient 18 une fois normalisé : 50 font 900 caractères.
+        var reponse = await AjouterAsync(new string('ﷺ', 50));
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.BadRequest, "Le nom du niveau fait au plus 100 caractères");
+    }
+
+    [Fact]
     public async Task Un_nom_trop_long_est_refuse()
     {
         var reponse = await AjouterAsync(new string('n', 101));
@@ -113,6 +122,10 @@ public sealed class NiveauxTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     [Theory]
     [InlineData(" 9ᵉ Année de base ")]
     [InlineData("UNIVERSITÉ, 1ʳᵉ ANNÉE")]
+    // Les lettres en exposant des niveaux d'office ne se tapent pas : « 9e » et « 1re » sont le même niveau.
+    [InlineData("9e année de base")]
+    [InlineData("1re Année secondaire")]
+    [InlineData("Université, 1re année")]
     public async Task Un_nom_deja_dans_la_liste_est_refuse(string nom)
     {
         await AjouterAsync("Université, 1ʳᵉ année");

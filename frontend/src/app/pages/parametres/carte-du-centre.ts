@@ -45,22 +45,33 @@ export class CarteDuCentre implements OnInit {
     part: new FormControl('', { nonNullable: true }),
   });
 
+  /**
+   * Les réglages du serveur sont dans le formulaire. Avant, rien ne s'enregistre : le formulaire est enregistré
+   * d'un coup, et un formulaire vide effacerait l'assurance, les prix et la part du centre.
+   */
+  protected readonly charges = signal(false);
   /** Le serveur n'a pas d'année scolaire pour ce centre. */
   protected readonly sansAnnee = signal(false);
   protected readonly envoi = signal(false);
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): Promise<void> {
+    return this.charger();
+  }
+
+  protected async charger(): Promise<void> {
+    this.erreur.set(null);
     try {
       this.remplir(await firstValueFrom(this.http.get<Reglages>(ADRESSE)));
+      this.charges.set(true);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }
   }
 
   protected async enregistrer(): Promise<void> {
-    if (this.envoi()) return;
+    if (!this.charges() || this.envoi()) return;
 
     const saisie = this.lire();
     this.succes.set(null);

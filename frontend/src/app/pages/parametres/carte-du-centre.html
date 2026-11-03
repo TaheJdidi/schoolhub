@@ -54,7 +54,7 @@
     </div>
 
     <div class="actions">
-      <button type="submit" class="btn primary" [disabled]="envoi()">
+      <button type="submit" class="btn primary" [disabled]="envoi() || !charges()">
         {{ envoi() ? 'Enregistrement…' : 'Enregistrer' }}
       </button>
     </div>
@@ -65,5 +65,10 @@
   }
   @if (erreur(); as erreur) {
     <p class="note bad" role="alert">{{ erreur }}</p>
+  }
+  @if (!charges() && erreur()) {
+    <div class="actions">
+      <button type="button" class="btn" (click)="charger()">Réessayer</button>
+    </div>
   }
 </section>

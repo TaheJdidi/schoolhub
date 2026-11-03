@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -42,8 +43,12 @@ public sealed class Niveau : IAppartientAuCentre
         NomNormalise = Normaliser(nom);
     }
 
-    /// <summary>Le nom tel qu'on le compare : « Université, 1ʳᵉ année » et « université, 1ʳᵉ ANNÉE » sont le même niveau.</summary>
-    public static string Normaliser(string nom) => nom.ToLowerInvariant();
+    /// <summary>
+    /// Le nom tel qu'on le compare : « Université, 1ʳᵉ année », « université, 1re ANNÉE » et « UNIVERSITÉ, 1ʳᵉ année »
+    /// sont le même niveau. La forme NFKC ramène les lettres en exposant des niveaux d'office (« ᵉ », « ʳᵉ »),
+    /// que personne ne tape, à des lettres ordinaires ; puis tout passe en minuscules.
+    /// </summary>
+    public static string Normaliser(string nom) => nom.Normalize(NormalizationForm.FormKC).ToLowerInvariant();
 }
 
 /// <summary>
