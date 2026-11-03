@@ -40,6 +40,12 @@ public sealed class Compte : IdentityUser<Guid>
 
     /// <summary>Le compte ne peut plus se connecter, mais il reste en base.</summary>
     public void Desactiver() => Etat = EtatDuCompte.Desactive;
+
+    /// <summary>
+    /// Le compte retrouve l'état qu'il aurait sans la désactivation : actif s'il avait choisi son mot de passe,
+    /// invité sinon (un email mal tapé, par exemple).
+    /// </summary>
+    public void Reactiver() => Etat = PasswordHash is null ? EtatDuCompte.Invite : EtatDuCompte.Actif;
 }
 
 /// <summary>Ce que la personne a le droit de faire dans son centre.</summary>

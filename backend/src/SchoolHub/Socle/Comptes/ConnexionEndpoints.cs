@@ -14,7 +14,7 @@ public static class ConnexionEndpoints
 {
     private const string Incorrect = "Email ou mot de passe incorrect";
     private const string TropDEssais = "Trop d'essais : réessayez dans 15 minutes";
-    private const string CompteDesactive = "Ce compte est désactivé : adressez-vous au propriétaire du centre";
+    internal const string CompteDesactive = "Ce compte est désactivé : adressez-vous au propriétaire du centre";
 
     public static IEndpointRouteBuilder MapConnexion(this IEndpointRouteBuilder api)
     {

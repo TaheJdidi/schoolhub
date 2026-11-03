@@ -16,7 +16,11 @@ public static class ComptesEndpoints
         groupe.MapGet("", ListerAsync);
         groupe.MapPost("", InviterAsync);
         groupe.MapPost("/{id:guid}/invitation", (Guid id, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, GestionDesComptes gestion, CancellationToken annulation) =>
-            RepondreAsync(utilisateur, comptes, () => gestion.RenvoyerLInvitationAsync(id, annulation)));
+            RepondreAsync(utilisateur, comptes, _ => gestion.RenvoyerLInvitationAsync(id, annulation)));
+        groupe.MapPost("/{id:guid}/desactivation", (Guid id, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, GestionDesComptes gestion, CancellationToken annulation) =>
+            RepondreAsync(utilisateur, comptes, moi => gestion.DesactiverAsync(moi, id, annulation)));
+        groupe.MapPost("/{id:guid}/reactivation", (Guid id, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, GestionDesComptes gestion) =>
+            RepondreAsync(utilisateur, comptes, moi => gestion.ReactiverAsync(moi, id)));
         return api;
     }
 
@@ -24,10 +28,10 @@ public static class ComptesEndpoints
     private static async Task<Results<Ok<CompteDuCentre>, JsonHttpResult<Avis>>> RepondreAsync(
         ClaimsPrincipal utilisateur,
         UserManager<Compte> comptes,
-        Func<Task<IssueDeLAction>> action)
+        Func<Compte, Task<IssueDeLAction>> action)
     {
         var moi = await ConnecteAsync(utilisateur, comptes);
-        var issue = await action();
+        var issue = await action(moi);
         return issue.Compte is null
             ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
             : TypedResults.Ok(CompteDuCentre.De(issue.Compte, moi));

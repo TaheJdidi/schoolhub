@@ -26,6 +26,10 @@ public sealed class GestionDesComptes(
     private const string InvitationPasPartie = "L'invitation n'est pas partie : réessayez dans un moment";
     private const string Introuvable = "Compte introuvable";
     private const string PlusDInvitation = "Ce compte n'attend plus d'invitation";
+    private const string PasSoiMeme = "Vous ne pouvez pas désactiver votre propre compte";
+    private const string DejaDesactive = "Ce compte est déjà désactivé";
+    private const string PasDesactive = "Ce compte n'est pas désactivé";
+    private const string DernierProprietaire = "Il doit rester au moins un propriétaire actif";
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
 
@@ -126,6 +130,89 @@ public sealed class GestionDesComptes(
 
         await transaction.CommitAsync(annulation);
         return IssueDeLAction.Reussie(compte);
+    }
+
+    /// <summary>
+    /// Désactive un compte actif ou invité, jamais le sien. Son tampon de sécurité change : ses liens d'email ne marchent plus,
+    /// et sa session tombe à sa prochaine requête. Il reste toujours un propriétaire actif : les désactivations d'un centre
+    /// passent l'une après l'autre, et celui qui clique est relu une fois son tour venu.
+    /// </summary>
+    public async Task<IssueDeLAction> DesactiverAsync(Compte auteur, Guid id, CancellationToken annulation = default)
+    {
+        if (id == auteur.Id)
+            return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, PasSoiMeme);
+
+        await using var transaction = await contexte.Database.BeginTransactionAsync(annulation);
+
+        // Le verrou de la ligne du centre, jusqu'à la fin de la transaction : si Hedi et Mehdi se désactivent
+        // l'un l'autre à la même seconde, le second attend que le premier ait fini.
+        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM centres WHERE id = {CentreId} FOR UPDATE", annulation);
+
+        // Relu sans suivi : le compte connecté est déjà suivi depuis la validation de la session, avec son état d'alors.
+        if (!await contexte.Users.AsNoTracking().AnyAsync(c => c.Id == auteur.Id && c.Etat == EtatDuCompte.Actif, annulation))
+            return IssueDeLAction.Refusee(StatusCodes.Status403Forbidden, ConnexionEndpoints.CompteDesactive);
+
+        var compte = await TrouverAsync(id);
+        if (compte is null)
+            return IssueDeLAction.Refusee(StatusCodes.Status404NotFound, Introuvable);
+        if (compte.Etat == EtatDuCompte.Desactive)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, DejaDesactive);
+
+        var unAutreProprietaireReste = await contexte.Users.AnyAsync(
+            c => c.CentreId == CentreId && c.Id != compte.Id && c.Role == RoleDuCompte.Proprietaire && c.Etat == EtatDuCompte.Actif,
+            annulation);
+        if (compte.Role == RoleDuCompte.Proprietaire && !unAutreProprietaireReste)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, DernierProprietaire);
+
+        journal.Noter(
+            auteur,
+            ActionDuJournal.CompteDesactive,
+            Designation(compte),
+            avant: LibellesDesComptes.De(compte.Etat),
+            apres: LibellesDesComptes.De(EtatDuCompte.Desactive));
+        compte.Desactiver();
+
+        // Le changement de tampon enregistre le compte, et la ligne du journal avec lui.
+        VerifierLEnregistrement(await comptes.UpdateSecurityStampAsync(compte));
+        await transaction.CommitAsync(annulation);
+        return IssueDeLAction.Reussie(compte);
+    }
+
+    /// <summary>
+    /// Réactive un compte désactivé : actif avec son ancien mot de passe, ou invité s'il ne l'avait jamais choisi.
+    /// Un invité réactivé n'a pas de lien valable : le propriétaire lui renvoie l'invitation.
+    /// </summary>
+    public async Task<IssueDeLAction> ReactiverAsync(Compte auteur, Guid id)
+    {
+        var compte = await TrouverAsync(id);
+        if (compte is null)
+            return IssueDeLAction.Refusee(StatusCodes.Status404NotFound, Introuvable);
+        if (compte.Etat != EtatDuCompte.Desactive)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, PasDesactive);
+
+        compte.Reactiver();
+        journal.Noter(
+            auteur,
+            ActionDuJournal.CompteReactive,
+            Designation(compte),
+            avant: LibellesDesComptes.De(EtatDuCompte.Desactive),
+            apres: LibellesDesComptes.De(compte.Etat));
+        VerifierLEnregistrement(await comptes.UpdateAsync(compte));
+        return IssueDeLAction.Reussie(compte);
+    }
+
+    /// <summary>Le compte tel que le journal le nomme : « Sonia Mabrouk · Secrétaire ».</summary>
+    private static string Designation(Compte compte) => $"{compte.Prenom} {compte.Nom} · {LibellesDesComptes.De(compte.Role)}";
+
+    /// <summary>
+    /// Un compte qui ne s'enregistre pas a été modifié par une autre requête entre sa lecture et son enregistrement :
+    /// l'erreur remonte, et la transaction est annulée.
+    /// </summary>
+    private static void VerifierLEnregistrement(IdentityResult resultat)
+    {
+        if (!resultat.Succeeded)
+            throw new InvalidOperationException(
+                "Le compte n'a pas pu être enregistré : " + string.Join(" ", resultat.Errors.Select(e => e.Description)));
     }
 
     /// <summary>Le compte de ce centre qui a cet identifiant, ou <c>null</c> : un compte d'un autre centre n'est pas trouvé.</summary>

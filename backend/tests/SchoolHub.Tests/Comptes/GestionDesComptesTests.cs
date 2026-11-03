@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
@@ -26,6 +27,10 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
     private const string AccesReserve = "Accès réservé au propriétaire";
     private const string Introuvable = "Compte introuvable";
     private const string PlusDInvitation = "Ce compte n'attend plus d'invitation";
+    private const string PasSoiMeme = "Vous ne pouvez pas désactiver votre propre compte";
+    private const string DejaDesactive = "Ce compte est déjà désactivé";
+    private const string PasDesactive = "Ce compte n'est pas désactivé";
+    private const string CompteDesactive = "Ce compte est désactivé : adressez-vous au propriétaire du centre";
 
     private ApplicationDeTest _application = null!;
     private Centre _jasmins = null!;
@@ -234,6 +239,166 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
 
         await VerifierLeRefusAsync(reponse, HttpStatusCode.NotFound, Introuvable);
         Assert.Empty(_application.Emails.Envoyes);
+    }
+
+    // ----- Désactiver (CPT-05) -----
+
+    [Fact]
+    public async Task Desactiver_coupe_la_session_et_la_connexion_et_note_le_journal()
+    {
+        var sonia = await _application.CreerCompteAsync(_jasmins, "Sonia", "Mabrouk");
+        var clientDeSonia = await _application.ClientConnecteAsync(sonia);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{sonia.Id}/desactivation", null);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("Desactive", (await reponse.Content.ReadFromJsonAsync<CompteDuCentre>())!.Etat);
+
+        // Sa session tombe à sa requête suivante, et elle ne peut plus se connecter.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await clientDeSonia.GetAsync("/api/moi")).StatusCode);
+        var connexion = await _application.Client().PostAsJsonAsync(
+            "/api/connexion", new DemandeDeConnexion(sonia.Email, "jasmins-2027"));
+        await VerifierLeRefusAsync(connexion, HttpStatusCode.Forbidden, CompteDesactive);
+
+        var ligne = Assert.Single(await _application.JournalAsync(_jasmins));
+        Assert.Equal(ActionDuJournal.CompteDesactive, ligne.Action);
+        Assert.Equal("Hedi Ben Salah", ligne.Auteur);
+        Assert.Equal("Sonia Mabrouk · Secrétaire", ligne.Detail);
+        Assert.Equal(("Actif", "Désactivé"), (ligne.Avant, ligne.Apres));
+    }
+
+    [Fact]
+    public async Task Desactiver_un_invite_tue_son_lien()
+    {
+        var (sonia, lien) = await InviterSoniaAsync();
+
+        var reponse = await _client.PostAsync($"/api/comptes/{sonia}/desactivation", null);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, (await OuvrirLeLienAsync(lien)).StatusCode);
+        var ligne = (await _application.JournalAsync(_jasmins)).Last();
+        Assert.Equal(("Invité", "Désactivé"), (ligne.Avant, ligne.Apres));
+    }
+
+    [Fact]
+    public async Task Personne_ne_desactive_son_propre_compte()
+    {
+        var reponse = await _client.PostAsync($"/api/comptes/{_hedi.Id}/desactivation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.BadRequest, PasSoiMeme);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/moi")).StatusCode);
+        Assert.Empty(await _application.JournalAsync(_jasmins));
+    }
+
+    [Fact]
+    public async Task Desactiver_un_compte_deja_desactive_est_refuse()
+    {
+        var amira = await _application.CreerCompteAsync(_jasmins, "Amira", "Jlassi", etat: EtatDuCompte.Desactive);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{amira.Id}/desactivation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, DejaDesactive);
+    }
+
+    [Fact]
+    public async Task Deux_proprietaires_qui_se_desactivent_en_meme_temps_en_laissent_un()
+    {
+        var mehdi = await _application.CreerCompteAsync(_jasmins, "Mehdi", "Trabelsi", RoleDuCompte.Proprietaire);
+        var clientDeMehdi = await _application.ClientConnecteAsync(mehdi);
+
+        var reponses = await Task.WhenAll(
+            _client.PostAsync($"/api/comptes/{mehdi.Id}/desactivation", null),
+            clientDeMehdi.PostAsync($"/api/comptes/{_hedi.Id}/desactivation", null));
+
+        // L'une passe ; l'autre arrive d'une personne déjà désactivée : sa session tombe (401),
+        // ou le serveur la relit une fois le verrou pris (403).
+        Assert.Single(reponses, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.Single(reponses, r => r.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden);
+        var proprietairesActifs = await _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<UserManager<Compte>>().Users.CountAsync(c =>
+                c.CentreId == _jasmins.Id && c.Role == RoleDuCompte.Proprietaire && c.Etat == EtatDuCompte.Actif));
+        Assert.Equal(1, proprietairesActifs);
+    }
+
+    // ----- Réactiver (CPT-05) -----
+
+    [Fact]
+    public async Task Reactiver_rend_l_acces_avec_l_ancien_mot_de_passe()
+    {
+        var amira = await _application.CreerCompteAsync(_jasmins, "Amira", "Jlassi", etat: EtatDuCompte.Desactive);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{amira.Id}/reactivation", null);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("Actif", (await reponse.Content.ReadFromJsonAsync<CompteDuCentre>())!.Etat);
+        await _application.ClientConnecteAsync(amira, "jasmins-2027");
+
+        var ligne = Assert.Single(await _application.JournalAsync(_jasmins));
+        Assert.Equal(ActionDuJournal.CompteReactive, ligne.Action);
+        Assert.Equal("Amira Jlassi · Secrétaire", ligne.Detail);
+        Assert.Equal(("Désactivé", "Actif"), (ligne.Avant, ligne.Apres));
+    }
+
+    [Fact]
+    public async Task Un_invite_desactive_puis_reactive_garde_son_ancien_lien_mort()
+    {
+        var (sonia, premierLien) = await InviterSoniaAsync();
+        await _client.PostAsync($"/api/comptes/{sonia}/desactivation", null);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{sonia}/reactivation", null);
+
+        Assert.Equal("Invite", (await reponse.Content.ReadFromJsonAsync<CompteDuCentre>())!.Etat);
+        var reactivation = (await _application.JournalAsync(_jasmins)).Last();
+        Assert.Equal(("Désactivé", "Invité"), (reactivation.Avant, reactivation.Apres));
+        Assert.Equal(HttpStatusCode.Gone, (await OuvrirLeLienAsync(premierLien)).StatusCode);
+
+        // Seul « Renvoyer l'invitation » donne un nouveau lien.
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsync($"/api/comptes/{sonia}/invitation", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await OuvrirLeLienAsync(_application.Emails.Envoyes.Last())).StatusCode);
+    }
+
+    [Fact]
+    public async Task Reactiver_un_compte_qui_n_est_pas_desactive_est_refuse()
+    {
+        var bilel = await _application.CreerCompteAsync(_jasmins, "Bilel", "Haddad");
+
+        var reponse = await _client.PostAsync($"/api/comptes/{bilel.Id}/reactivation", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, PasDesactive);
+    }
+
+    // ----- Les actions sur un compte : centre et droits -----
+
+    [Theory]
+    [InlineData("desactivation", EtatDuCompte.Actif)]
+    [InlineData("reactivation", EtatDuCompte.Desactive)]
+    public async Task Agir_sur_un_compte_d_un_autre_centre_repond_introuvable(string action, EtatDuCompte etat)
+    {
+        var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
+        var karim = await _application.CreerCompteAsync(oliviers, "Karim", "Ben Salah", etat: etat);
+
+        var reponse = await _client.PostAsync($"/api/comptes/{karim.Id}/{action}", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.NotFound, Introuvable);
+        Assert.Equal(etat, (await ChargerAsync(karim.Email!))!.Etat);
+        Assert.Empty(await _application.JournalAsync(oliviers));
+    }
+
+    [Theory]
+    [InlineData("desactivation")]
+    [InlineData("reactivation")]
+    [InlineData("invitation")]
+    public async Task Une_secretaire_n_agit_pas_sur_un_compte(string action)
+    {
+        var amira = await _application.CreerCompteAsync(_jasmins, "Amira", "Jlassi");
+        var bilel = await _application.CreerCompteAsync(_jasmins, "Bilel", "Haddad");
+        var clientDAmira = await _application.ClientConnecteAsync(amira);
+
+        var secretaire = await clientDAmira.PostAsync($"/api/comptes/{bilel.Id}/{action}", null);
+        var sansSession = await _application.Client().PostAsync($"/api/comptes/{bilel.Id}/{action}", null);
+
+        await VerifierLeRefusAsync(secretaire, HttpStatusCode.Forbidden, AccesReserve);
+        Assert.Equal(HttpStatusCode.Unauthorized, sansSession.StatusCode);
     }
 
     // ----- La liste -----
