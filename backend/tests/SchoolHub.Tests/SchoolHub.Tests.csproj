@@ -25,4 +25,9 @@
     <ProjectReference Include="..\..\src\SchoolHub\SchoolHub.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Les fichiers qui remplacent l'application Angular construite, pour les tests des pages. -->
+    <None Update="wwwroot-de-test\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -3,6 +3,7 @@ using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
 using SchoolHub.Socle.Emails;
+using SchoolHub.Socle.Pages;
 
 // « creer-centre » lance la commande au lieu du serveur. Ses options (--nom, --code…) ne doivent pas
 // se mélanger à la configuration de l'application, qui lit les arguments : la commande n'en reçoit aucun.
@@ -49,6 +50,8 @@ if (enCommande)
     return codeDeSortie;
 }
 
+// Les fichiers d'Angular passent avant la session : ils sont publics, sinon la page de connexion répondrait 401.
+app.UtiliserLesFichiersDeLApplication();
 app.UtiliserLaSession();
 
 var api = app.MapGroup("/api");
@@ -56,6 +59,7 @@ api.MapGet("/sante", () => "SchoolHub fonctionne.").AllowAnonymous();
 api.MapConnexion();
 api.MapInvitation();
 api.MapMotDePasseOublie();
+app.MapPagesDeLApplication(api);
 
 app.Run();
 return 0;

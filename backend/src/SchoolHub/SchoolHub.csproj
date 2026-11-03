@@ -16,4 +16,23 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <!-- Les pages Angular, construites dans frontend/ et rangées dans le wwwroot publié. -->
+  <PropertyGroup>
+    <DossierDuFrontend>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', '..', '..', 'frontend'))</DossierDuFrontend>
+  </PropertyGroup>
+
+  <!-- À la publication seulement : dotnet build et dotnet test n'ont pas besoin de Node. -->
+  <Target Name="ConstruireAngular" AfterTargets="ComputeFilesToPublish">
+    <Exec WorkingDirectory="$(DossierDuFrontend)" Command="npm ci" />
+    <Exec WorkingDirectory="$(DossierDuFrontend)" Command="npm run build" />
+    <ItemGroup>
+      <FichiersAngular Include="$(DossierDuFrontend)dist\browser\**" />
+      <ResolvedFileToPublish Include="@(FichiersAngular->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(FileName)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
 </Project>

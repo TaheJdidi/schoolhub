@@ -51,7 +51,7 @@ public sealed class InvitationTests(PostgreSqlDeTest postgreSql) : IAsyncLifetim
             "Bonjour Amira,\n\n"
             + "Vous êtes invité(e) à rejoindre le Centre Les Jasmins sur SchoolHub.\n"
             + "Choisissez votre mot de passe en ouvrant ce lien, valable 7 jours :\n"
-            + $"http://localhost:5087/invitation?compte={amira.Id}&jeton={Uri.EscapeDataString(jeton)}",
+            + $"http://localhost:4200/invitation?compte={amira.Id}&jeton={Uri.EscapeDataString(jeton)}",
             email.Texte);
     }
 

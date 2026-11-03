@@ -38,6 +38,8 @@ public sealed class ApplicationDeTest(
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:SchoolHub", postgreSql.ChaineDeConnexion(nomDeLaBase));
+        // Les pages Angular ne sont construites qu'à la publication : de faux fichiers les remplacent.
+        builder.UseWebRoot(Path.Combine(AppContext.BaseDirectory, "wwwroot-de-test"));
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<TimeProvider>(Horloge);
