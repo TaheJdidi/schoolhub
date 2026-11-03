@@ -47,6 +47,38 @@ describe('le cadre', () => {
     expect(entete).toContain('Secrétaire');
   });
 
+  describe('la date du jour, quand le cadre reste ouvert la nuit', () => {
+    // Seule l'horloge est simulée : les minuteurs restent réels, pour le routeur.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2026, 10, 3, 20, 0));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    const entete = (page: HTMLElement) => page.querySelector('.top')?.textContent ?? '';
+
+    it('change à la page suivante', async () => {
+      const page = await ouvrir('/aujourdhui', AMIRA);
+      expect(entete(page)).toContain('Mardi 3 novembre 2026');
+
+      vi.setSystemTime(new Date(2026, 10, 4, 8, 0));
+      await harness.navigateByUrl('/caisse');
+      await harness.fixture.whenStable();
+
+      expect(entete(page)).toContain('Mercredi 4 novembre 2026');
+    });
+
+    it("change quand on revient sur l'onglet", async () => {
+      const page = await ouvrir('/aujourdhui', AMIRA);
+
+      vi.setSystemTime(new Date(2026, 10, 4, 8, 0));
+      document.dispatchEvent(new Event('visibilitychange'));
+      await harness.fixture.whenStable();
+
+      expect(entete(page)).toContain('Mercredi 4 novembre 2026');
+    });
+  });
+
   it('montre à la secrétaire le menu sans la partie Propriétaire', async () => {
     const page = await ouvrir('/aujourdhui', AMIRA);
     const menu = page.querySelector('.rail') as HTMLElement;

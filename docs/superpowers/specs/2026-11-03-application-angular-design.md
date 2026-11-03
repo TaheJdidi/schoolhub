@@ -67,7 +67,7 @@ Ces trois cas sont traités à un seul endroit, réutilisé par toutes les pages
 
 - **Un lien d'invitation expiré** affiche son message dès l'ouverture, sans formulaire : `GET /api/invitation` le vérifie.
 - **Un lien de mot de passe oublié expiré** ne se voit qu'à l'envoi : le serveur n'a pas d'adresse pour le vérifier avant. Le lien ne vaut qu'1 heure, ce cas est rare : rien n'est ajouté au serveur. Le message remplace alors le formulaire.
-- **Le lien disparaît de la barre d'adresse** dès que la page l'a lu : la page remplace son adresse par `/invitation` (ou `/nouveau-mot-de-passe`) et garde le compte et le jeton dans l'état de navigation, qui survit à un rechargement. Le lien ne reste donc pas dans l'historique du navigateur.
+- **Le lien disparaît de la barre d'adresse** dès que la page l'a lu : la page remplace son adresse par `/invitation` (ou `/nouveau-mot-de-passe`) et garde le compte et le jeton dans l'état de navigation, qui survit à un rechargement. Le lien ne revient donc pas avec le bouton « retour », et il n'est transmis à aucun autre site. L'historique général du navigateur peut tout de même garder l'adresse d'origine : on n'y peut rien depuis la page, mais le lien ne sert qu'une fois et expire (7 jours pour l'invitation, 1 heure pour le mot de passe oublié).
 
 **Une personne déjà connectée** qui ouvre `/connexion` va directement sur « Aujourd'hui ». Les pages d'invitation et de mot de passe restent ouvertes : elles connectent la personne du lien.
 

@@ -5,9 +5,9 @@
       <span class="bt"><b>SchoolHub</b><small>{{ personne()?.centre }}</small></span>
     </a>
     <!-- Sur téléphone, à la place du nom du produit : le centre et la date. -->
-    <span class="lieu"><b>{{ personne()?.centre }}</b><small>{{ date }}</small></span>
+    <span class="lieu"><b>{{ personne()?.centre }}</b><small>{{ date() }}</small></span>
     <div class="who">
-      <span class="date">{{ date }}</span>
+      <span class="date">{{ date() }}</span>
       <span class="user">
         <span class="av" aria-hidden="true">{{ initiales() }}</span>
         <span class="un">{{ personne()?.prenom }} {{ personne()?.nom }}<small>{{ role() }}</small></span>

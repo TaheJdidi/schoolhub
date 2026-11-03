@@ -1,7 +1,8 @@
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter, map } from 'rxjs';
+import { filter, fromEvent, map, merge } from 'rxjs';
 import { dateDuJour } from '../socle/dates';
 import { Icone } from '../socle/icone';
 import { EntreeDuMenu, menuDe, ONGLETS } from '../socle/menu';
@@ -27,8 +28,21 @@ export class Cadre {
   private readonly session = inject(Session);
   private readonly router = inject(Router);
 
-  /** La date du jour, calculée à l'ouverture : rien ne tourne en tâche de fond. */
-  protected readonly date = dateDuJour(new Date());
+  private readonly document = inject(DOCUMENT);
+
+  /**
+   * La date du jour. Le cadre reste ouvert d'une page à l'autre, parfois toute la nuit à l'accueil :
+   * elle se recalcule à chaque navigation et quand on revient sur l'onglet. Sans minuteur, et sans
+   * appel au serveur, qui renouvellerait la session.
+   */
+  private readonly maintenant = toSignal(
+    merge(
+      this.router.events.pipe(filter((evenement) => evenement instanceof NavigationEnd)),
+      fromEvent(this.document, 'visibilitychange').pipe(filter(() => this.document.visibilityState === 'visible')),
+    ).pipe(map(() => new Date())),
+    { initialValue: new Date() },
+  );
+  protected readonly date = computed(() => dateDuJour(this.maintenant()));
 
   protected readonly personne = this.session.personne;
   protected readonly initiales = computed(() => {
