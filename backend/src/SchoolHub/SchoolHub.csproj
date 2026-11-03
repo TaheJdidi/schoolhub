@@ -21,9 +21,11 @@
     <DossierDuFrontend>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..', '..', '..', 'frontend'))</DossierDuFrontend>
   </PropertyGroup>
 
-  <!-- À la publication seulement : dotnet build et dotnet test n'ont pas besoin de Node. -->
+  <!-- À la publication seulement : dotnet build et dotnet test n'ont pas besoin de Node.
+       npm ci ne se lance que sur un dépôt neuf (le pipeline) : il commence par supprimer node_modules,
+       ce qui échouerait sur le poste pendant que npm start tourne. -->
   <Target Name="ConstruireAngular" AfterTargets="ComputeFilesToPublish">
-    <Exec WorkingDirectory="$(DossierDuFrontend)" Command="npm ci" />
+    <Exec WorkingDirectory="$(DossierDuFrontend)" Command="npm ci" Condition="!Exists('$(DossierDuFrontend)node_modules')" />
     <Exec WorkingDirectory="$(DossierDuFrontend)" Command="npm run build" />
     <ItemGroup>
       <FichiersAngular Include="$(DossierDuFrontend)dist\browser\**" />
