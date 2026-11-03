@@ -35,6 +35,13 @@ public sealed class Niveau : IAppartientAuCentre
     /// <summary>L'ordre scolaire d'un niveau d'office, de 1 à 29 ; vide pour un niveau ajouté.</summary>
     public int? Rang { get; private set; }
 
+    /// <summary>Le nouveau nom d'un niveau ajouté, déjà vérifié.</summary>
+    public void Renommer(string nom)
+    {
+        Nom = nom;
+        NomNormalise = Normaliser(nom);
+    }
+
     /// <summary>Le nom tel qu'on le compare : « Université, 1ʳᵉ année » et « université, 1ʳᵉ ANNÉE » sont le même niveau.</summary>
     public static string Normaliser(string nom) => nom.ToLowerInvariant();
 }
