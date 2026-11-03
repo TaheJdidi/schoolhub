@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
@@ -84,6 +86,27 @@ public sealed class MigrationsTests(PostgreSqlDeTest postgreSql)
         await contexte.Database.MigrateAsync();
 
         Assert.Empty(await contexte.Database.GetPendingMigrationsAsync());
+    }
+
+    [Fact]
+    public async Task La_migration_donne_les_niveaux_d_office_aux_centres_existants()
+    {
+        var options = new DbContextOptionsBuilder<SchoolHubDbContext>();
+        SchoolHubDbContext.Configurer(options, postgreSql.ChaineDeConnexion("migrations_niveaux"));
+        await using var contexte = new SchoolHubDbContext(options.Options, new CentreCourant());
+        var migrations = contexte.GetService<IMigrator>();
+
+        // Un centre qui existait avant la liste des niveaux.
+        await migrations.MigrateAsync("AjouterLesAnneesScolaires");
+        var ancien = Guid.NewGuid();
+        await contexte.Database.ExecuteSqlAsync($"INSERT INTO centres (id, nom, code) VALUES ({ancien}, 'Centre Ancien', 'centre-ancien')");
+
+        await migrations.MigrateAsync();
+
+        var noms = await contexte.Database
+            .SqlQuery<string>($"SELECT nom AS \"Value\" FROM niveaux WHERE centre_id = {ancien} AND d_office ORDER BY rang")
+            .ToListAsync();
+        Assert.Equal(NiveauxDOffice.Liste, noms);
     }
 
     [Fact]

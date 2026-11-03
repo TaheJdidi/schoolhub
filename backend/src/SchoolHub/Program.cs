@@ -20,6 +20,7 @@ builder.Services.AddScoped<JournalDuCentre>();
 builder.Services.AddScoped<GestionDesComptes>();
 builder.Services.AddScoped<CreationDeCentre>();
 builder.Services.AddScoped<ParametresDuCentre>();
+builder.Services.AddScoped<NiveauxDuCentre>();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
 // processus que le serveur web, parfois lancé depuis un autre dossier (console SSH) : par défaut, la protection
@@ -65,6 +66,7 @@ api.MapInvitation();
 api.MapMotDePasseOublie();
 api.MapComptes();
 api.MapParametres();
+api.MapNiveaux();
 app.MapPagesDeLApplication(api);
 
 app.Run();

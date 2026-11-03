@@ -189,6 +189,47 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("centres", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Socle.Centres.Niveau", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<bool>("DOffice")
+                        .HasColumnType("boolean")
+                        .HasColumnName("d_office");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<string>("NomNormalise")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom_normalise");
+
+                    b.Property<int?>("Rang")
+                        .HasColumnType("integer")
+                        .HasColumnName("rang");
+
+                    b.HasKey("Id")
+                        .HasName("pk_niveaux");
+
+                    b.HasIndex("CentreId", "NomNormalise")
+                        .IsUnique()
+                        .HasDatabaseName("ix_niveaux_centre_id_nom_normalise");
+
+                    b.ToTable("niveaux", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Socle.Comptes.Compte", b =>
                 {
                     b.Property<Guid>("Id")
@@ -399,6 +440,16 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_annees_scolaires_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Socle.Centres.Niveau", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_niveaux_centres_centre_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Comptes.Compte", b =>

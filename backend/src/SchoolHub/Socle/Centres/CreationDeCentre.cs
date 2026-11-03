@@ -20,7 +20,7 @@ public sealed record ResultatDeCreation(bool Reussi, string Message);
 
 /// <summary>
 /// CEN-01 : crée un centre et son premier propriétaire (invité), puis lui envoie son invitation.
-/// Tout ou rien : le centre, le compte, sa ligne au journal et l'envoi de l'email forment une seule transaction,
+/// Tout ou rien : le centre, ses niveaux d'office, le compte, sa ligne au journal et l'envoi de l'email forment une seule transaction,
 /// validée seulement une fois l'email parti.
 /// </summary>
 public sealed partial class CreationDeCentre(
@@ -28,6 +28,7 @@ public sealed partial class CreationDeCentre(
     UserManager<Compte> comptes,
     Invitations invitations,
     CentreCourant centreCourant,
+    NiveauxDuCentre niveaux,
     JournalDuCentre journal)
 {
     public async Task<ResultatDeCreation> CreerAsync(NouveauCentre demande, CancellationToken annulation = default)
@@ -51,8 +52,10 @@ public sealed partial class CreationDeCentre(
         contexte.Centres.Add(centre);
         await contexte.SaveChangesAsync(annulation);
 
-        // Personne n'est connecté : la commande travaille pour le centre qu'elle vient de créer, où va la ligne du journal.
+        // Personne n'est connecté : la commande travaille pour le centre qu'elle vient de créer,
+        // où vont ses niveaux d'office et la ligne du journal.
         centreCourant.Definir(centre.Id);
+        niveaux.RecopierLesNiveauxDOffice();
 
         var proprietaire = new Compte(
             centre.Id,

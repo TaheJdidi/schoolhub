@@ -150,6 +150,15 @@ public sealed class ApplicationDeTest(
                 .ToListAsync();
         });
 
+    /// <summary>Les 29 niveaux d'office dans ce centre, comme les recopie la commande de création d'un centre.</summary>
+    public Task RecopierLesNiveauxDOfficeAsync(Centre centre) =>
+        DansUnScopeAsync(services =>
+        {
+            services.GetRequiredService<CentreCourant>().Definir(centre.Id);
+            services.GetRequiredService<NiveauxDuCentre>().RecopierLesNiveauxDOffice();
+            return services.GetRequiredService<SchoolHubDbContext>().SaveChangesAsync();
+        });
+
     /// <summary>Un nouveau client, connecté avec ce compte : la connexion doit réussir.</summary>
     public async Task<HttpClient> ClientConnecteAsync(Compte compte, string motDePasse = "jasmins-2027")
     {

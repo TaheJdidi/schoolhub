@@ -264,6 +264,24 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
     }
 
     [Fact]
+    public async Task La_commande_donne_les_29_niveaux_d_office_au_centre()
+    {
+        var code = CodeUnique();
+
+        await LancerAsync(Arguments(code, EmailUnique()));
+
+        var centre = await CentreAsync(code);
+        var noms = await _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<SchoolHubDbContext>().Niveaux
+                .IgnoreQueryFilters()
+                .Where(n => n.CentreId == centre!.Id && n.DOffice)
+                .OrderBy(n => n.Rang)
+                .Select(n => n.Nom)
+                .ToListAsync());
+        Assert.Equal(NiveauxDOffice.Liste, noms);
+    }
+
+    [Fact]
     public async Task La_commande_note_la_creation_du_proprietaire_au_journal()
     {
         var code = CodeUnique();
