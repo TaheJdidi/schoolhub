@@ -1,11 +1,12 @@
 # SchoolHub — backend
 
-L'application .NET 10 de SchoolHub. Elle servira aussi les pages Angular, à la même adresse ([ADR 0003](../docs/adr/0003-un-seul-deploiement-decoupe-en-modules.md)).
+L'application .NET 10 de SchoolHub. Elle sert aussi les pages Angular, à la même adresse ([ADR 0003](../docs/adr/0003-un-seul-deploiement-decoupe-en-modules.md)).
 
 ## Ce qu'il faut sur le poste
 
 - le SDK .NET 10 ;
-- Docker Desktop, qui a besoin de WSL 2 sous Windows : il fait tourner PostgreSQL pour l'application et pour les tests.
+- Docker Desktop, qui a besoin de WSL 2 sous Windows : il fait tourner PostgreSQL pour l'application et pour les tests ;
+- Node 26, pour les pages Angular et pour `dotnet publish` (pas pour `dotnet build` ni `dotnet test`).
 
 ## Lancer l'application
 
@@ -17,6 +18,16 @@ dotnet run --project src/SchoolHub
 ```
 
 Puis ouvrir http://localhost:5087/api/sante : la page répond « SchoolHub fonctionne. ».
+
+Les pages se lancent à côté, avec Angular, sur http://localhost:4200 : voir le [README du frontend](../frontend/README.md). En développement, les liens des emails pointent vers ce port 4200 (`Application:Adresse` dans `appsettings.Development.json`).
+
+## Publier
+
+```bash
+dotnet publish src/SchoolHub -c Release -o <dossier>
+```
+
+La publication construit aussi Angular (`npm ci`, puis `npm run build` dans `frontend/`) et range ses fichiers dans `wwwroot`. Le serveur les envoie sans connexion, avant de regarder la session. Toute adresse qui n'est ni `/api` ni un fichier renvoie `index.html`, et c'est Angular qui choisit la page. Une adresse `/api` inconnue répond 404 `{ "message": "Adresse inconnue" }`.
 
 ## Créer un centre
 
@@ -57,6 +68,8 @@ src/SchoolHub/
 │   ├── Comptes/           les comptes, la connexion, l'invitation, le mot de passe oublié,
 │   │                      les rôles et le centre courant
 │   ├── Emails/            l'envoi des emails (dans la console en développement)
+│   ├── Pages/             les pages Angular : fichiers publics, index.html par défaut,
+│   │                      adresse /api inconnue, en-tête Referrer-Policy
 │   └── Donnees/           le contexte EF Core et les migrations
 └── Modules/               un dossier par module, quand ses premières stories arrivent :
                            élèves et inscriptions, groupes et séances, caisse et reçus,

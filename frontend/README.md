@@ -1,59 +1,68 @@
-# Schoolhub
+# SchoolHub — frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.5.
+L'application Angular 22 de SchoolHub. En production, le serveur .NET la sert à la même adresse que l'API ([ADR 0003](../docs/adr/0003-un-seul-deploiement-decoupe-en-modules.md)) : `dotnet publish` la construit et la range dans son `wwwroot`.
 
-## Development server
+## Ce qu'il faut sur le poste
 
-To start a local development server, run:
+- Node 26 (la version LTS) : `node --version` doit afficher `v26.` suivi d'un numéro ;
+- le serveur .NET et PostgreSQL, comme dans le [README du backend](../backend/README.md).
 
-```bash
-ng serve
-```
+## Lancer l'application
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Le serveur d'abord, depuis `backend/` :
 
 ```bash
-ng generate component component-name
+dotnet run --project src/SchoolHub
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Puis Angular, depuis `frontend/` :
 
 ```bash
-ng generate --help
+npm ci
+npm start
 ```
 
-## Building
+Ouvrir http://localhost:4200. La page se recharge à chaque modification. Angular transmet les appels `/api` au serveur (port 5087), grâce à `proxy.conf.json`. En développement, les liens des emails (invitation, mot de passe oublié) pointent aussi vers le port 4200.
 
-To build the project run:
+## Lancer les tests
 
 ```bash
-ng build
+npm test
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Les tests utilisent Vitest. Ils simulent les réponses du serveur : ni le serveur ni la base ne sont nécessaires. Pour un seul passage, sans surveiller les fichiers : `npm test -- --watch=false`.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Construire
 
 ```bash
-ng test
+npm run build
 ```
 
-## Running end-to-end tests
+La construction va dans `dist/browser/`. C'est inutile à la main : `dotnet publish` la lance.
 
-For end-to-end (e2e) testing, run:
+## Organisation du code
 
-```bash
-ng e2e
+```
+src/app/
+├── app.routes.ts       les adresses : les pages sans connexion, puis le cadre et ses pages
+├── socle/              ce qui sert à toutes les pages
+│   ├── session/        la personne connectée, les gardes des adresses, l'intercepteur des 401
+│   ├── menu.ts         la liste du menu
+│   ├── icones.ts       les icônes de la maquette (Lucide), et icone.ts pour les afficher
+│   ├── erreurs.ts      le message à afficher pour une erreur de l'API
+│   └── …               dates, personnes, lien de l'email, champ de mot de passe
+├── cadre/              l'en-tête, le menu, les onglets du téléphone, la page « Plus »,
+│                       et la carte des pages sans connexion
+├── pages/              une page par dossier : connexion, invitation, mots de passe,
+│                       aujourd'hui, bientôt, accès réservé, introuvable
+└── test/               les outils des tests
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Les règles
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- **Une seule liste de menu** (`socle/menu.ts`). Le menu de gauche, la page « Plus » et les adresses en sont construits. Une story qui construit une page remplace la page « bientôt » de son entrée, dans `app.routes.ts`.
+- **Aucun appel au serveur en tâche de fond** : ni minuteur, ni vérification régulière. Chaque appel renouvelle la session, et les 12 heures sans activité ne finiraient jamais.
+- **La personne connectée reste en mémoire** (`Session`), jamais dans le stockage du navigateur.
+- **Le style vient de la maquette validée** (`docs/maquette/index.html`), sans bibliothèque de composants : les couleurs et les éléments communs sont dans `src/styles.css`.
+- **Tout est en français**, les noms dans le code aussi (sans accents dans les identifiants).
+- **Pas de service worker** : l'application s'installe sur l'écran d'accueil grâce à `public/manifest.webmanifest`, mais rien n'est gardé en cache. Les icônes « SH » se refont avec `outils/creer-icones.ps1`.

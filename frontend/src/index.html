@@ -6,7 +6,10 @@
   <meta name="theme-color" content="#1B5DA4">
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Installable sur l'écran d'accueil, sans service worker : rien n'est gardé en cache. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icones/sh-32.png">
+  <link rel="apple-touch-icon" href="icones/sh-180.png">
 </head>
 <body>
   <sh-root></sh-root>
