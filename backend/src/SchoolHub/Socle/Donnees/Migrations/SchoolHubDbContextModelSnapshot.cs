@@ -110,17 +110,46 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int?>("CapaciteDeLaBibliotheque")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacite_de_la_bibliotheque");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("code");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<decimal?>("MontantDeLAssurance")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant_de_l_assurance");
+
                     b.Property<string>("Nom")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("nom");
+
+                    b.Property<decimal?>("PartDuCentreParDefaut")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("part_du_centre_par_defaut");
+
+                    b.Property<decimal?>("PrixDeLEntreeALaBibliotheque")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("prix_de_l_entree_a_la_bibliotheque");
+
+                    b.Property<string>("Telephone")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone");
 
                     b.HasKey("Id")
                         .HasName("pk_centres");
