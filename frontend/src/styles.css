@@ -55,6 +55,15 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:1.8}
 .note.ok{background:var(--ok-soft);color:var(--ok)}
 .note p{margin:0}
 
+/* Pastilles d'état, comme celles de la maquette */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap;line-height:1.6}
+.pill svg.lucide{width:13px;height:13px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--accent-soft);color:var(--accent-ink)}
+.pill.muted{background:var(--sunk);color:var(--ink-2)}
+
 /* Formulaires */
 .f{display:grid;gap:5px;font-size:13px;font-weight:500;color:var(--ink-2);min-width:0}
 .f input,.inp{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:8px 10px;width:100%}

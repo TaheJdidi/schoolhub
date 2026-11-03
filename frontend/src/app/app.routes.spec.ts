@@ -56,6 +56,22 @@ describe("les adresses de l'application", () => {
     expect(texte()).not.toContain('Accès réservé');
   });
 
+  it('le propriétaire voit la page « Comptes » sur /comptes', async () => {
+    await ouvrir('/comptes', HEDI);
+    http.expectOne('/api/comptes').flush([]);
+    await harness.fixture.whenStable();
+
+    expect(texte()).toContain('Inviter une personne');
+    expect(texte()).not.toContain('Cette page arrive bientôt');
+    expect(titre()).toBe('Comptes · SchoolHub');
+  });
+
+  it('une secrétaire lit « Accès réservé au propriétaire » sur /comptes', async () => {
+    await ouvrir('/comptes', AMIRA);
+
+    expect(texte()).toContain('Accès réservé au propriétaire');
+  });
+
   it("/ mène à « Aujourd'hui »", async () => {
     await ouvrir('/', AMIRA);
 

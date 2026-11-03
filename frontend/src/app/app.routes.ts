@@ -1,9 +1,11 @@
+import { Type } from '@angular/core';
 import { Routes } from '@angular/router';
 import { Cadre } from './cadre/cadre';
 import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
+import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Invitation } from './pages/invitation/invitation';
 import { Introuvable } from './pages/introuvable/introuvable';
@@ -14,12 +16,22 @@ import { estConnecte, estProprietaire, nonConnecte } from './socle/session/garde
 
 const titre = (page: string) => `${page} · SchoolHub`;
 
+/** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
+const PAGES: Partial<Record<string, Type<unknown>>> = {
+  comptes: Comptes,
+};
+
 /**
- * Les adresses d'une entrée du menu pas encore construite. Une entrée réservée en a deux, à la même adresse :
+ * Les adresses d'une entrée du menu. Une entrée réservée en a deux, à la même adresse :
  * la page pour le propriétaire, puis « Accès réservé au propriétaire » pour la secrétaire.
  */
 function adressesDe(entree: EntreeDuMenu): Routes {
-  const page = { path: entree.chemin, component: Bientot, data: { titre: entree.libelle }, title: titre(entree.libelle) };
+  const page = {
+    path: entree.chemin,
+    component: PAGES[entree.chemin] ?? Bientot,
+    data: { titre: entree.libelle },
+    title: titre(entree.libelle),
+  };
   if (!entree.reservee) return [page];
   return [
     { ...page, canMatch: [estProprietaire] },
