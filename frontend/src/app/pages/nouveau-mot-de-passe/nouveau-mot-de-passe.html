@@ -1,0 +1,22 @@
+<sh-carte-publique>
+  <h1 class="h1">Nouveau mot de passe</h1>
+
+  @if (expire()) {
+    <p class="note bad" role="alert">{{ message() }}</p>
+    <a class="lnk" routerLink="/mot-de-passe-oublie">Refaire une demande</a>
+  } @else {
+    <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="choisir()" novalidate>
+      <sh-champ-mot-de-passe
+        [controle]="motDePasse"
+        libelle="Nouveau mot de passe, de 8 caractères au moins"
+        autocomplete="new-password"
+      />
+      @if (message(); as message) {
+        <p class="note bad" role="alert">{{ message }}</p>
+      }
+      <button type="submit" class="btn primary wide" [disabled]="envoi()">
+        {{ envoi() ? 'Enregistrement…' : 'Choisir ce mot de passe' }}
+      </button>
+    </form>
+  }
+</sh-carte-publique>

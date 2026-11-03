@@ -1,0 +1,22 @@
+<sh-carte-publique>
+  <h1 class="h1">Mot de passe oublié</h1>
+
+  @if (reponse(); as reponse) {
+    <p class="note ok" role="status">{{ reponse }}</p>
+  } @else {
+    <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="demander()" novalidate>
+      <label class="f">
+        Email
+        <input type="email" formControlName="email" autocomplete="username" inputmode="email" />
+      </label>
+      @if (message(); as message) {
+        <p class="note bad" role="alert">{{ message }}</p>
+      }
+      <button type="submit" class="btn primary wide" [disabled]="envoi()">
+        {{ envoi() ? 'Envoi…' : 'Recevoir un lien' }}
+      </button>
+    </form>
+  }
+
+  <a class="lnk retour" routerLink="/connexion">Retour à la connexion</a>
+</sh-carte-publique>

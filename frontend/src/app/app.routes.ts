@@ -7,6 +7,8 @@ import { Bientot } from './pages/bientot/bientot';
 import { Connexion } from './pages/connexion/connexion';
 import { Invitation } from './pages/invitation/invitation';
 import { Introuvable } from './pages/introuvable/introuvable';
+import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
+import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
 import { EntreeDuMenu, MENU } from './socle/menu';
 import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
 
@@ -30,6 +32,8 @@ export const routes: Routes = [
   { path: 'connexion', component: Connexion, canActivate: [nonConnecte], title: titre('Connexion') },
   // Les pages des liens des emails restent ouvertes à une personne connectée : elles connectent la personne du lien.
   { path: 'invitation', component: Invitation, title: titre('Choisir son mot de passe') },
+  { path: 'mot-de-passe-oublie', component: MotDePasseOublie, title: titre('Mot de passe oublié') },
+  { path: 'nouveau-mot-de-passe', component: NouveauMotDePasse, title: titre('Nouveau mot de passe') },
   {
     path: '',
     component: Cadre,
