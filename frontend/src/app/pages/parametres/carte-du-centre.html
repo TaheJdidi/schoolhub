@@ -1,0 +1,69 @@
+<section class="card carte">
+  <h2 class="titre">Le centre</h2>
+
+  <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
+    <div class="champs">
+      <label class="f">
+        Nom
+        <input formControlName="nom" autocomplete="organization" />
+      </label>
+      <label class="f">
+        Téléphone
+        <input formControlName="telephone" autocomplete="tel" inputmode="tel" placeholder="71 234 567" />
+      </label>
+      <label class="f">
+        Email
+        <input type="email" formControlName="email" autocomplete="email" inputmode="email" />
+      </label>
+    </div>
+
+    <fieldset class="groupe">
+      <legend>Année scolaire</legend>
+      <div class="champs">
+        <label class="f">
+          Début
+          <input type="date" formControlName="debut" />
+        </label>
+        <label class="f">
+          Fin
+          <input type="date" formControlName="fin" />
+        </label>
+      </div>
+      @if (sansAnnee()) {
+        <p class="note">Sans année scolaire, on ne peut pas créer de groupe d'Étude.</p>
+      }
+    </fieldset>
+
+    <div class="champs">
+      <label class="f">
+        Assurance (TND)
+        <input formControlName="assurance" inputmode="decimal" placeholder="20,000" />
+      </label>
+      <label class="f">
+        Part du centre par défaut (%)
+        <input formControlName="part" inputmode="decimal" placeholder="5" />
+      </label>
+      <label class="f">
+        Bibliothèque : entrée à la journée (TND)
+        <input formControlName="entree" inputmode="decimal" placeholder="2,500" />
+      </label>
+      <label class="f">
+        Bibliothèque : capacité (facultatif)
+        <input formControlName="capacite" inputmode="numeric" placeholder="40" />
+      </label>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn primary" [disabled]="envoi()">
+        {{ envoi() ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </div>
+  </form>
+
+  @if (succes(); as succes) {
+    <p class="note ok" role="status">{{ succes }}</p>
+  }
+  @if (erreur(); as erreur) {
+    <p class="note bad" role="alert">{{ erreur }}</p>
+  }
+</section>

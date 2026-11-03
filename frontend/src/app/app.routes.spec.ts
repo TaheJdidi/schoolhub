@@ -66,6 +66,25 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Comptes · SchoolHub');
   });
 
+  it('le propriétaire voit « Paramètres du centre » sur /parametres', async () => {
+    await ouvrir('/parametres', HEDI);
+    http.expectOne('/api/centre/parametres').flush({
+      nom: 'Centre Les Jasmins', telephone: null, email: null, anneeScolaire: null,
+      montantDeLAssurance: null, prixDeLEntreeALaBibliotheque: null, capaciteDeLaBibliotheque: null, partDuCentreParDefaut: null,
+    });
+    await harness.fixture.whenStable();
+
+    expect(texte()).toContain('Les informations et les prix de votre centre.');
+    expect(texte()).not.toContain('Cette page arrive bientôt');
+    expect(titre()).toBe('Paramètres du centre · SchoolHub');
+  });
+
+  it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
+    await ouvrir('/parametres', AMIRA);
+
+    expect(texte()).toContain('Accès réservé au propriétaire');
+  });
+
   it('une secrétaire lit « Accès réservé au propriétaire » sur /comptes', async () => {
     await ouvrir('/comptes', AMIRA);
 
