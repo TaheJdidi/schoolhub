@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
+using SchoolHub.Socle.Emails;
 using SchoolHub.Socle.Journal;
 using SchoolHub.Tests.Outils;
 
@@ -31,7 +34,9 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
     private const string DejaDesactive = "Ce compte est déjà désactivé";
     private const string PasDesactive = "Ce compte n'est pas désactivé";
     private const string CompteDesactive = "Ce compte est désactivé : adressez-vous au propriétaire du centre";
+    private const string VientDeChanger = "Ce compte vient de changer : rechargez la page";
 
+    private readonly List<ApplicationDeTest> _autresApplications = [];
     private ApplicationDeTest _application = null!;
     private Centre _jasmins = null!;
     private Compte _hedi = null!;
@@ -46,7 +51,12 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
         _client = await _application.ClientConnecteAsync(_hedi);
     }
 
-    public Task DisposeAsync() => _application.DisposeAsync().AsTask();
+    public async Task DisposeAsync()
+    {
+        foreach (var application in _autresApplications)
+            await application.DisposeAsync();
+        await _application.DisposeAsync();
+    }
 
     // ----- Inviter (CPT-04) -----
 
@@ -230,6 +240,26 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
     }
 
     [Fact]
+    public async Task Renvoyer_l_invitation_d_un_compte_qui_vient_de_changer_est_refuse()
+    {
+        var (sonia, _) = await InviterSoniaAsync();
+
+        // Une première requête lit Sonia ; une autre renvoie son invitation et enregistre avant elle.
+        await using var scope = _application.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<CentreCourant>().Definir(_jasmins.Id);
+        await scope.ServiceProvider.GetRequiredService<UserManager<Compte>>().FindByIdAsync(sonia.ToString());
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsync($"/api/comptes/{sonia}/invitation", null)).StatusCode);
+        var emailsAvant = _application.Emails.Envoyes.Count;
+
+        var issue = await scope.ServiceProvider.GetRequiredService<GestionDesComptes>().RenvoyerLInvitationAsync(sonia);
+
+        // Son enregistrement échoue : elle ne doit ni envoyer un lien mort, ni dire que tout va bien.
+        Assert.Equal((StatusCodes.Status409Conflict, VientDeChanger), (issue.Statut, issue.Message));
+        Assert.Equal(emailsAvant, _application.Emails.Envoyes.Count);
+        Assert.Equal(HttpStatusCode.OK, (await OuvrirLeLienAsync(_application.Emails.Envoyes.Last())).StatusCode);
+    }
+
+    [Fact]
     public async Task Renvoyer_l_invitation_d_un_compte_d_un_autre_centre_repond_introuvable()
     {
         var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
@@ -401,6 +431,37 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
         Assert.Equal(HttpStatusCode.Unauthorized, sansSession.StatusCode);
     }
 
+    // ----- Un onglet fermé pendant l'envoi de l'email -----
+
+    [Fact]
+    public async Task Une_invitation_partie_est_enregistree_meme_si_l_onglet_se_ferme_pendant_l_envoi()
+    {
+        var (application, envoi) = await ApplicationQuiCoupeLeClientAsync();
+        var email = EmailUnique("sonia");
+
+        await DansLeCentreAsync(application, gestion =>
+            gestion.InviterAsync(_hedi, new NouvelleInvitation("Sonia", "Mabrouk", email, "Secretaire"), envoi.Onglet.Token));
+
+        // L'email est parti : le compte vers lequel pointe son lien doit exister.
+        Assert.Single(envoi.Envoyes);
+        var sonia = await ChargerAsync(email);
+        Assert.NotNull(sonia);
+        Assert.Equal(ActionDuJournal.CompteCree, Assert.Single(await _application.JournalAsync(_jasmins)).Action);
+    }
+
+    [Fact]
+    public async Task Une_invitation_renvoyee_garde_son_nouveau_lien_meme_si_l_onglet_se_ferme_pendant_l_envoi()
+    {
+        var (sonia, premierLien) = await InviterSoniaAsync();
+        var (application, envoi) = await ApplicationQuiCoupeLeClientAsync();
+
+        await DansLeCentreAsync(application, gestion => gestion.RenvoyerLInvitationAsync(sonia, envoi.Onglet.Token));
+
+        Assert.Single(envoi.Envoyes);
+        Assert.Equal(HttpStatusCode.OK, (await OuvrirLeLienAsync(envoi.Envoyes.Single())).StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, (await OuvrirLeLienAsync(premierLien)).StatusCode);
+    }
+
     // ----- La liste -----
 
     [Fact]
@@ -470,6 +531,31 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
         return _application.Client().GetAsync($"/api/invitation?compte={compte}&jeton={Uri.EscapeDataString(jeton)}");
     }
 
+    /// <summary>
+    /// L'application, sur la même base, avec un expéditeur dont l'email part, mais pendant l'envoi duquel
+    /// le propriétaire ferme son onglet : la requête est alors annulée.
+    /// </summary>
+    private async Task<(ApplicationDeTest Application, EnvoiPendantLequelLOngletSeFerme Envoi)> ApplicationQuiCoupeLeClientAsync()
+    {
+        var envoi = new EnvoiPendantLequelLOngletSeFerme();
+        var application = new ApplicationDeTest(postgreSql, NomDeLaBase, services =>
+        {
+            services.RemoveAll<IEnvoiEmail>();
+            services.AddSingleton<IEnvoiEmail>(envoi);
+        });
+        await application.InitialiserLaBaseAsync();
+        _autresApplications.Add(application);
+        return (application, envoi);
+    }
+
+    /// <summary>Lance une action de la gestion des comptes comme une requête de Hedi, dans le centre des Jasmins.</summary>
+    private Task<IssueDeLAction> DansLeCentreAsync(ApplicationDeTest application, Func<GestionDesComptes, Task<IssueDeLAction>> action) =>
+        application.DansUnScopeAsync(services =>
+        {
+            services.GetRequiredService<CentreCourant>().Definir(_jasmins.Id);
+            return action(services.GetRequiredService<GestionDesComptes>());
+        });
+
     private Task<Compte?> ChargerAsync(string email) =>
         _application.DansUnScopeAsync(services => services.GetRequiredService<UserManager<Compte>>().FindByEmailAsync(email));
 
@@ -488,4 +574,19 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
 
     /// <summary>Un email que personne d'autre n'a, par exemple « sonia.1a2b3c4d@exemple.tn ».</summary>
     private static string EmailUnique(string prenom) => $"{prenom}.{Guid.NewGuid().ToString("N")[..8]}@exemple.tn";
+
+    /// <summary>Un expéditeur qui accepte l'email, pendant que le propriétaire ferme son onglet : la requête est annulée.</summary>
+    private sealed class EnvoiPendantLequelLOngletSeFerme : IEnvoiEmail
+    {
+        public CancellationTokenSource Onglet { get; } = new();
+
+        public List<EmailEnvoye> Envoyes { get; } = [];
+
+        public Task EnvoyerAsync(string destinataire, string sujet, string texte, CancellationToken annulation = default)
+        {
+            Envoyes.Add(new EmailEnvoye(destinataire, sujet, texte));
+            Onglet.Cancel();
+            return Task.CompletedTask;
+        }
+    }
 }

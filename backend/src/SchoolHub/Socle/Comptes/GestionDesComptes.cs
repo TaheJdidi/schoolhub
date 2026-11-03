@@ -29,6 +29,7 @@ public sealed class GestionDesComptes(
     private const string PasSoiMeme = "Vous ne pouvez pas désactiver votre propre compte";
     private const string DejaDesactive = "Ce compte est déjà désactivé";
     private const string PasDesactive = "Ce compte n'est pas désactivé";
+    private const string VientDeChanger = "Ce compte vient de changer : rechargez la page";
     private const string DernierProprietaire = "Il doit rester au moins un propriétaire actif";
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
@@ -93,11 +94,12 @@ public sealed class GestionDesComptes(
         catch (Exception exception)
         {
             journaux.LogError(exception, "L'invitation de {Email} n'est pas partie : rien n'est créé", email);
-            await transaction.RollbackAsync(annulation);
+            await transaction.RollbackAsync(CancellationToken.None);
             return IssueDeLAction.Refusee(StatusCodes.Status503ServiceUnavailable, InvitationPasPartie);
         }
 
-        await transaction.CommitAsync(annulation);
+        // L'email est parti : le compte vers lequel pointe son lien doit exister, même si l'onglet vient de se fermer.
+        await transaction.CommitAsync(CancellationToken.None);
         return IssueDeLAction.Reussie(compte);
     }
 
@@ -115,7 +117,11 @@ public sealed class GestionDesComptes(
 
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId, annulation);
         await using var transaction = await contexte.Database.BeginTransactionAsync(annulation);
-        await comptes.UpdateSecurityStampAsync(compte);
+
+        // Une autre requête a pu changer le compte depuis sa lecture (un autre renvoi, une désactivation) :
+        // le nouveau tampon n'est alors pas enregistré, et un lien fabriqué avec lui serait mort.
+        if (!(await comptes.UpdateSecurityStampAsync(compte)).Succeeded)
+            return IssueDeLAction.Refusee(StatusCodes.Status409Conflict, VientDeChanger);
 
         try
         {
@@ -124,11 +130,12 @@ public sealed class GestionDesComptes(
         catch (Exception exception)
         {
             journaux.LogError(exception, "La nouvelle invitation de {Email} n'est pas partie : l'ancien lien reste valable", compte.Email);
-            await transaction.RollbackAsync(annulation);
+            await transaction.RollbackAsync(CancellationToken.None);
             return IssueDeLAction.Refusee(StatusCodes.Status503ServiceUnavailable, InvitationPasPartie);
         }
 
-        await transaction.CommitAsync(annulation);
+        // L'email est parti : son nouveau tampon doit être enregistré, même si l'onglet vient de se fermer.
+        await transaction.CommitAsync(CancellationToken.None);
         return IssueDeLAction.Reussie(compte);
     }
 
