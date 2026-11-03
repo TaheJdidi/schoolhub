@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { Cadre } from './cadre/cadre';
+import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
@@ -33,6 +34,7 @@ export const routes: Routes = [
       { path: 'aujourdhui', component: Aujourdhui, title: titre("Aujourd'hui") },
       ...MENU.filter((entree) => entree.chemin !== 'aujourdhui').flatMap(adressesDe),
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
+      { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },
     ],
   },

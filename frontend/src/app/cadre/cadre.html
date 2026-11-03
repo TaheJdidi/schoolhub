@@ -1,0 +1,43 @@
+<div class="shell">
+  <header class="top">
+    <a class="brand" routerLink="/aujourdhui" aria-label="SchoolHub, retour à l'accueil">
+      <span class="logo">SH</span>
+      <span class="bt"><b>SchoolHub</b><small>{{ personne()?.centre }}</small></span>
+    </a>
+    <!-- Sur téléphone, à la place du nom du produit : le centre et la date. -->
+    <span class="lieu"><b>{{ personne()?.centre }}</b><small>{{ date }}</small></span>
+    <div class="who">
+      <span class="date">{{ date }}</span>
+      <span class="user">
+        <span class="av" aria-hidden="true">{{ initiales() }}</span>
+        <span class="un">{{ personne()?.prenom }} {{ personne()?.nom }}<small>{{ role() }}</small></span>
+      </span>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Menu">
+    @for (entree of menu(); track entree.chemin) {
+      @if ($index === premiereReservee()) {
+        <p class="railh">Propriétaire</p>
+      }
+      <a class="nav" [routerLink]="'/' + entree.chemin" routerLinkActive ariaCurrentWhenActive="page">
+        <sh-icone [nom]="entree.icone" />
+        <span>{{ entree.libelle }}</span>
+      </a>
+    }
+    <sh-bouton-de-deconnexion class="fin" />
+  </nav>
+
+  <main class="main">
+    <router-outlet />
+  </main>
+
+  <nav class="tabbar" aria-label="Onglets">
+    @for (onglet of onglets; track onglet.chemin) {
+      <a class="tab" [routerLink]="'/' + onglet.chemin" [attr.aria-current]="ongletActif(onglet) ? 'page' : null">
+        <sh-icone [nom]="onglet.icone" />
+        <span>{{ onglet.libelle }}</span>
+      </a>
+    }
+  </nav>
+</div>
