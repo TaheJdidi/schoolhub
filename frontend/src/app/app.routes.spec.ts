@@ -72,6 +72,7 @@ describe("les adresses de l'application", () => {
       nom: 'Centre Les Jasmins', telephone: null, email: null, anneeScolaire: null,
       montantDeLAssurance: null, prixDeLEntreeALaBibliotheque: null, capaciteDeLaBibliotheque: null, partDuCentreParDefaut: null,
     });
+    http.expectOne('/api/niveaux').flush([]);
     await harness.fixture.whenStable();
 
     expect(texte()).toContain('Les informations et les prix de votre centre.');

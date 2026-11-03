@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CarteDesNiveaux } from './carte-des-niveaux';
 import { CarteDuCentre } from './carte-du-centre';
 
 /** CEN-02 et CEN-03 : la page « Paramètres du centre », réservée au propriétaire. Chaque carte a ses propres messages. */
 @Component({
   selector: 'sh-parametres',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CarteDuCentre],
+  imports: [CarteDuCentre, CarteDesNiveaux],
   template: `
     <div class="pagehead">
       <div>
@@ -15,6 +16,7 @@ import { CarteDuCentre } from './carte-du-centre';
     </div>
     <div class="cartes">
       <sh-carte-du-centre />
+      <sh-carte-des-niveaux />
     </div>
   `,
   styles: '.cartes { display: grid; gap: 16px; }',

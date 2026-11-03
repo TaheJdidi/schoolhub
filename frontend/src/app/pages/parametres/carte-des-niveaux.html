@@ -1,0 +1,54 @@
+<section class="card carte">
+  <h2 class="titre">Les niveaux</h2>
+  <p class="intro">Les niveaux ajoutés par le centre :</p>
+
+  @if (ajoutes().length === 0) {
+    <p class="vide">Aucun niveau ajouté</p>
+  }
+  <ul class="liste ajoutes">
+    @for (niveau of ajoutes(); track niveau.id) {
+      <li class="ligne">
+        @if (enRenommage() === niveau.id) {
+          <input class="inp" [formControl]="nouveauNom" aria-label="Nouveau nom du niveau" (keydown.enter)="renommer(niveau)" />
+          <div class="actions">
+            <button type="button" class="btn primary" [disabled]="envoi()" (click)="renommer(niveau)">Enregistrer</button>
+            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLeRenommage()">Annuler</button>
+          </div>
+        } @else if (aConfirmer() === niveau.id) {
+          <span class="question">Retirer « {{ niveau.nom }} » ?</span>
+          <div class="actions">
+            <button type="button" class="btn primary" [disabled]="envoi()" (click)="retirer(niveau)">Oui</button>
+            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaConfirmation()">Non</button>
+          </div>
+        } @else {
+          <span class="nom">{{ niveau.nom }}</span>
+          <div class="actions">
+            <button type="button" class="btn" [disabled]="envoi()" (click)="commencerLeRenommage(niveau)">Renommer</button>
+            <button type="button" class="btn" [disabled]="envoi()" (click)="demanderConfirmation(niveau)">Retirer</button>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+
+  <form class="ajout" [formGroup]="ajout" (ngSubmit)="ajouter()" novalidate>
+    <input class="inp" formControlName="nouveau" placeholder="Nouveau niveau…" aria-label="Nouveau niveau" />
+    <button type="submit" class="btn" [disabled]="envoi()">Ajouter</button>
+  </form>
+
+  <details class="office">
+    <summary>Les {{ dOffice().length }} niveaux d'office (ils ne se modifient pas)</summary>
+    <ul class="liste">
+      @for (niveau of dOffice(); track niveau.id) {
+        <li class="ligne">{{ niveau.nom }}</li>
+      }
+    </ul>
+  </details>
+
+  @if (succes(); as succes) {
+    <p class="note ok" role="status">{{ succes }}</p>
+  }
+  @if (erreur(); as erreur) {
+    <p class="note bad" role="alert">{{ erreur }}</p>
+  }
+</section>

@@ -7,3 +7,17 @@
 .groupe legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .note { margin: 0; }
+
+/* La carte des niveaux */
+.intro, .vide { margin: 0; color: var(--ink-2); }
+.liste { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r); }
+.liste:empty { display: none; }
+.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ligne:last-child { border-bottom: 0; }
+.ligne .inp { flex: 1 1 220px; width: auto; }
+.nom, .question { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.ligne .actions { margin-left: auto; }
+.ajout { display: flex; flex-wrap: wrap; gap: 8px; }
+.ajout .inp { flex: 1 1 220px; width: auto; }
+.office summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.office .liste { margin-top: 10px; }
