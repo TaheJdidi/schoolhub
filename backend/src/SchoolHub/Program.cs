@@ -3,6 +3,7 @@ using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
 using SchoolHub.Socle.Emails;
+using SchoolHub.Socle.Journal;
 using SchoolHub.Socle.Pages;
 
 // « creer-centre » lance la commande au lieu du serveur. Ses options (--nom, --code…) ne doivent pas
@@ -15,6 +16,7 @@ builder.Services.AddScoped<CentreCourant>();
 builder.Services.AddDbContext<SchoolHubDbContext>(options =>
     SchoolHubDbContext.Configurer(options, builder.Configuration.GetConnectionString("SchoolHub")));
 builder.Services.AjouterLesComptes();
+builder.Services.AddScoped<JournalDuCentre>();
 builder.Services.AddScoped<CreationDeCentre>();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre

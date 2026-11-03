@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
@@ -83,5 +84,19 @@ public sealed class MigrationsTests(PostgreSqlDeTest postgreSql)
         await contexte.Database.MigrateAsync();
 
         Assert.Empty(await contexte.Database.GetPendingMigrationsAsync());
+    }
+
+    [Fact]
+    public async Task Les_migrations_protegent_le_journal()
+    {
+        var options = new DbContextOptionsBuilder<SchoolHubDbContext>();
+        SchoolHubDbContext.Configurer(options, postgreSql.ChaineDeConnexion("migrations_journal"));
+        await using var contexte = new SchoolHubDbContext(options.Options, new CentreCourant());
+
+        await contexte.Database.MigrateAsync();
+
+        // TRUNCATE déclenche le trigger même sur une table vide ; UPDATE et DELETE ne le feraient pas.
+        var erreur = await Assert.ThrowsAsync<PostgresException>(() => contexte.Database.ExecuteSqlRawAsync("TRUNCATE journal"));
+        Assert.Equal("Le journal ne se modifie pas et ne s'efface pas", erreur.MessageText);
     }
 }

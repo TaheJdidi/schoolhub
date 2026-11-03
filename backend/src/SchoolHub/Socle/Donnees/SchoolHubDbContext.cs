@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
+using SchoolHub.Socle.Journal;
 
 namespace SchoolHub.Socle.Donnees;
 
@@ -18,6 +19,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public const string FiltreDuCentre = "Centre";
 
     public DbSet<Centre> Centres => Set<Centre>();
+
+    public DbSet<LigneDuJournal> LignesDuJournal => Set<LigneDuJournal>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

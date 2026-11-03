@@ -245,6 +245,65 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Socle.Journal.LigneDuJournal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Apres")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("apres");
+
+                    b.Property<string>("Auteur")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("auteur");
+
+                    b.Property<Guid?>("AuteurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auteur_id");
+
+                    b.Property<string>("Avant")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("avant");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("detail");
+
+                    b.Property<DateTimeOffset>("Quand")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("quand");
+
+                    b.HasKey("Id")
+                        .HasName("pk_journal");
+
+                    b.HasIndex("AuteurId")
+                        .HasDatabaseName("ix_journal_auteur_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_journal_centre_id");
+
+                    b.ToTable("journal", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
@@ -283,6 +342,22 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Socle.Journal.LigneDuJournal", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AuteurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_journal_comptes_auteur_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_journal_centres_centre_id");
                 });
 #pragma warning restore 612, 618
         }

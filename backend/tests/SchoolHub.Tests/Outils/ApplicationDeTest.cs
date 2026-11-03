@@ -1,7 +1,10 @@
+using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
@@ -9,6 +12,7 @@ using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
 using SchoolHub.Socle.Emails;
+using SchoolHub.Socle.Journal;
 
 namespace SchoolHub.Tests.Outils;
 
@@ -55,9 +59,18 @@ public sealed class ApplicationDeTest(
         });
     }
 
-    /// <summary>Crée la base de cette classe de tests si elle n'existe pas encore.</summary>
+    /// <summary>
+    /// Crée la base de cette classe de tests si elle n'existe pas encore. EnsureCreated construit les tables
+    /// depuis le modèle, sans les migrations : la protection du journal, écrite en SQL, s'ajoute donc à part.
+    /// </summary>
     public Task InitialiserLaBaseAsync() =>
-        DansUnScopeAsync(services => services.GetRequiredService<SchoolHubDbContext>().Database.EnsureCreatedAsync());
+        DansUnScopeAsync(async services =>
+        {
+            var baseDeDonnees = services.GetRequiredService<SchoolHubDbContext>().Database;
+            if (await baseDeDonnees.EnsureCreatedAsync())
+                await baseDeDonnees.ExecuteSqlRawAsync(JournalDuCentre.SqlDeLaProtection);
+            return true;
+        });
 
     /// <summary>
     /// Un client qui garde ses cookies d'une requête à l'autre, comme un navigateur.
@@ -125,6 +138,26 @@ public sealed class ApplicationDeTest(
             await contexte.SaveChangesAsync();
             return note;
         });
+
+    /// <summary>Le journal du centre, lu comme le centre le lit, de la ligne la plus ancienne à la plus récente.</summary>
+    public Task<List<LigneDuJournal>> JournalAsync(Centre centre) =>
+        DansUnScopeAsync(services =>
+        {
+            services.GetRequiredService<CentreCourant>().Definir(centre.Id);
+            return services.GetRequiredService<SchoolHubDbContext>().LignesDuJournal
+                .OrderBy(l => l.Quand)
+                .ThenBy(l => l.Id)
+                .ToListAsync();
+        });
+
+    /// <summary>Un nouveau client, connecté avec ce compte : la connexion doit réussir.</summary>
+    public async Task<HttpClient> ClientConnecteAsync(Compte compte, string motDePasse = "jasmins-2027")
+    {
+        var client = Client();
+        var connexion = await client.PostAsJsonAsync("/api/connexion", new DemandeDeConnexion(compte.Email, motDePasse));
+        Assert.Equal(HttpStatusCode.OK, connexion.StatusCode);
+        return client;
+    }
 
     /// <summary>Lit ou modifie la base depuis un test, avec les services de l'application.</summary>
     public async Task<T> DansUnScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
