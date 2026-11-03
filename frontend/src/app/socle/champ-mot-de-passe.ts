@@ -2,6 +2,10 @@ import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Icone } from './icone';
 
+/** La seule règle d'un nouveau mot de passe (CPT-02), vérifiée aussi par le serveur, avec le même texte. */
+export const LONGUEUR_MINIMALE = 8;
+export const MOT_DE_PASSE_TROP_COURT = 'Le mot de passe doit faire au moins 8 caractères';
+
 let numero = 0;
 
 /**

@@ -5,6 +5,7 @@ import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
 import { Connexion } from './pages/connexion/connexion';
+import { Invitation } from './pages/invitation/invitation';
 import { Introuvable } from './pages/introuvable/introuvable';
 import { EntreeDuMenu, MENU } from './socle/menu';
 import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
@@ -27,6 +28,8 @@ function adressesDe(entree: EntreeDuMenu): Routes {
 export const routes: Routes = [
   // Les pages sans connexion, avant le cadre.
   { path: 'connexion', component: Connexion, canActivate: [nonConnecte], title: titre('Connexion') },
+  // Les pages des liens des emails restent ouvertes à une personne connectée : elles connectent la personne du lien.
+  { path: 'invitation', component: Invitation, title: titre('Choisir son mot de passe') },
   {
     path: '',
     component: Cadre,
