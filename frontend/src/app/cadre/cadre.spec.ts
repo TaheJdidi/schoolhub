@@ -36,6 +36,12 @@ describe('le cadre', () => {
 
   const adresses = (liens: NodeListOf<HTMLAnchorElement>) => [...liens].map((lien) => lien.getAttribute('href'));
 
+  it("a la recherche d'un élève en haut de chaque écran", async () => {
+    const page = await ouvrir('/caisse', AMIRA);
+
+    expect(page.querySelector('.top sh-recherche-d-eleves input')?.getAttribute('aria-label')).toBe('Chercher un élève');
+  });
+
   it('montre le centre, la date du jour et la personne connectée', async () => {
     const page = await ouvrir('/aujourdhui', AMIRA);
     const entete = page.querySelector('.top')?.textContent ?? '';

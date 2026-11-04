@@ -6,6 +6,8 @@
     </a>
     <!-- Sur téléphone, à la place du nom du produit : le centre et la date. -->
     <span class="lieu"><b>{{ personne()?.centre }}</b><small>{{ date() }}</small></span>
+    <!-- ELV-01 : la recherche d'un élève, sur ordinateur comme sur téléphone. -->
+    <sh-recherche-d-eleves class="recherche" />
     <div class="who">
       <span class="date">{{ date() }}</span>
       <span class="user">

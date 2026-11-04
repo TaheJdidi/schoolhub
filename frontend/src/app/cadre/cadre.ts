@@ -9,6 +9,7 @@ import { EntreeDuMenu, menuDe, ONGLETS } from '../socle/menu';
 import { initiales, libelleDuRole } from '../socle/personnes';
 import { Session } from '../socle/session/session';
 import { BoutonDeDeconnexion } from './bouton-de-deconnexion';
+import { RechercheDEleves } from './recherche-d-eleves';
 
 /** Les onglets du téléphone qui ont leur propre page : toute autre page du menu allume « Plus ». */
 const ONGLETS_DIRECTS = ['aujourdhui', 'guichet', 'caisse'];
@@ -20,7 +21,7 @@ const ONGLETS_DIRECTS = ['aujourdhui', 'guichet', 'caisse'];
 @Component({
   selector: 'sh-cadre',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icone, BoutonDeDeconnexion],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icone, BoutonDeDeconnexion, RechercheDEleves],
   templateUrl: './cadre.html',
   styleUrl: './cadre.css',
 })

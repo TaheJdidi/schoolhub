@@ -8,6 +8,7 @@
 .bt small,.lieu small{color:var(--ink-2);font-size:12px}
 .lieu{display:none}
 .lieu b,.lieu small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recherche{flex:1 1 320px;max-width:520px}
 .who{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--ink-2);font-size:13px;white-space:nowrap}
 .user{display:flex;align-items:center;gap:8px;color:var(--ink)}
 .av{width:30px;height:30px;border-radius:50%;background:var(--sunk);border:1px solid var(--line-2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--ink-2);flex:none}
@@ -29,7 +30,9 @@
   .shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto}
   .rail{display:none}
   .tabbar{display:flex;position:sticky;bottom:0}
-  .top{gap:10px;padding:10px 12px}
+  .top{gap:10px;padding:10px 12px;flex-wrap:wrap}
+  /* Sur un téléphone, la recherche passe sous le nom du centre, sur toute la largeur. */
+  .recherche{order:3;flex-basis:100%;max-width:none}
   .bt,.who .date,.un{display:none}
   .lieu{display:grid}
   .logo{width:32px;height:32px}
