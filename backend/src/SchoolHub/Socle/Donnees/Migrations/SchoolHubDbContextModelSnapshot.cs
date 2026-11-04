@@ -103,6 +103,146 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Groupe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AnneeScolaireId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("annee_scolaire_id");
+
+                    b.Property<int?>("Capacite")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacite");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("DateDeDebut")
+                        .HasColumnType("date")
+                        .HasColumnName("date_de_debut");
+
+                    b.Property<Guid>("MatiereId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("matiere_id");
+
+                    b.Property<Guid?>("NiveauId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("niveau_id");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<Guid>("ProfesseurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("professeur_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_groupes");
+
+                    b.HasIndex("AnneeScolaireId")
+                        .HasDatabaseName("ix_groupes_annee_scolaire_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_groupes_centre_id");
+
+                    b.HasIndex("MatiereId")
+                        .HasDatabaseName("ix_groupes_matiere_id");
+
+                    b.HasIndex("NiveauId")
+                        .HasDatabaseName("ix_groupes_niveau_id");
+
+                    b.HasIndex("ProfesseurId")
+                        .HasDatabaseName("ix_groupes_professeur_id");
+
+                    b.ToTable("groupes", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Matiere", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<string>("NomNormalise")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom_normalise");
+
+                    b.HasKey("Id")
+                        .HasName("pk_matieres");
+
+                    b.HasIndex("CentreId", "NomNormalise")
+                        .IsUnique()
+                        .HasDatabaseName("ix_matieres_centre_id_nom_normalise");
+
+                    b.ToTable("matieres", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Seance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<TimeOnly>("Debut")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("debut");
+
+                    b.Property<TimeOnly>("Fin")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("fin");
+
+                    b.Property<Guid>("GroupeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("groupe_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_seances");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_seances_centre_id");
+
+                    b.HasIndex("GroupeId", "Date")
+                        .HasDatabaseName("ix_seances_groupe_id_date");
+
+                    b.ToTable("seances", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>
                 {
                     b.Property<Guid>("Id")
@@ -477,6 +617,143 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Groupe", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.AnneeScolaire", null)
+                        .WithMany()
+                        .HasForeignKey("AnneeScolaireId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_groupes_annees_scolaires_annee_scolaire_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_groupes_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Matiere", null)
+                        .WithMany()
+                        .HasForeignKey("MatiereId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_groupes_matieres_matiere_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Niveau", null)
+                        .WithMany()
+                        .HasForeignKey("NiveauId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_groupes_niveaux_niveau_id");
+
+                    b.HasOne("SchoolHub.Modules.Professeurs.Professeur", null)
+                        .WithMany()
+                        .HasForeignKey("ProfesseurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_groupes_professeurs_professeur_id");
+
+                    b.OwnsMany("SchoolHub.Modules.Groupes.Creneau", "Creneaux", b1 =>
+                        {
+                            b1.Property<Guid>("GroupeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("groupe_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<TimeOnly>("Debut")
+                                .HasColumnType("time without time zone")
+                                .HasColumnName("debut");
+
+                            b1.Property<TimeOnly>("Fin")
+                                .HasColumnType("time without time zone")
+                                .HasColumnName("fin");
+
+                            b1.Property<string>("Jour")
+                                .IsRequired()
+                                .HasMaxLength(10)
+                                .HasColumnType("character varying(10)")
+                                .HasColumnName("jour");
+
+                            b1.HasKey("GroupeId", "Id")
+                                .HasName("pk_creneaux_des_groupes");
+
+                            b1.ToTable("creneaux_des_groupes", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupeId")
+                                .HasConstraintName("fk_creneaux_des_groupes_groupes_groupe_id");
+                        });
+
+                    b.OwnsMany("SchoolHub.Modules.Groupes.PrixDuGroupe", "Prix", b1 =>
+                        {
+                            b1.Property<Guid>("GroupeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("groupe_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<int>("APartirDuMois")
+                                .HasColumnType("integer")
+                                .HasColumnName("a_partir_du_mois");
+
+                            b1.Property<decimal>("Montant")
+                                .HasPrecision(12, 3)
+                                .HasColumnType("numeric(12,3)")
+                                .HasColumnName("montant");
+
+                            b1.HasKey("GroupeId", "Id")
+                                .HasName("pk_prix_des_groupes");
+
+                            b1.ToTable("prix_des_groupes", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupeId")
+                                .HasConstraintName("fk_prix_des_groupes_groupes_groupe_id");
+                        });
+
+                    b.Navigation("Creneaux");
+
+                    b.Navigation("Prix");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Matiere", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_matieres_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Groupes.Seance", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_seances_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Groupe", null)
+                        .WithMany()
+                        .HasForeignKey("GroupeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_seances_groupes_groupe_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>

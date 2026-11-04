@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Professeurs;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
@@ -28,6 +29,12 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<Niveau> Niveaux => Set<Niveau>();
 
     public DbSet<Professeur> Professeurs => Set<Professeur>();
+
+    public DbSet<Matiere> Matieres => Set<Matiere>();
+
+    public DbSet<Groupe> Groupes => Set<Groupe>();
+
+    public DbSet<Seance> Seances => Set<Seance>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

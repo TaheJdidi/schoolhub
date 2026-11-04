@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Professeurs;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
@@ -23,6 +24,7 @@ builder.Services.AddScoped<CreationDeCentre>();
 builder.Services.AddScoped<ParametresDuCentre>();
 builder.Services.AddScoped<NiveauxDuCentre>();
 builder.Services.AddScoped<ProfesseursDuCentre>();
+builder.Services.AddScoped<GroupesDuCentre>();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
 // processus que le serveur web, parfois lancé depuis un autre dossier (console SSH) : par défaut, la protection
@@ -70,6 +72,7 @@ api.MapComptes();
 api.MapParametres();
 api.MapNiveaux();
 api.MapProfesseurs();
+api.MapGroupes();
 app.MapPagesDeLApplication(api);
 
 app.Run();

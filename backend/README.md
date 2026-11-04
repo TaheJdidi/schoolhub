@@ -71,14 +71,17 @@ src/SchoolHub/
 │   │                      renvoyer l'invitation, désactiver, réactiver)
 │   ├── Journal/           le journal : qui a fait quoi, et quand
 │   ├── Emails/            l'envoi des emails (dans la console en développement)
+│   ├── Dates/             la date du jour à Tunis
 │   ├── Pages/             les pages Angular : fichiers publics, index.html par défaut,
 │   │                      adresse /api inconnue, en-tête Referrer-Policy
 │   └── Donnees/           le contexte EF Core et les migrations
 └── Modules/               un dossier par module, quand ses premières stories arrivent :
     │                      élèves et inscriptions, groupes et séances, caisse et reçus,
     │                      bibliothèque, professeurs, RH et achats, journal
-    └── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
-                           marquer parti, revenir au centre)
+    ├── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
+    │                      marquer parti, revenir au centre)
+    └── Groupes/           les groupes d'Étude, leurs créneaux, leurs séances et leurs prix ;
+                           les matières ; le calendrier (les Mois de 4 séances se calculent)
 tests/SchoolHub.Tests/
 ```
 
