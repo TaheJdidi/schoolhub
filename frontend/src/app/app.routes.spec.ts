@@ -104,6 +104,16 @@ describe("les adresses de l'application", () => {
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('une secrétaire ouvre la fiche d’un groupe sur /professeurs/groupes/g1', async () => {
+    await ouvrir('/professeurs/groupes/g1', AMIRA);
+    http.expectOne('/api/groupes/g1').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
+
+    expect(titre()).toBe('Groupe · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
   it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
     await ouvrir('/parametres', AMIRA);
 

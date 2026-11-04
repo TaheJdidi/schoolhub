@@ -1,0 +1,87 @@
+@if (fiche(); as fiche) {
+  <div class="pagehead">
+    <div>
+      <nav class="fil" aria-label="Fil d'Ariane">
+        <a routerLink="/professeurs">Professeurs</a> › {{ fiche.professeur.prenom }} {{ fiche.professeur.nom }}
+      </nav>
+      <h1 class="h1">{{ fiche.nom }}</h1>
+      <p class="sub">{{ sousTitre() }}</p>
+    </div>
+  </div>
+
+  <div class="cartes">
+    <section class="card carte le-groupe">
+      <h2 class="titre">Le groupe</h2>
+      @if (enModification()) {
+        <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
+          <div class="champs">
+            <label class="f">
+              Nom du groupe
+              <input formControlName="nom" autocomplete="off" />
+            </label>
+            <label class="f">
+              Capacité (facultatif)
+              <input formControlName="capacite" inputmode="numeric" autocomplete="off" />
+            </label>
+            <label class="f">
+              Prix du Mois (TND)
+              <input formControlName="prix" inputmode="decimal" autocomplete="off" />
+            </label>
+          </div>
+          <p class="aide">Le nouveau prix vaut pour les Mois qui n'ont pas encore commencé.</p>
+          <div class="actions">
+            <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
+          </div>
+        </form>
+      } @else {
+        <p class="resume">{{ horaire() }} · depuis le {{ date(fiche.dateDeDebut) }} · {{ eleves(fiche) }}</p>
+        <div class="actions">
+          <button type="button" class="btn" (click)="modifier(fiche)">Modifier</button>
+        </div>
+      }
+
+      @if (succes(); as succes) {
+        <p class="note ok" role="status">{{ succes }}</p>
+      }
+      @if (erreur(); as erreur) {
+        <p class="note bad" role="alert">{{ erreur }}</p>
+      }
+    </section>
+
+    <section class="card carte">
+      <h2 class="titre">Les Mois</h2>
+      @for (mois of fiche.mois; track mois.numero) {
+        <div class="mois">
+          <div class="entete-mois">
+            <b>Mois {{ mois.numero }}</b>
+            <span class="prix">{{ montant(mois.prix) }} TND</span>
+            @if (mois.commence) {
+              <span class="pill info">Commencé</span>
+            }
+          </div>
+          <div class="seances">
+            @for (seance of mois.seances; track seance.id) {
+              <span class="seance">{{ jourDeSeance(seance.date) }}</span>
+            }
+          </div>
+        </div>
+      }
+    </section>
+  </div>
+} @else if (introuvable()) {
+  <div class="pagehead">
+    <div>
+      <h1 class="h1">Groupe introuvable</h1>
+      <p class="sub">Ce groupe n'existe pas.</p>
+    </div>
+  </div>
+  <a class="btn" routerLink="/professeurs">Revenir aux professeurs</a>
+} @else if (erreur(); as erreur) {
+  <div class="pagehead">
+    <div>
+      <h1 class="h1">Groupe</h1>
+    </div>
+  </div>
+  <p class="note bad" role="alert">{{ erreur }}</p>
+}

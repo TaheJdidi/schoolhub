@@ -9,6 +9,7 @@ import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Invitation } from './pages/invitation/invitation';
 import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
+import { PageDuGroupe } from './pages/groupes/page-du-groupe';
 import { Introuvable } from './pages/introuvable/introuvable';
 import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
@@ -61,6 +62,7 @@ export const routes: Routes = [
       ...MENU.filter((entree) => entree.chemin !== 'aujourdhui').flatMap(adressesDe),
       // Les groupes s'ouvrent sous la page Professeurs : le menu garde « Professeurs » allumé.
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
+      { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },

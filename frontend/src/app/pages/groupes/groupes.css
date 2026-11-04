@@ -13,3 +13,14 @@
 .creneau span { color: var(--ink-2); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .note { margin: 0; }
+
+/* La fiche d'un groupe */
+.cartes { display: grid; gap: 16px; }
+.formulaire { display: grid; gap: 14px; }
+.aide, .resume { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+.mois { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.mois:first-of-type { border-top: 0; padding-top: 0; }
+.entete-mois { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.prix { color: var(--ink-2); }
+.seances { display: flex; flex-wrap: wrap; gap: 6px; }
+.seance { padding: 3px 9px; border: 1px solid var(--line-2); border-radius: 8px; font-size: 13px; color: var(--ink-2); }
