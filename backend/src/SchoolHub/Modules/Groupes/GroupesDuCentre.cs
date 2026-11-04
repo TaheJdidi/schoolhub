@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Dates;
 using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Journal;
 
 namespace SchoolHub.Modules.Groupes;
 
@@ -9,7 +11,7 @@ namespace SchoolHub.Modules.Groupes;
 /// professeur ou un niveau d'un autre centre est « introuvable ». Les séances sont créées avec le groupe ; leurs numéros,
 /// les Mois, les prix des séances et l'état « terminé » se calculent. Les règles de saisie sont dans <see cref="SaisieDuGroupe"/>.
 /// </summary>
-public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider temps)
+public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider temps, JournalDuCentre journal)
 {
     private const string TypeInconnu = "Le type du groupe est inconnu";
     private const string ChoisirLeProfesseur = "Choisissez le professeur";
@@ -31,6 +33,15 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     private const string NomTropLong = "Le nom du groupe fait au plus 100 caractères";
     private const string AucuneSeance = "Aucune séance entre la date de début et la fin de l'année scolaire";
     private const string Introuvable = "Groupe introuvable";
+    private const string DejaFerme = "Ce groupe est déjà fermé";
+    private const string Ferme = "Ce groupe est fermé : il ne se modifie plus";
+    private const string DateDeFermetureObligatoire = "La date de fermeture est obligatoire";
+    private const string FermetureDansLeFutur = "La date de fermeture ne peut pas être après aujourd'hui";
+    private const string MotifObligatoire = "Écrivez le motif de la fermeture";
+    private const string MotifTropLong = "Le motif fait au plus 200 caractères";
+
+    /// <summary>La taille de la colonne du détail d'une ligne du journal.</summary>
+    private const int LongueurMaximaleDuDetail = 500;
 
     /// <summary>Les matières du centre, par nom.</summary>
     public Task<List<Matiere>> MatieresAsync() => contexte.Matieres.OrderBy(m => m.Nom).ToListAsync();
@@ -127,7 +138,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
                 g.Creneaux.Select(CreneauDuGroupe.De).ToList(),
                 g.Capacite,
                 Eleves: 0,
-                CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui)))
+                CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui),
+                Ferme: g.FermeLe is not null))
             .ToList();
     }
 
@@ -141,6 +153,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == id);
         if (groupe is null)
             return GroupeIntrouvable;
+        if (groupe.FermeLe is not null)
+            return Refus(StatusCodes.Status409Conflict, Ferme);
 
         var nom = string.IsNullOrWhiteSpace(saisie.Nom) ? CalendrierDuGroupe.NomPropose(groupe.Creneaux[0]) : saisie.Nom.Trim();
         if (nom.Length > Groupe.LongueurMaximaleDuNom)
@@ -159,6 +173,44 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
                 groupe.ChangerLePrix(saisie.PrixDuMois!.Value, premierMoisAVenir);
         }
 
+        await contexte.SaveChangesAsync();
+
+        return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// GRP-08 : ferme le groupe à une date (aujourd'hui ou avant), avec un motif. Ses séances après cette date
+    /// disparaissent ; celle du jour même reste. La fermeture va au journal, dans le même enregistrement.
+    /// </summary>
+    public async Task<IssueSurUnGroupe> FermerAsync(Compte auteur, Guid id, FermetureDUnGroupe saisie)
+    {
+        var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == id);
+        if (groupe is null)
+            return GroupeIntrouvable;
+        if (groupe.FermeLe is not null)
+            return Refus(StatusCodes.Status409Conflict, DejaFerme);
+
+        if (saisie.Date is not { } date)
+            return Refus(StatusCodes.Status400BadRequest, DateDeFermetureObligatoire);
+        if (date > DateDeTunis.Aujourdhui(temps))
+            return Refus(StatusCodes.Status400BadRequest, FermetureDansLeFutur);
+        var motif = saisie.Motif?.Trim() ?? "";
+        if (motif.Length == 0)
+            return Refus(StatusCodes.Status400BadRequest, MotifObligatoire);
+        if (motif.Length > Groupe.LongueurMaximaleDuMotif)
+            return Refus(StatusCodes.Status400BadRequest, MotifTropLong);
+
+        var professeur = await contexte.Professeurs.SingleAsync(p => p.Id == groupe.ProfesseurId);
+        // Un nom, un professeur et un motif à leur plus long dépasseraient la colonne du détail : il est coupé.
+        var detail = $"{groupe.Nom} · {professeur.Prenom} {professeur.Nom} · {motif}";
+        journal.Noter(
+            auteur,
+            ActionDuJournal.GroupeFerme,
+            detail.Length > LongueurMaximaleDuDetail ? detail[..LongueurMaximaleDuDetail] : detail,
+            avant: "Ouvert",
+            apres: $"Fermé le {SaisieDuGroupe.EcrireUneDate(date)}");
+        groupe.Fermer(date, motif);
+        contexte.Seances.RemoveRange(await contexte.Seances.Where(s => s.GroupeId == id && s.Date > date).ToListAsync());
         await contexte.SaveChangesAsync();
 
         return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);
@@ -221,7 +273,9 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             groupe.PrixTotal,
             groupe.NombreDeSeances,
             seancesNumerotees,
-            groupe.Tranches.OrderBy(t => t.Seance).Select(t => new TrancheDuGroupe(t.Montant, t.Seance)).ToList());
+            groupe.Tranches.OrderBy(t => t.Seance).Select(t => new TrancheDuGroupe(t.Montant, t.Seance)).ToList(),
+            groupe.FermeLe,
+            groupe.MotifDeFermeture);
     }
 
     /// <summary>Ce que la création prépare, selon le type : les créneaux, les séances, l'année et le nom proposé.</summary>

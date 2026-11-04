@@ -28,6 +28,9 @@ public sealed class Groupe : IAppartientAuCentre
     /// <summary>La taille de la colonne du nom.</summary>
     public const int LongueurMaximaleDuNom = 100;
 
+    /// <summary>La taille de la colonne du motif de fermeture.</summary>
+    public const int LongueurMaximaleDuMotif = 200;
+
     private readonly List<Creneau> _creneaux = [];
     private readonly List<PrixDuGroupe> _prix = [];
     private readonly List<Tranche> _tranches = [];
@@ -106,6 +109,11 @@ public sealed class Groupe : IAppartientAuCentre
     /// <summary>Formation : les tranches, facultatives, chacune due à une séance (GRP-06).</summary>
     public IReadOnlyList<Tranche> Tranches => _tranches;
 
+    /// <summary>La date où le groupe a été fermé (GRP-08) ; vide tant qu'il est ouvert.</summary>
+    public DateOnly? FermeLe { get; private set; }
+
+    public string? MotifDeFermeture { get; private set; }
+
     /// <summary>Un groupe d'Étude, déjà vérifié, au prix de son premier Mois dans SchoolHub.</summary>
     internal static Groupe Etude(
         string nom,
@@ -157,6 +165,13 @@ public sealed class Groupe : IAppartientAuCentre
     {
         Nom = nom;
         Capacite = capacite;
+    }
+
+    /// <summary>Ferme le groupe à une date, avec son motif, déjà vérifiés : il ne se modifie plus ensuite.</summary>
+    public void Fermer(DateOnly date, string motif)
+    {
+        FermeLe = date;
+        MotifDeFermeture = motif;
     }
 
     /// <summary>
@@ -237,6 +252,7 @@ internal sealed class GroupeConfiguration : IEntityTypeConfiguration<Groupe>
         groupe.Property(g => g.Nom).HasMaxLength(Groupe.LongueurMaximaleDuNom);
         groupe.Property(g => g.PrixTotal).HasPrecision(12, 3);
         groupe.Property(g => g.PremiereSeance).HasDefaultValue(1);
+        groupe.Property(g => g.MotifDeFermeture).HasMaxLength(Groupe.LongueurMaximaleDuMotif);
         groupe.HasOne<Professeur>().WithMany().HasForeignKey(g => g.ProfesseurId).OnDelete(DeleteBehavior.Restrict);
         groupe.HasOne<Matiere>().WithMany().HasForeignKey(g => g.MatiereId).OnDelete(DeleteBehavior.Restrict);
         groupe.HasOne<Niveau>().WithMany().HasForeignKey(g => g.NiveauId).OnDelete(DeleteBehavior.Restrict);

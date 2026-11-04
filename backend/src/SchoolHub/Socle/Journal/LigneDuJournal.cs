@@ -61,6 +61,7 @@ public enum ActionDuJournal
     CompteCree,
     CompteDesactive,
     CompteReactive,
+    GroupeFerme,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

@@ -126,9 +126,18 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("date")
                         .HasColumnName("date_de_debut");
 
+                    b.Property<DateOnly?>("FermeLe")
+                        .HasColumnType("date")
+                        .HasColumnName("ferme_le");
+
                     b.Property<Guid>("MatiereId")
                         .HasColumnType("uuid")
                         .HasColumnName("matiere_id");
+
+                    b.Property<string>("MotifDeFermeture")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("motif_de_fermeture");
 
                     b.Property<Guid?>("NiveauId")
                         .HasColumnType("uuid")

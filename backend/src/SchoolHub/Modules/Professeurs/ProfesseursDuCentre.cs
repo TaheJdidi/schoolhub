@@ -68,17 +68,17 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
     public Task<int> GroupesOuvertsAsync(Guid professeurId) => GroupesOuverts().CountAsync(g => g.ProfesseurId == professeurId);
 
     /// <summary>
-    /// Les groupes qui ne sont pas terminés, la règle de <see cref="CalendrierDuGroupe.EstTermine"/> écrite pour la base :
-    /// une Étude, ou une Révision ou une Formation qui a encore une séance aujourd'hui ou après. Les groupes fermés
-    /// (GRP-08) en sortiront aussi.
+    /// Les groupes ni fermés (GRP-08) ni terminés, la règle de <see cref="CalendrierDuGroupe.EstTermine"/> écrite pour
+    /// la base : une Étude, ou une Révision ou une Formation qui a encore une séance aujourd'hui ou après.
     /// </summary>
     private IQueryable<Groupe> GroupesOuverts()
     {
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
         return contexte.Groupes.Where(g =>
-            g.Type == TypeDeGroupe.Etude
+            g.FermeLe == null
+            && (g.Type == TypeDeGroupe.Etude
             || !contexte.Seances.Any(s => s.GroupeId == g.Id)
-            || contexte.Seances.Any(s => s.GroupeId == g.Id && s.Date >= aujourdhui));
+            || contexte.Seances.Any(s => s.GroupeId == g.Id && s.Date >= aujourdhui)));
     }
 
     /// <summary>

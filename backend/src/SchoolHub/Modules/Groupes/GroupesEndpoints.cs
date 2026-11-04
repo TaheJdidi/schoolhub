@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using SchoolHub.Socle.Comptes;
 
 namespace SchoolHub.Modules.Groupes;
@@ -17,7 +19,23 @@ public static class GroupesEndpoints
         groupe.MapPost("", CreerAsync);
         groupe.MapGet("/{id:guid}", LireAsync);
         groupe.MapPut("/{id:guid}", ModifierAsync);
+        groupe.MapPost("/{id:guid}/fermeture", FermerAsync);
         return api;
+    }
+
+    /// <summary>GRP-08 : la personne connectée ferme le groupe ; elle est l'auteur de la ligne du journal.</summary>
+    private static async Task<Results<Ok<FicheDuGroupe>, JsonHttpResult<Avis>>> FermerAsync(
+        Guid id,
+        FermetureDUnGroupe saisie,
+        ClaimsPrincipal utilisateur,
+        UserManager<Compte> comptes,
+        GroupesDuCentre groupes)
+    {
+        var auteur = await comptes.GetUserAsync(utilisateur) ?? throw new InvalidOperationException("Aucun compte connecté.");
+        var issue = await groupes.FermerAsync(auteur, id, saisie);
+        return issue.Fiche is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Ok(issue.Fiche);
     }
 
     private static async Task<Results<Ok<FicheDuGroupe>, JsonHttpResult<Avis>>> ModifierAsync(
@@ -85,6 +103,9 @@ public sealed record SeanceSaisie(DateOnly? Date, string? Debut, string? Fin);
 /// <summary>Une tranche d'une Formation telle que la page l'envoie : son montant et la séance où elle est due.</summary>
 public sealed record TrancheSaisie(decimal? Montant, int? Seance);
 
+/// <summary>Ce que la page envoie pour fermer un groupe (GRP-08) : la date de fermeture et le motif.</summary>
+public sealed record FermetureDUnGroupe(DateOnly? Date, string? Motif);
+
 /// <summary>Ce que la page envoie pour modifier un groupe : tout ensemble. Un nom vide reprend le nom proposé.</summary>
 public sealed record ModificationDUnGroupe(string? Nom, int? Capacite, decimal? PrixDuMois);
 
@@ -102,7 +123,8 @@ public sealed record ResumeDuGroupe(
     List<CreneauDuGroupe> Creneaux,
     int? Capacite,
     int Eleves,
-    bool Termine);
+    bool Termine,
+    bool Ferme);
 
 /// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm », quelle que soit la langue du serveur.</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)
@@ -166,4 +188,6 @@ public sealed record FicheDuGroupe(
     decimal? PrixTotal,
     int? NombreDeSeances,
     List<SeanceNumerotee> Seances,
-    List<TrancheDuGroupe> Tranches);
+    List<TrancheDuGroupe> Tranches,
+    DateOnly? FermeLe,
+    string? MotifDeFermeture);
