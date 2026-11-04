@@ -309,15 +309,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     public async Task Un_eleve_ou_un_groupe_d_un_autre_centre_est_introuvable()
     {
         var etude = await GroupeAsync(Etude);
-        var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
-        await _application.RecopierLesNiveauxDOfficeAsync(oliviers);
-        var secretaire = await _application.ClientConnecteAsync(await _application.CreerCompteAsync(oliviers, "Rim", "Saidi"));
-        var niveaux = (await secretaire.GetFromJsonAsync<List<NiveauDuCentre>>("/api/niveaux"))!;
-        var reponse = await secretaire.PostAsJsonAsync("/api/eleves", Adem with { NiveauId = niveaux.Single(n => n.Nom == "9ᵉ année de base").Id });
-        var eleveDesOliviers = (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLEleve>())!.Eleve.Id;
-        var professeurDesOliviers = await ProfesseurAsync(secretaire);
-        var formationDesOliviers = (await (await secretaire.PostAsJsonAsync("/api/groupes", Formation with { ProfesseurId = professeurDesOliviers }))
-            .Content.ReadFromJsonAsync<FicheDuGroupe>())!.Id;
+        var (eleveDesOliviers, formationDesOliviers) = await DonneesDesOliviersAsync();
 
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(eleveDesOliviers, etude, null, DeuxiemeSeanceDuMois3)),
             HttpStatusCode.NotFound, "Élève introuvable");
@@ -325,7 +317,125 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
             HttpStatusCode.NotFound, "Groupe introuvable");
     }
 
+    // ----- Les inscriptions d'un élève et d'un groupe -----
+
+    [Fact]
+    public async Task Les_inscriptions_d_un_eleve()
+    {
+        var physique = await GroupeAsync(Revision with { Nom = "Physique du samedi" });
+        var informatique = await GroupeAsync(Formation with { Nom = "Informatique du samedi" });
+        var maths = await GroupeAsync(Etude with { Nom = "Mathématiques du samedi" });
+        await InscrireAsync(new DemandeDInscription(_adem, physique, "ALaSeance", new DateOnly(2027, 11, 20)));
+        await InscrireAsync(new DemandeDInscription(_adem, informatique, "EnTranches", new DateOnly(2027, 11, 13)));
+        await InscrireAsync(new DemandeDInscription(_adem, maths, null, DeuxiemeSeanceDuMois3));
+
+        var inscriptions = await InscriptionsAsync($"eleve={_adem}");
+
+        Assert.Equal(["Informatique du samedi", "Mathématiques du samedi", "Physique du samedi"], inscriptions.Select(i => i.Groupe.Nom));
+        Assert.Equal([("EnTranches", 300m, 3), ("ParMois", 40m, 0), ("ALaSeance", 100m, 0)],
+            inscriptions.Select(i => (i.Mode, i.PrixNormal, i.NombreDeTranches)));
+        Assert.Equal(new SeanceDeDebut(new DateOnly(2027, 11, 20), new TimeOnly(10, 0)), inscriptions[2].PremiereSeance);
+        Assert.Equal("Karim Ben Salah", inscriptions[0].Professeur);
+    }
+
+    [Fact]
+    public async Task Les_eleves_d_un_groupe()
+    {
+        var etude = await GroupeAsync(Etude);
+        foreach (var eleve in new[] { _adem, await EleveAsync(Lina), await EleveAsync(Adem with { Prenom = "Amel", Nom = "Chaabane" }) })
+            await InscrireAsync(new DemandeDInscription(eleve, etude, null, DeuxiemeSeanceDuMois3));
+
+        var inscriptions = await InscriptionsAsync($"groupe={etude}");
+
+        Assert.Equal(["Amel Chaabane", "Adem Miled", "Lina Trabelsi"], inscriptions.Select(i => $"{i.Eleve.Prenom} {i.Eleve.Nom}"));
+    }
+
+    [Fact]
+    public async Task Sans_eleve_ni_groupe()
+    {
+        await VerifierLeRefusAsync(await _client.GetAsync(Adresse), HttpStatusCode.BadRequest, "Choisissez l'élève ou le groupe");
+        await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}/groupes-possibles"), HttpStatusCode.BadRequest, "Choisissez l'élève");
+    }
+
+    [Fact]
+    public async Task Les_groupes_possibles()
+    {
+        var maths = await GroupeAsync(Etude with { Capacite = 15 });
+        var physique = await GroupeAsync(Revision);
+        var arabe = await GroupeAsync(Etude with { Matiere = "Arabe", NiveauId = Niveau("6ᵉ année de base") });
+        var informatique = await GroupeAsync(Formation);
+        var anglais = await GroupeAsync(Etude with { Matiere = "Anglais" });
+        await _client.PostAsJsonAsync($"/api/groupes/{anglais}/fermeture", new FermetureDUnGroupe(new DateOnly(2027, 11, 10), "Trop peu d'élèves"));
+        await GroupeAsync(Revision with { Matiere = "Chimie", NombreDeSeances = 2 });
+        await InscrireAsync(new DemandeDInscription(_adem, maths, null, DeuxiemeSeanceDuMois3));
+        // Le 21/11, la Révision de Chimie (13 et 20/11) est terminée.
+        await AllerAuAsync(new DateTimeOffset(2027, 11, 21, 9, 0, 0, TimeSpan.Zero));
+
+        var groupes = (await _client.GetFromJsonAsync<List<GroupePossible>>($"{Adresse}/groupes-possibles?eleve={_adem}"))!;
+
+        Assert.Equal([maths, physique, arabe, informatique], groupes.Select(g => g.Id));
+        Assert.Equal([true, true, false, false], groupes.Select(g => g.DuNiveauDeLEleve));
+        Assert.Equal(
+            new GroupePossible(maths, "Groupe Samedi 10h → 12h", "Etude", "Mathématiques", "Karim Ben Salah", "9ᵉ année de base", true, 1, 15, true),
+            groupes[0]);
+        Assert.Equal(((string?)null, 0, false), (groupes[3].Niveau, groupes[3].Eleves, groupes[3].DejaInscrit));
+        await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}/groupes-possibles?eleve={Guid.NewGuid()}"),
+            HttpStatusCode.NotFound, "Élève introuvable");
+    }
+
+    [Fact]
+    public async Task L_assurance_est_due_a_la_premiere_seance_d_etude()
+    {
+        var maths = await GroupeAsync(Etude);
+        var arabe = await GroupeAsync(Etude with { Matiere = "Arabe" });
+        await InscrireAsync(new DemandeDInscription(_adem, maths, null, new DateOnly(2027, 11, 27)));
+        await InscrireAsync(new DemandeDInscription(_adem, arabe, null, DeuxiemeSeanceDuMois3));
+
+        var assurance = await _client.GetFromJsonAsync<AssuranceDeLEleve>($"/api/eleves/{_adem}/assurance");
+
+        Assert.Equal(new AssuranceDeLEleve("2027-2028", 20m, DeuxiemeSeanceDuMois3), assurance);
+    }
+
+    [Fact]
+    public async Task Sans_etude_l_assurance_est_sans_objet()
+    {
+        await InscrireAsync(new DemandeDInscription(_adem, await GroupeAsync(Revision), "EnTotalite", new DateOnly(2027, 11, 13)));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.GetAsync($"/api/eleves/{_adem}/assurance")).StatusCode);
+        await VerifierLeRefusAsync(await _client.GetAsync($"/api/eleves/{Guid.NewGuid()}/assurance"), HttpStatusCode.NotFound, "Élève introuvable");
+    }
+
+    [Fact]
+    public async Task Les_listes_d_un_autre_centre_sont_introuvables()
+    {
+        var (eleveDesOliviers, formationDesOliviers) = await DonneesDesOliviersAsync();
+
+        await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}?eleve={eleveDesOliviers}"), HttpStatusCode.NotFound, "Élève introuvable");
+        await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}?groupe={formationDesOliviers}"), HttpStatusCode.NotFound, "Groupe introuvable");
+        await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}/groupes-possibles?eleve={eleveDesOliviers}"),
+            HttpStatusCode.NotFound, "Élève introuvable");
+        await VerifierLeRefusAsync(await _client.GetAsync($"/api/eleves/{eleveDesOliviers}/assurance"), HttpStatusCode.NotFound, "Élève introuvable");
+    }
+
     // ----- Outils -----
+
+    private async Task<List<InscriptionDeLEleve>> InscriptionsAsync(string filtre) =>
+        (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"{Adresse}?{filtre}"))!;
+
+    /// <summary>Le centre « Oliviers », son élève et sa Formation : les Jasmins ne doivent jamais les voir.</summary>
+    private async Task<(Guid Eleve, Guid Formation)> DonneesDesOliviersAsync()
+    {
+        var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");
+        await _application.RecopierLesNiveauxDOfficeAsync(oliviers);
+        var secretaire = await _application.ClientConnecteAsync(await _application.CreerCompteAsync(oliviers, "Rim", "Saidi"));
+        var niveaux = (await secretaire.GetFromJsonAsync<List<NiveauDuCentre>>("/api/niveaux"))!;
+        var reponse = await secretaire.PostAsJsonAsync("/api/eleves", Adem with { NiveauId = niveaux.Single(n => n.Nom == "9ᵉ année de base").Id });
+        var eleve = (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLEleve>())!.Eleve.Id;
+        var professeur = await ProfesseurAsync(secretaire);
+        var formation = (await (await secretaire.PostAsJsonAsync("/api/groupes", Formation with { ProfesseurId = professeur }))
+            .Content.ReadFromJsonAsync<FicheDuGroupe>())!.Id;
+        return (eleve, formation);
+    }
 
     /// <summary>Lina Trabelsi, en 6ᵉ année de base : seul le téléphone de son parent.</summary>
     private FicheSaisieDeLEleve Lina => new("Lina", "Trabelsi", Niveau("6ᵉ année de base"), false, "98 000 001", null, null, null, null);

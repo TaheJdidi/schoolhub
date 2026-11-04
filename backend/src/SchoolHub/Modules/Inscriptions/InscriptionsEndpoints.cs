@@ -9,8 +9,42 @@ public static class InscriptionsEndpoints
     public static IEndpointRouteBuilder MapInscriptions(this IEndpointRouteBuilder api)
     {
         var groupe = api.MapGroup("/inscriptions");
+        groupe.MapGet("", ListerAsync);
         groupe.MapPost("", InscrireAsync);
+        groupe.MapGet("/groupes-possibles", GroupesPossiblesAsync);
+        api.MapGet("/eleves/{id:guid}/assurance", AssuranceAsync);
         return api;
+    }
+
+    private static async Task<Results<Ok<List<InscriptionDeLEleve>>, JsonHttpResult<Avis>>> ListerAsync(
+        Guid? eleve,
+        Guid? groupe,
+        InscriptionsDuCentre inscriptions)
+    {
+        var issue = await inscriptions.ListerAsync(eleve, groupe);
+        return issue.Liste is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Liste);
+    }
+
+    private static async Task<Results<Ok<List<GroupePossible>>, JsonHttpResult<Avis>>> GroupesPossiblesAsync(
+        Guid? eleve,
+        InscriptionsDuCentre inscriptions)
+    {
+        if (eleve is not { } eleveId)
+            return ConnexionEndpoints.Refus(StatusCodes.Status400BadRequest, InscriptionsDuCentre.ChoisirLEleve);
+        var groupes = await inscriptions.GroupesPossiblesAsync(eleveId);
+        return groupes is null
+            ? ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, InscriptionsDuCentre.EleveIntrouvable)
+            : TypedResults.Ok(groupes);
+    }
+
+    private static async Task<Results<Ok<AssuranceDeLEleve>, NoContent, JsonHttpResult<Avis>>> AssuranceAsync(
+        Guid id,
+        InscriptionsDuCentre inscriptions)
+    {
+        var (trouve, assurance) = await inscriptions.AssuranceAsync(id);
+        if (!trouve)
+            return ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, InscriptionsDuCentre.EleveIntrouvable);
+        return assurance is null ? TypedResults.NoContent() : TypedResults.Ok(assurance);
     }
 
     private static async Task<Results<Created<EnregistrementDeLInscription>, JsonHttpResult<Avis>>> InscrireAsync(
@@ -52,6 +86,22 @@ public sealed record SommeALArrivee(string Libelle, decimal Montant);
 
 /// <summary>Un message de confirmation prêt à ouvrir : « Parent » ou le prénom de l'élève, son téléphone groupé, le lien.</summary>
 public sealed record MessageWhatsApp(string Destinataire, string Telephone, string Lien);
+
+/// <summary>Un groupe où l'on peut inscrire l'élève, avec ce qu'il faut pour choisir : niveau, nombre d'élèves, capacité.</summary>
+public sealed record GroupePossible(
+    Guid Id,
+    string Nom,
+    string Type,
+    string Matiere,
+    string Professeur,
+    string? Niveau,
+    bool DuNiveauDeLEleve,
+    int Eleves,
+    int? Capacite,
+    bool DejaInscrit);
+
+/// <summary>L'assurance de l'année : « 2027-2028 », son montant, et la date de la première séance d'Étude où elle est due.</summary>
+public sealed record AssuranceDeLEleve(string Annee, decimal Montant, DateOnly? DueLe);
 
 /// <summary>La réponse d'une inscription : l'inscription, ce qu'il paiera à sa première séance, l'avertissement et les messages.</summary>
 public sealed record EnregistrementDeLInscription(

@@ -15,8 +15,9 @@ namespace SchoolHub.Modules.Inscriptions;
 /// </summary>
 public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvider temps, CentreCourant centreCourant)
 {
-    private const string ChoisirLEleve = "Choisissez l'élève";
-    private const string EleveIntrouvable = "Élève introuvable";
+    public const string ChoisirLEleve = "Choisissez l'élève";
+    public const string EleveIntrouvable = "Élève introuvable";
+    private const string ChoisirLEleveOuLeGroupe = "Choisissez l'élève ou le groupe";
     private const string ChoisirLeGroupe = "Choisissez le groupe";
     private const string GroupeIntrouvable = "Groupe introuvable";
     private const string GroupeFerme = "Ce groupe est fermé : on n'y inscrit plus";
@@ -101,6 +102,104 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             .Select(d => new MessageWhatsApp(d.Nom, TelephoneTunisien.Grouper(d.Chiffres), WhatsApp.Lien(d.Chiffres, texte)))
             .ToList();
         return new IssueDInscription(new EnregistrementDeLInscription(decrite, aPayer, avertissement, texte, messages), StatusCodes.Status201Created, null);
+    }
+
+    /// <summary>
+    /// Les inscriptions d'un élève, par nom du groupe, ou celles d'un groupe, par nom puis prénom de l'élève ; un élève ou
+    /// un groupe absent de ce centre est introuvable.
+    /// </summary>
+    public async Task<IssueDesInscriptions> ListerAsync(Guid? eleveId, Guid? groupeId)
+    {
+        if (eleveId is { } eleve)
+        {
+            if (!await contexte.Eleves.AnyAsync(e => e.Id == eleve))
+                return new IssueDesInscriptions(null, StatusCodes.Status404NotFound, EleveIntrouvable);
+            var deLEleve = await DecrireAsync(await contexte.Inscriptions.Where(i => i.EleveId == eleve).ToListAsync());
+            return new IssueDesInscriptions(
+                deLEleve.OrderBy(i => i.Groupe.Nom).ThenBy(i => i.Groupe.Matiere).ThenBy(i => i.Id).ToList(), StatusCodes.Status200OK, null);
+        }
+
+        if (groupeId is not { } groupe)
+            return new IssueDesInscriptions(null, StatusCodes.Status400BadRequest, ChoisirLEleveOuLeGroupe);
+        if (!await contexte.Groupes.AnyAsync(g => g.Id == groupe))
+            return new IssueDesInscriptions(null, StatusCodes.Status404NotFound, GroupeIntrouvable);
+        var duGroupe = await DecrireAsync(await contexte.Inscriptions.Where(i => i.GroupeId == groupe).ToListAsync());
+        return new IssueDesInscriptions(
+            duGroupe.OrderBy(i => i.Eleve.Nom).ThenBy(i => i.Eleve.Prenom).ThenBy(i => i.Id).ToList(), StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// Les groupes où l'on peut inscrire l'élève : ouverts et pas terminés, ceux de son niveau d'abord, puis par matière
+    /// et par nom. Un groupe où il est déjà inscrit est marqué. <c>null</c> si l'élève n'est pas dans ce centre.
+    /// </summary>
+    public async Task<List<GroupePossible>?> GroupesPossiblesAsync(Guid eleveId)
+    {
+        var eleve = await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == eleveId);
+        if (eleve is null)
+            return null;
+
+        var groupes = await contexte.Groupes.Where(g => g.FermeLe == null).ToListAsync();
+        var dernieresSeances = await contexte.Seances
+            .GroupBy(s => s.GroupeId)
+            .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
+            .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
+        var inscrits = await contexte.Inscriptions
+            .GroupBy(i => i.GroupeId)
+            .Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
+            .ToDictionaryAsync(g => g.GroupeId, g => g.Nombre);
+        var dejaInscrit = (await contexte.Inscriptions.Where(i => i.EleveId == eleveId).Select(i => i.GroupeId).ToListAsync()).ToHashSet();
+        var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
+        var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+
+        return groupes
+            .Where(g => !CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui))
+            .Select(g => new GroupePossible(
+                g.Id,
+                g.Nom,
+                g.Type.ToString(),
+                matieres[g.MatiereId],
+                professeurs[g.ProfesseurId],
+                g.NiveauId is { } niveauId ? niveaux[niveauId] : null,
+                g.NiveauId == eleve.NiveauId,
+                inscrits.GetValueOrDefault(g.Id),
+                g.Capacite,
+                dejaInscrit.Contains(g.Id)))
+            .OrderByDescending(g => g.DuNiveauDeLEleve)
+            .ThenBy(g => g.Matiere)
+            .ThenBy(g => g.Nom)
+            .ThenBy(g => g.Id)
+            .ToList();
+    }
+
+    /// <summary>
+    /// L'assurance de l'élève pour l'année scolaire du centre (la plus récente). Elle est due à la plus ancienne première
+    /// séance de ses inscriptions en Étude de cette année. <c>Trouve</c> est faux si l'élève n'est pas dans ce centre ;
+    /// <c>Assurance</c> vaut <c>null</c> quand elle est sans objet.
+    /// </summary>
+    public async Task<(bool Trouve, AssuranceDeLEleve? Assurance)> AssuranceAsync(Guid eleveId)
+    {
+        if (!await contexte.Eleves.AnyAsync(e => e.Id == eleveId))
+            return (false, null);
+        var annee = await contexte.AnneesScolaires.OrderByDescending(a => a.Debut).FirstOrDefaultAsync();
+        var assurance = annee is null
+            ? null
+            : await contexte.Assurances.SingleOrDefaultAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == annee.Id);
+        if (assurance is null)
+            return (true, null);
+
+        var etudes = await contexte.Inscriptions
+            .Where(i => i.EleveId == eleveId)
+            .Join(contexte.Groupes.Where(g => g.Type == TypeDeGroupe.Etude && g.AnneeScolaireId == annee!.Id),
+                i => i.GroupeId, g => g.Id, (i, g) => new { i.GroupeId, i.DebutLe })
+            .ToListAsync();
+        var groupeIds = etudes.Select(e => e.GroupeId).ToList();
+        var seances = await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).Select(s => new { s.GroupeId, s.Date }).ToListAsync();
+        DateOnly? dueLe = etudes
+            .Select(e => seances.Where(s => s.GroupeId == e.GroupeId && s.Date >= e.DebutLe).Select(s => (DateOnly?)s.Date).Min())
+            .Min();
+        return (true, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee!), assurance.Montant, dueLe));
     }
 
     /// <summary>
@@ -191,3 +290,6 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
 /// <summary>Ce qu'une inscription a donné : l'enregistrement et le statut HTTP, ou un refus (statut et message).</summary>
 public sealed record IssueDInscription(EnregistrementDeLInscription? Enregistrement, int Statut, string? Message);
+
+/// <summary>Une liste d'inscriptions, ou un refus (statut et message).</summary>
+public sealed record IssueDesInscriptions(List<InscriptionDeLEleve>? Liste, int Statut, string? Message);
