@@ -57,7 +57,26 @@ export interface MoisDuGroupe {
   seances: SeanceDuGroupe[];
 }
 
-/** La fiche d'un groupe (GET /api/groupes/{id}). `prixDuMois` est le prix du premier Mois qui n'a pas commencé. */
+/** Une séance de Révision ou de Formation, numérotée ; une séance de Révision a son prix. */
+export interface SeanceNumerotee {
+  id: string;
+  numero: number;
+  date: string;
+  debut: string;
+  fin: string;
+  prix: number | null;
+}
+
+/** Une tranche d'une Formation : son montant, dû à une séance. */
+export interface TrancheDuGroupe {
+  montant: number;
+  seance: number;
+}
+
+/**
+ * La fiche d'un groupe (GET /api/groupes/{id}). Étude : `mois`, et `prixDuMois`, le prix du premier Mois qui n'a pas
+ * commencé. Révision et Formation : `seances` numérotées, `prixTotal`, `nombreDeSeances`, et les `tranches` d'une Formation.
+ */
 export interface FicheDuGroupe {
   id: string;
   nom: string;
@@ -69,8 +88,15 @@ export interface FicheDuGroupe {
   capacite: number | null;
   eleves: number;
   dateDeDebut: string;
-  prixDuMois: number;
+  prixDuMois: number | null;
   mois: MoisDuGroupe[];
+  termine: boolean;
+  /** Le numéro de la première séance dans SchoolHub : plus que 1 pour un groupe déjà en cours. */
+  premiereSeance: number;
+  prixTotal: number | null;
+  nombreDeSeances: number | null;
+  seances: SeanceNumerotee[];
+  tranches: TrancheDuGroupe[];
 }
 
 /** « 10:00 » donne « 10h », « 17:30 » donne « 17h30 », « 08:00 » donne « 8h ». */

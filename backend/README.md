@@ -80,8 +80,9 @@ src/SchoolHub/
     │                      bibliothèque, professeurs, RH et achats, journal
     ├── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
     │                      marquer parti, revenir au centre)
-    └── Groupes/           les groupes d'Étude, leurs créneaux, leurs séances et leurs prix ;
-                           les matières ; le calendrier (les Mois de 4 séances se calculent)
+    └── Groupes/           les groupes d'Étude, de Révision et de Formation (tranches), déjà en
+                           cours ou non ; leurs créneaux, séances et prix ; les matières ; le
+                           calendrier (Mois, numéros et prix des séances, « terminé » se calculent)
 tests/SchoolHub.Tests/
 ```
 

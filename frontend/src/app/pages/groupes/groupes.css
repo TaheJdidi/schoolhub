@@ -33,3 +33,10 @@
 .tranche .inp { flex: 0 1 120px; }
 .deja-commence { display: grid; gap: 10px; }
 .case { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+/* Les séances numérotées et les tranches d'une Révision ou d'une Formation */
+.h1 .pill { vertical-align: middle; margin-left: 8px; }
+.liste-seances { display: grid; }
+.seance-numerotee, .tranche-du-groupe { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.liste-seances > :first-child { border-top: 0; padding-top: 0; }
+.seance-numerotee span { color: var(--ink-2); }

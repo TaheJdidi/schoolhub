@@ -4,7 +4,12 @@
       <nav class="fil" aria-label="Fil d'Ariane">
         <a routerLink="/professeurs">Professeurs</a> › {{ fiche.professeur.prenom }} {{ fiche.professeur.nom }}
       </nav>
-      <h1 class="h1">{{ fiche.nom }}</h1>
+      <h1 class="h1">
+        {{ fiche.nom }}
+        @if (fiche.termine) {
+          <span class="pill muted">Terminé</span>
+        }
+      </h1>
       <p class="sub">{{ sousTitre() }}</p>
     </div>
   </div>
@@ -23,12 +28,16 @@
               Capacité (facultatif)
               <input formControlName="capacite" inputmode="numeric" autocomplete="off" />
             </label>
-            <label class="f">
-              Prix du Mois (TND)
-              <input formControlName="prix" inputmode="decimal" autocomplete="off" />
-            </label>
+            @if (fiche.type === 'Etude') {
+              <label class="f">
+                Prix du Mois (TND)
+                <input formControlName="prix" inputmode="decimal" autocomplete="off" />
+              </label>
+            }
           </div>
-          <p class="aide">Le nouveau prix vaut pour les Mois qui n'ont pas encore commencé.</p>
+          @if (fiche.type === 'Etude') {
+            <p class="aide">Le nouveau prix vaut pour les Mois qui n'ont pas encore commencé.</p>
+          }
           <div class="actions">
             <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
             <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
@@ -49,6 +58,7 @@
       }
     </section>
 
+    @if (fiche.type === 'Etude') {
     <section class="card carte">
       <h2 class="titre">Les Mois</h2>
       @for (mois of fiche.mois; track mois.numero) {
@@ -68,6 +78,35 @@
         </div>
       }
     </section>
+    } @else {
+      <section class="card carte">
+        <h2 class="titre">Les séances</h2>
+        <div class="liste-seances">
+          @for (seance of fiche.seances; track seance.id) {
+            <div class="seance-numerotee">
+              <b>Séance {{ seance.numero }}</b>
+              <span>{{ jourDeSeance(seance.date) }}</span>
+              <span>{{ heure(seance.debut) }} → {{ heure(seance.fin) }}</span>
+              @if (seance.prix !== null) {
+                <span class="prix">{{ montant(seance.prix) }} TND</span>
+              }
+            </div>
+          }
+        </div>
+      </section>
+      @if (fiche.tranches.length > 0) {
+        <section class="card carte">
+          <h2 class="titre">Les tranches</h2>
+          <div class="liste-seances">
+            @for (tranche of fiche.tranches; track tranche.seance; let rang = $index) {
+              <div class="tranche-du-groupe">
+                Tranche {{ rang + 1 }} · {{ montant(tranche.montant) }} TND, due à la séance {{ tranche.seance }}
+              </div>
+            }
+          </div>
+        </section>
+      }
+    }
   </div>
 } @else if (introuvable()) {
   <div class="pagehead">
