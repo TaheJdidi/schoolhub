@@ -40,3 +40,11 @@
 .seance-numerotee, .tranche-du-groupe { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .liste-seances > :first-child { border-top: 0; padding-top: 0; }
 .seance-numerotee span { color: var(--ink-2); }
+
+/* Les élèves du groupe (ELV-03) */
+.entete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.eleve-inscrit { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--line); min-width: 0; }
+.eleve-inscrit:first-of-type { border-top: 0; padding-top: 0; }
+.eleve-inscrit a { color: var(--accent); font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+.eleve-inscrit a:hover { text-decoration: underline; }
+.eleve-inscrit small { color: var(--ink-2); font-size: 12.5px; }

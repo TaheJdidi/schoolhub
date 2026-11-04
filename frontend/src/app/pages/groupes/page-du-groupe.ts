@@ -8,6 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
+import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
 import { dateDuJourLocale, eleves, FicheDuGroupe, heure, TYPES } from './groupe';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
@@ -56,6 +57,9 @@ export class PageDuGroupe implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly eleves = eleves;
+  protected readonly modeCourt = modeCourt;
+  /** Les élèves inscrits, par nom puis prénom (ELV-03). */
+  protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
   protected readonly heure = heure;
   protected readonly montant = ecrireUnMontant;
 
@@ -115,7 +119,12 @@ export class PageDuGroupe implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((date) => this.dateDeFermeture.set(date));
     try {
-      this.fiche.set(await firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)));
+      const [fiche, inscriptions] = await Promise.all([
+        firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)),
+        firstValueFrom(this.http.get<InscriptionDeLEleve[]>('/api/inscriptions', { params: { groupe: this.id } })),
+      ]);
+      this.fiche.set(fiche);
+      this.inscriptions.set(inscriptions);
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));

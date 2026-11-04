@@ -108,6 +108,7 @@ describe("les adresses de l'application", () => {
   it('une secrétaire ouvre la fiche d’un groupe sur /professeurs/groupes/g1', async () => {
     await ouvrir('/professeurs/groupes/g1', AMIRA);
     http.expectOne('/api/groupes/g1').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
 
     expect(titre()).toBe('Groupe · SchoolHub');
@@ -123,7 +124,10 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Élèves · SchoolHub');
 
     await harness.navigateByUrl('/eleves/e1');
-    http.expectOne('/api/eleves/e1').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    for (const adresse of ['/api/eleves/e1', '/api/eleves/e1/assurance']) {
+      http.expectOne(adresse).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    }
+    http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
     expect(titre()).toBe('Élève · SchoolHub');
     const menu = harness.fixture.nativeElement as HTMLElement;
@@ -132,7 +136,7 @@ describe("les adresses de l'application", () => {
 
   it('une secrétaire inscrit un élève sur /eleves/e1/inscription, avec « Élèves » allumé', async () => {
     await ouvrir('/eleves/e1/inscription', AMIRA);
-    http.expectOne('/api/eleves/e1').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    (await vi.waitFor(() => http.expectOne('/api/eleves/e1'))).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
 
@@ -143,7 +147,7 @@ describe("les adresses de l'application", () => {
 
   it('une secrétaire ajoute un élève à un groupe sur /professeurs/groupes/g1/inscription, avec « Professeurs » allumé', async () => {
     await ouvrir('/professeurs/groupes/g1/inscription', AMIRA);
-    http.expectOne('/api/groupes/g1').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1'))).flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
 

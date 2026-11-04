@@ -35,7 +35,7 @@ export interface ResumeDuGroupe {
   niveau: string | null;
   creneaux: CreneauDuGroupe[];
   capacite: number | null;
-  /** 0 jusqu'aux inscriptions (ELV). */
+  /** Le nombre d'élèves inscrits (ELV-03). */
   eleves: number;
   /** Une Révision ou une Formation dont la dernière séance est passée : elle va dans « Anciens groupes ». */
   termine: boolean;

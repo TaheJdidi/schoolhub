@@ -83,6 +83,25 @@
       }
     </section>
 
+    <section class="card carte les-eleves">
+      <div class="entete">
+        <h2 class="titre">Les élèves</h2>
+        @if (!fiche.fermeLe && !fiche.termine) {
+          <a class="btn" [routerLink]="['/professeurs/groupes', fiche.id, 'inscription']">Ajouter un élève</a>
+        }
+      </div>
+      @for (inscription of inscriptions(); track inscription.id) {
+        <div class="eleve-inscrit">
+          <a [routerLink]="['/eleves', inscription.eleve.id]">{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</a>
+          <small>
+            {{ modeCourt(inscription) }}@if (inscription.premiereSeance; as premiere) { · depuis le {{ date(premiere.date) }}}
+          </small>
+        </div>
+      } @empty {
+        <p class="aide">Aucun élève pour l'instant.</p>
+      }
+    </section>
+
     @if (fiche.type === 'Etude') {
     <section class="card carte">
       <h2 class="titre">Les Mois</h2>

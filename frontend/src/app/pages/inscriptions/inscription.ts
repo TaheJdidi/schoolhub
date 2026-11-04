@@ -85,3 +85,19 @@ export function libelleDuMode(inscription: Pick<InscriptionDeLEleve, 'mode' | 'p
       return `Formation en ${inscription.nombreDeTranches} tranches, ${prix}`;
   }
 }
+
+/** « Par Mois », « En totalité », « En 3 tranches » : le mode seul, pour la liste des élèves d'un groupe. */
+export function modeCourt(inscription: Pick<InscriptionDeLEleve, 'mode' | 'nombreDeTranches'>): string {
+  switch (inscription.mode) {
+    case 'ParMois':
+      return 'Par Mois';
+    case 'ALaSeance':
+      return 'À la séance';
+    case 'EnTotalite':
+      return 'En totalité';
+    case 'EnUneFois':
+      return 'En une fois';
+    case 'EnTranches':
+      return `En ${inscription.nombreDeTranches} tranches`;
+  }
+}

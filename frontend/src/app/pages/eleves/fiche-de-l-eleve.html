@@ -36,7 +36,7 @@
             <button type="button" class="btn primary" [disabled]="envoi()" (click)="supprimer()">Oui</button>
             <button type="button" class="btn" [disabled]="envoi()" (click)="aConfirmer.set(false)">Non</button>
           </div>
-        } @else {
+        } @else if (inscriptions().length === 0) {
           <div class="actions">
             <button type="button" class="btn" (click)="demanderConfirmation()">Supprimer la fiche</button>
           </div>
@@ -54,9 +54,34 @@
       </section>
     }
 
-    <section class="card carte">
-      <h2 class="titre">Inscriptions</h2>
-      <p class="vide">Aucune inscription : cet élève vient seulement à la bibliothèque.</p>
+    <section class="card carte inscriptions">
+      <div class="entete">
+        <h2 class="titre">Inscriptions</h2>
+        <a class="btn" [routerLink]="['/eleves', fiche.id, 'inscription']">Inscrire dans un groupe</a>
+      </div>
+      @for (inscription of inscriptions(); track inscription.id) {
+        <div class="inscription">
+          <a [routerLink]="['/professeurs/groupes', inscription.groupe.id]">{{ inscription.groupe.nom }}</a>
+          <small>{{ inscription.groupe.matiere }} · {{ inscription.professeur }}</small>
+          <small>{{ libelleDuMode(inscription) }}</small>
+          @if (inscription.premiereSeance; as premiere) {
+            <small>Depuis le {{ jour(premiere.date) }}</small>
+          }
+        </div>
+      } @empty {
+        <p class="vide">Aucune inscription : cet élève vient seulement à la bibliothèque.</p>
+      }
+    </section>
+
+    <section class="card carte assurance">
+      <h2 class="titre">Assurance</h2>
+      @if (assurance(); as assurance) {
+        <p class="ligne">
+          Année {{ assurance.annee }} : {{ montant(assurance.montant) }} TND@if (assurance.dueLe; as dueLe) {, due le {{ date(dueLe) }}}
+        </p>
+      } @else {
+        <p class="vide">Sans objet : aucune inscription en Étude cette année.</p>
+      }
     </section>
   </div>
 } @else if (introuvable()) {

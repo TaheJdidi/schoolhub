@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { envoyer, saisir } from '../../test/formulaires';
 import { PageDeTest } from '../../test/page-de-test';
+import { InscriptionDeLEleve } from '../inscriptions/inscription';
 import { dateDuJourLocale, FicheDuGroupe, SeanceDuGroupe } from './groupe';
 import { PageDuGroupe } from './page-du-groupe';
 
@@ -46,7 +47,19 @@ describe('la fiche d’un groupe', () => {
   let page: HTMLElement;
   let harness: RouterTestingHarness;
 
-  async function ouvrir(reponse: FicheDuGroupe | 404 = FICHE): Promise<void> {
+  const INSCRIPTION: InscriptionDeLEleve = {
+    id: 'i1',
+    eleve: { id: 'e1', prenom: 'Adem', nom: 'Miled' },
+    groupe: { id: 'g1', nom: 'Groupe Samedi 10h → 12h', type: 'Revision', matiere: 'Mathématiques' },
+    professeur: 'Karim Ben Salah',
+    mode: 'EnTotalite',
+    prixNormal: 100,
+    nombreDeTranches: 0,
+    premiereSeance: { date: '2027-09-25', debut: '10:00:00' },
+  };
+
+  /** La fiche du groupe et ses élèves, demandés ensemble. */
+  async function ouvrir(reponse: FicheDuGroupe | 404 = FICHE, inscriptions: InscriptionDeLEleve[] = []): Promise<void> {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -61,8 +74,13 @@ describe('la fiche d’un groupe', () => {
     harness = await RouterTestingHarness.create('/professeurs/groupes/g1');
     page = harness.routeNativeElement as HTMLElement;
     const requete = await vi.waitFor(() => http.expectOne(ADRESSE));
-    if (reponse === 404) requete.flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
-    else requete.flush(reponse);
+    const sesEleves = http.expectOne((r) => r.url === '/api/inscriptions' && r.params.get('groupe') === 'g1');
+    if (reponse === 404) {
+      for (const une of [requete, sesEleves]) une.flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    } else {
+      requete.flush(reponse);
+      sesEleves.flush(inscriptions);
+    }
     await vi.waitFor(() => expect(page.querySelector('h1')).not.toBeNull());
   }
 
@@ -170,6 +188,33 @@ describe('la fiche d’un groupe', () => {
     expect(page.textContent).toContain("Ce groupe n'existe pas.");
     expect(page.querySelector('a[href="/professeurs"]')).not.toBeNull();
     expect(page.querySelector('.le-groupe')).toBeNull();
+  });
+
+  // ----- Les élèves du groupe (ELV-03) -----
+
+  it('montre ses élèves, et propose d’en ajouter', async () => {
+    await ouvrir(FICHE, [INSCRIPTION]);
+
+    const eleves = page.querySelector('.les-eleves') as HTMLElement;
+    expect(eleves.querySelector('a[href="/eleves/e1"]')?.textContent).toContain('Adem Miled');
+    expect(eleves.textContent).toContain('En totalité · depuis le 25/09/2027');
+    expect(eleves.querySelector('a[href="/professeurs/groupes/g1/inscription"]')?.textContent).toContain('Ajouter un élève');
+  });
+
+  it("dit quand le groupe n'a pas encore d'élève", async () => {
+    await ouvrir();
+
+    expect(page.querySelector('.les-eleves')?.textContent).toContain("Aucun élève pour l'instant.");
+  });
+
+  it("ne propose plus d'ajouter un élève à un groupe fermé ou terminé", async () => {
+    await ouvrir({ ...FICHE, fermeLe: '2027-10-01', motifDeFermeture: "Trop peu d'élèves" }, [INSCRIPTION]);
+    expect(page.querySelector('.les-eleves a[href="/professeurs/groupes/g1/inscription"]')).toBeNull();
+    expect(page.querySelector('.les-eleves a[href="/eleves/e1"]')).not.toBeNull();
+    TestBed.resetTestingModule();
+
+    await ouvrir({ ...FICHE, termine: true });
+    expect(page.querySelector('.les-eleves a[href="/professeurs/groupes/g1/inscription"]')).toBeNull();
   });
 
   // ----- Révision, Formation, groupe déjà en cours (GRP-05 à GRP-07) -----

@@ -24,3 +24,11 @@
 .coordonnees dt { color: var(--ink-2); }
 .coordonnees dd { margin: 0; overflow-wrap: anywhere; }
 .contacts .pill { justify-self: start; }
+
+.entete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.inscription { display: grid; gap: 2px; padding: 9px 0; border-top: 1px solid var(--line); min-width: 0; }
+.inscription:first-of-type { border-top: 0; padding-top: 0; }
+.inscription a { color: var(--accent); font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+.inscription a:hover { text-decoration: underline; }
+.inscription small { color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.ligne { margin: 0; }

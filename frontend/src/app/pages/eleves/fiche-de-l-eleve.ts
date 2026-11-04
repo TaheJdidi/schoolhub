@@ -1,17 +1,20 @@
-import { Location } from '@angular/common';
+import { formatDate, Location } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
+import { FRANCAIS } from '../../socle/francais';
+import { ecrireUnMontant } from '../../socle/montants';
+import { AssuranceDeLEleve, InscriptionDeLEleve, libelleDuMode } from '../inscriptions/inscription';
 import { de, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 import { FormulaireDeLEleve } from './formulaire-de-l-eleve';
 
 /**
- * ELV-02, ELV-04 et ELV-11 : la fiche d'un élève. Ses contacts, ses inscriptions (aucune pour l'instant : elles
- * viendront avec ELV-03), « Modifier » avec le même formulaire que la création, et « Supprimer la fiche » après
- * confirmation. L'avertissement « Doublon possible » d'une création arrive par l'état de la navigation. La page suit
+ * ELV-02, ELV-03, ELV-04 et ELV-11 : la fiche d'un élève. Ses contacts, ses inscriptions et l'assurance de l'année,
+ * « Modifier » avec le même formulaire que la création, et « Supprimer la fiche » après confirmation, tant qu'il n'a
+ * aucune inscription. L'avertissement « Doublon possible » d'une création arrive par l'état de la navigation. La page suit
  * l'adresse : la recherche de l'en-tête mène d'une fiche à une autre sans recréer la page.
  */
 @Component({
@@ -29,7 +32,12 @@ export class PageDeLEleve implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly de = de;
+  protected readonly libelleDuMode = libelleDuMode;
+  protected readonly montant = ecrireUnMontant;
   protected readonly fiche = signal<FicheDeLEleve | null>(null);
+  protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
+  /** L'assurance de l'année ; `null` quand elle est sans objet. */
+  protected readonly assurance = signal<AssuranceDeLEleve | null>(null);
   protected readonly introuvable = signal(false);
   protected readonly enModification = signal(false);
   protected readonly aConfirmer = signal(false);
@@ -37,6 +45,16 @@ export class PageDeLEleve implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly avertissement = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
+
+  /** « samedi 20/11/2027 ». */
+  protected jour(date: string): string {
+    return formatDate(date, 'EEEE dd/MM/yyyy', FRANCAIS);
+  }
+
+  /** « 20/11/2027 ». */
+  protected date(date: string): string {
+    return formatDate(date, 'dd/MM/yyyy', FRANCAIS);
+  }
 
   /** « 22 345 678 · adem@exemple.tn », ou « — » s'il n'y a rien. */
   protected joindre(...valeurs: (string | null)[]): string {
@@ -52,6 +70,8 @@ export class PageDeLEleve implements OnInit {
   /** La fiche de l'élève de l'adresse : tout ce que montrait la fiche précédente est oublié. */
   private async charger(id: string): Promise<void> {
     this.fiche.set(null);
+    this.inscriptions.set([]);
+    this.assurance.set(null);
     this.introuvable.set(false);
     this.enModification.set(false);
     this.aConfirmer.set(false);
@@ -65,8 +85,16 @@ export class PageDeLEleve implements OnInit {
       this.location.replaceState(this.location.path(), '', reste);
     }
     try {
-      const fiche = await firstValueFrom(this.http.get<FicheDeLEleve>(`/api/eleves/${id}`));
-      if (this.route.snapshot.paramMap.get('id') === id) this.fiche.set(fiche);
+      // La fiche, ses inscriptions et son assurance (204 : sans objet) arrivent ensemble.
+      const [fiche, inscriptions, assurance] = await Promise.all([
+        firstValueFrom(this.http.get<FicheDeLEleve>(`/api/eleves/${id}`)),
+        firstValueFrom(this.http.get<InscriptionDeLEleve[]>('/api/inscriptions', { params: { eleve: id } })),
+        firstValueFrom(this.http.get<AssuranceDeLEleve | null>(`/api/eleves/${id}/assurance`)),
+      ]);
+      if (this.route.snapshot.paramMap.get('id') !== id) return;
+      this.fiche.set(fiche);
+      this.inscriptions.set(inscriptions);
+      this.assurance.set(assurance);
     } catch (erreur) {
       if (this.route.snapshot.paramMap.get('id') !== id) return;
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
