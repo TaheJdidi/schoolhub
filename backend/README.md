@@ -75,8 +75,10 @@ src/SchoolHub/
 │   │                      adresse /api inconnue, en-tête Referrer-Policy
 │   └── Donnees/           le contexte EF Core et les migrations
 └── Modules/               un dossier par module, quand ses premières stories arrivent :
-                           élèves et inscriptions, groupes et séances, caisse et reçus,
-                           bibliothèque, professeurs, RH et achats, journal
+    │                      élèves et inscriptions, groupes et séances, caisse et reçus,
+    │                      bibliothèque, professeurs, RH et achats, journal
+    └── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
+                           marquer parti, revenir au centre)
 tests/SchoolHub.Tests/
 ```
 

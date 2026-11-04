@@ -103,6 +103,53 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<bool>("Parti")
+                        .HasColumnType("boolean")
+                        .HasColumnName("parti");
+
+                    b.Property<string>("Prenom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("prenom");
+
+                    b.Property<string>("Telephone")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone");
+
+                    b.HasKey("Id")
+                        .HasName("pk_professeurs");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_professeurs_centre_id");
+
+                    b.ToTable("professeurs", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
                 {
                     b.Property<Guid>("Id")
@@ -430,6 +477,16 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_professeurs_centres_centre_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
