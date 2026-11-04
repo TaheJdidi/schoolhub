@@ -218,6 +218,83 @@ public sealed class RevisionsEtFormationsTests(PostgreSqlDeTest postgreSql) : IA
         Assert.Equal(("Revision", false), (resume.Type, resume.Termine));
     }
 
+    // ----- Un groupe déjà en cours (GRP-07) -----
+
+    [Fact]
+    public async Task Une_etude_deja_en_cours()
+    {
+        // « Mois 5, à partir du samedi 15/01/2028 » : il n'y a ni Mois 1 à 4, ni séances avant.
+        var fiche = await CreerAsync(new CreationDUnGroupe(
+            _karim, "Mathématiques", _neuviemeAnnee, [Samedi10h], 60m, new DateOnly(2028, 1, 15), 16, "", MoisEnCours: 5));
+
+        Assert.Equal(17, fiche.PremiereSeance);
+        Assert.Equal([5, 6, 7, 8, 9, 10], fiche.Mois.Select(m => m.Numero));
+        Assert.Equal(
+            [new DateOnly(2028, 1, 15), new DateOnly(2028, 1, 22), new DateOnly(2028, 1, 29), new DateOnly(2028, 2, 5)],
+            fiche.Mois[0].Seances.Select(s => s.Date));
+        Assert.All(fiche.Mois, m => Assert.Equal(60m, m.Prix));
+        Assert.Equal(60m, fiche.PrixDuMois);
+    }
+
+    [Fact]
+    public async Task Une_revision_deja_en_cours()
+    {
+        // « Séance 4 sur 10, le 15/01/2028 » : les séances 4 à 10, au prix calculé sur les 10.
+        var fiche = await CreerAsync(Revision with
+        {
+            PrixTotal = 50m,
+            NombreDeSeances = 10,
+            SeanceEnCours = 4,
+            DateDeDebut = new DateOnly(2028, 1, 15),
+        });
+
+        Assert.Equal(4, fiche.PremiereSeance);
+        Assert.Equal([4, 5, 6, 7, 8, 9, 10], fiche.Seances.Select(s => s.Numero));
+        Assert.Equal(new DateOnly(2028, 1, 15), fiche.Seances[0].Date);
+        Assert.All(fiche.Seances, s => Assert.Equal(5m, s.Prix));
+    }
+
+    [Fact]
+    public async Task Une_formation_deja_en_cours_garde_toutes_ses_tranches()
+    {
+        var fiche = await CreerAsync(Formation with { SeanceEnCours = 4, DateDeDebut = new DateOnly(2028, 1, 15) });
+
+        Assert.Equal([4, 5, 6, 7, 8, 9, 10], fiche.Seances.Select(s => s.Numero));
+        Assert.Equal([1, 5, 9], fiche.Tranches.Select(t => t.Seance));
+    }
+
+    [Fact]
+    public async Task Des_dates_une_a_une_pour_les_seances_a_venir()
+    {
+        var dates = Enumerable.Range(0, 7).Select(i => new SeanceSaisie(new DateOnly(2028, 1, 15).AddDays(7 * i), "10:00", "12:00")).ToList();
+        var revision = Revision with { NombreDeSeances = 10, SeanceEnCours = 4, Creneaux = null, DateDeDebut = null };
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, revision with { Dates = dates.Take(6).ToList() }),
+            HttpStatusCode.BadRequest, "Il faut une date pour chacune des 7 séances");
+        var fiche = await CreerAsync(revision with { Dates = dates });
+
+        Assert.Equal([4, 5, 6, 7, 8, 9, 10], fiche.Seances.Select(s => s.Numero));
+    }
+
+    [Theory]
+    [InlineData("mois 0", "Le Mois en cours va de 1 à 20")]
+    [InlineData("mois 21", "Le Mois en cours va de 1 à 20")]
+    [InlineData("seance 0", "La séance en cours va de 1 à 10")]
+    [InlineData("seance 11", "La séance en cours va de 1 à 10")]
+    public async Task Ou_en_est_le_groupe_doit_etre_possible(string cas, string message)
+    {
+        var etude = new CreationDUnGroupe(_karim, "Mathématiques", _neuviemeAnnee, [Samedi10h], 60m, new DateOnly(2028, 1, 15), 16, "");
+        var creation = cas switch
+        {
+            "mois 0" => etude with { MoisEnCours = 0 },
+            "mois 21" => etude with { MoisEnCours = 21 },
+            "seance 0" => Revision with { NombreDeSeances = 10, SeanceEnCours = 0 },
+            _ => Revision with { NombreDeSeances = 10, SeanceEnCours = 11 },
+        };
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, creation), HttpStatusCode.BadRequest, message);
+    }
+
     // ----- Outils -----
 
     /// <summary>Un centre avec ses niveaux d'office, et le client de sa secrétaire ; son propriétaire règle l'année scolaire.</summary>

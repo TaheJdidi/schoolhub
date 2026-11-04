@@ -22,6 +22,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     private const string PrixPasValable = "Le prix du Mois doit être positif, au millime près";
     private const string PrixTotalPasValable = "Le prix total doit être positif, au millime près";
     private const string NombreDeSeancesPasValable = "Le nombre de séances va de 1 à 200";
+    private const string MoisEnCoursPasValable = "Le Mois en cours va de 1 à 20";
     private const string DateObligatoire = "La date de début est obligatoire";
     private const string SansAnneeScolaire = "Réglez d'abord l'année scolaire dans les paramètres du centre";
     private const string CapacitePasValable = "La capacité doit être d'au moins 1 place";
@@ -233,6 +234,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             return (null, Refus(StatusCodes.Status400BadRequest, refusDesCreneaux));
         if (!SaisieDuGroupe.MontantValable(saisie.PrixDuMois))
             return (null, Refus(StatusCodes.Status400BadRequest, PrixPasValable));
+        // Un groupe déjà en cours (GRP-07) : « Mois 5 » fait de sa première séance dans SchoolHub la séance 1 du Mois 5.
+        if (saisie.MoisEnCours is < 1 or > SaisieDuGroupe.MoisEnCoursMaximal)
+            return (null, Refus(StatusCodes.Status400BadRequest, MoisEnCoursPasValable));
+        var premiereSeance = CalendrierDuGroupe.PremiereSeanceDuMois(saisie.MoisEnCours ?? 1);
 
         if (saisie.DateDeDebut is not { } dateDeDebut)
             return (null, Refus(StatusCodes.Status400BadRequest, DateObligatoire));
@@ -248,7 +253,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         if (seances.Count == 0)
             return (null, Refus(StatusCodes.Status400BadRequest, AucuneSeance));
 
-        return (new Prevision(creneaux!, seances, dateDeDebut, annee.Id, 1, CalendrierDuGroupe.NomPropose(creneaux![0]), []), null);
+        return (new Prevision(creneaux!, seances, dateDeDebut, annee.Id, premiereSeance, CalendrierDuGroupe.NomPropose(creneaux![0]), []), null);
     }
 
     /// <summary>
@@ -262,7 +267,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         if (saisie.NombreDeSeances is not { } nombre || nombre < 1 || nombre > SaisieDuGroupe.NombreMaximalDeSeances)
             return (null, Refus(StatusCodes.Status400BadRequest, NombreDeSeancesPasValable));
 
-        const int premiereSeance = 1;
+        // Un groupe déjà en cours (GRP-07) : « séance 4 sur 10 » crée les séances 4 à 10.
+        if (saisie.SeanceEnCours is { } enCours && (enCours < 1 || enCours > nombre))
+            return (null, Refus(StatusCodes.Status400BadRequest, $"La séance en cours va de 1 à {nombre}"));
+        var premiereSeance = saisie.SeanceEnCours ?? 1;
         var seancesAVenir = nombre - premiereSeance + 1;
         List<Creneau> creneaux;
         IReadOnlyList<SeancePrevue> seances;
