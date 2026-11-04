@@ -54,6 +54,7 @@ En tant que secrétaire, je veux créer un groupe d'Étude avec son horaire et s
 - Les séances sont créées de la date de début à la fin de l'année scolaire : Karim, le samedi de 10h à 12h, à partir du 18/09/2027, donne une séance chaque samedi jusqu'au 24/06/2028.
 - Les séances sont rangées en Mois de 4 : Mois 1 = séances 1 à 4, Mois 2 = séances 5 à 8, etc. Avec deux créneaux par semaine, un Mois dure deux semaines.
 - Le groupe se modifie ensuite : nom, capacité, prix. Un nouveau prix vaut pour les Mois qui n'ont pas encore commencé : le prix passe de 40 à 45 TND le 01/02, le Mois 5 commencé le 15/01 reste à 40 TND, et le Mois 6 passe à 45 TND.
+- Les professeurs, faits avant les groupes ([conception](../superpowers/specs/2026-11-04-professeurs-design.md#4-ce-que-grp-04-devra-ajouter-ici)), attendent cette story pour : compter les groupes ouverts de chacun ; refuser « Marquer parti » à un professeur qui a un groupe ouvert (« Fermez d'abord ses groupes ») ; refuser de supprimer un professeur qui a eu un groupe ; refuser un professeur parti dans un nouveau groupe.
 
 Maquette : fiche groupe (« Le groupe »).
 
