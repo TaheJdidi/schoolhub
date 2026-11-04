@@ -59,16 +59,13 @@ public sealed class NiveauxDuCentre(SchoolHubDbContext contexte)
         return await EnregistrerAsync(niveau, StatusCodes.Status200OK);
     }
 
-    /// <summary>
-    /// Retire un niveau ajouté, si aucun groupe ne l'utilise. Les élèves n'existent pas encore : ELV-02 ajoutera
-    /// leur niveau à ce refus.
-    /// </summary>
+    /// <summary>Retire un niveau ajouté, si aucun groupe ni aucun élève ne l'utilise.</summary>
     public async Task<IssueSurUnNiveau> RetirerAsync(Guid id)
     {
         var (niveau, interdit) = await TrouverUnNiveauAjouteAsync(id);
         if (interdit is not null)
             return interdit;
-        if (await contexte.Groupes.AnyAsync(g => g.NiveauId == id))
+        if (await contexte.Groupes.AnyAsync(g => g.NiveauId == id) || await contexte.Eleves.AnyAsync(e => e.NiveauId == id))
             return IssueSurUnNiveau.Refusee(StatusCodes.Status409Conflict, NiveauUtilise);
 
         contexte.Niveaux.Remove(niveau!);

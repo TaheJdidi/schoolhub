@@ -103,6 +103,80 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Eleves.Eleve", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("EmailEleve")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email_eleve");
+
+                    b.Property<string>("EmailParent")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email_parent");
+
+                    b.Property<string>("Etablissement")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("etablissement");
+
+                    b.Property<bool>("Majeur")
+                        .HasColumnType("boolean")
+                        .HasColumnName("majeur");
+
+                    b.Property<Guid>("NiveauId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("niveau_id");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<string>("NomDeRecherche")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("nom_de_recherche");
+
+                    b.Property<string>("Prenom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("prenom");
+
+                    b.Property<string>("TelephoneEleve")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone_eleve");
+
+                    b.Property<string>("TelephoneParent")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone_parent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_eleves");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_eleves_centre_id");
+
+                    b.HasIndex("NiveauId")
+                        .HasDatabaseName("ix_eleves_niveau_id");
+
+                    b.ToTable("eleves", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Groupes.Groupe", b =>
                 {
                     b.Property<Guid>("Id")
@@ -641,6 +715,23 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Eleves.Eleve", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_eleves_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Niveau", null)
+                        .WithMany()
+                        .HasForeignKey("NiveauId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_eleves_niveaux_niveau_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Groupes.Groupe", b =>

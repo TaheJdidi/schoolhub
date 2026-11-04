@@ -80,6 +80,7 @@ src/SchoolHub/
     │                      bibliothèque, professeurs, RH et achats, journal
     ├── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
     │                      marquer parti, revenir au centre)
+    ├── Eleves/            les élèves : la fiche, le doublon possible, la recherche sans accents
     └── Groupes/           les groupes d'Étude, de Révision et de Formation (tranches), déjà en
                            cours ou non ; leurs créneaux, séances et prix ; les matières ; le
                            calendrier (Mois, numéros et prix des séances, « terminé » se calculent)
