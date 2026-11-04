@@ -232,7 +232,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 .Select(somme => new LigneAPayer(
                     e.Inscription.Id, $"{matieres[e.Groupe.MatiereId]} · {e.Groupe.Nom}", somme.Libelle, somme.Cle, somme.Montant, somme.Date)))
             .ToList();
-        if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer, DueLe: { } dueLe } assurance } && dueLe <= aujourdhui)
+        if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer, DueLe: { } dueLe } assurance } && dueLe <= aujourdhui
+            && assurance.Montant > 0)
             lignes.Add(new LigneAPayer(null, "Assurance", $"Assurance {assurance.Annee}", Reglement.CleDeLAssurance, assurance.Montant, dueLe));
         return new APayer(lignes, lignes.Sum(l => l.Montant));
     }
@@ -327,7 +328,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var somme = echeance.Sommes.FirstOrDefault(s => s.Cle == saisie.Cle?.Trim());
         if (somme is null)
             return RefusSurUneInscription(StatusCodes.Status404NotFound, SommeIntrouvable);
-        if (somme.Reglee)
+        if (somme.Reglee || somme.Montant <= 0)
             return RefusSurUneInscription(StatusCodes.Status409Conflict, SommeDejaPayee);
         if (!PayableAvantSchoolHub(echeance, somme))
             return RefusSurUneInscription(StatusCodes.Status409Conflict, SommeDApres);
@@ -388,20 +389,27 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     }
 
     /// <summary>
-    /// Une somme pas réglée d'une Révision ou d'une Formation déjà en cours (première séance dans SchoolHub après la 1),
-    /// due à la première séance du groupe dans SchoolHub : c'est là que l'échéancier place ce qui était dû avant.
+    /// ELV-07 : une somme pas réglée, de plus de 0 TND, d'une Révision ou d'une Formation déjà en cours (première séance dans
+    /// SchoolHub après la 1), qui était due avant SchoolHub : la totalité ou le paiement en une fois d'un élève arrivé avant
+    /// (sa première séance est celle du groupe dans SchoolHub), ou une tranche dont la séance vient avant. Une séance à la
+    /// séance, ou une tranche due dans SchoolHub, se paie à la caisse.
     /// </summary>
-    private static bool PayableAvantSchoolHub(Echeance echeance, SommeDue somme) =>
-        echeance.Groupe.Type != TypeDeGroupe.Etude
-        && echeance.Groupe.PremiereSeance > 1
-        && !somme.Reglee
-        && somme.Seance == echeance.Groupe.PremiereSeance;
+    private static bool PayableAvantSchoolHub(Echeance echeance, SommeDue somme)
+    {
+        var groupe = echeance.Groupe;
+        if (groupe.Type == TypeDeGroupe.Etude || groupe.PremiereSeance <= 1 || somme.Reglee || somme.Montant <= 0)
+            return false;
+        if (somme.Cle is "Totalité" or "Une fois")
+            return somme.Seance == groupe.PremiereSeance;
+        if (!somme.Cle.StartsWith("Tranche ", StringComparison.Ordinal) || !int.TryParse(somme.Cle["Tranche ".Length..], out var rang))
+            return false;
+        var tranches = groupe.Tranches.OrderBy(t => t.Seance).ToList();
+        return rang >= 1 && rang <= tranches.Count && tranches[rang - 1].Seance < groupe.PremiereSeance;
+    }
 
-    /// <summary>Une Formation en tranches pas encore regroupée, qui a une tranche pas réglée à venir.</summary>
+    /// <summary>Une Formation en tranches pas encore regroupée, qui a une tranche à regrouper aujourd'hui, de plus de 0 TND.</summary>
     private static bool ATrancheAVenir(Echeance echeance, DateOnly aujourdhui) =>
-        echeance.Inscription.Mode == ModeDeTarification.EnTranches
-        && echeance.Inscription.ResteRegroupeLe is null
-        && echeance.Sommes.Any(s => !s.Reglee && s.Date > aujourdhui);
+        Echeancier.PeutRegrouperLeReste(echeance.Calendrier, echeance.Conditions, aujourdhui);
 
     private const string EtatAPayer = "APayer";
     private const string EtatPayeeAvantSchoolHub = "PayeeAvantSchoolHub";
@@ -481,7 +489,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var existante = await contexte.Assurances.SingleOrDefaultAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == anneeId);
         if (existante is null)
         {
-            if (centre.MontantDeLAssurance is not { } montant)
+            // Un centre sans montant, ou à 0 TND, ne réclame pas d'assurance.
+            if (centre.MontantDeLAssurance is not { } montant || montant <= 0)
                 return null;
             contexte.Assurances.Add(new AssuranceDeLAnnee(eleveId, anneeId, montant));
             return new SommeALArrivee(AssuranceDeLAnnee.Libelle(annee), montant);
@@ -523,7 +532,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
     /// <summary>Une inscription, son groupe et ses sommes dues : prix spécial, règlements et reste regroupé compris.</summary>
     private sealed record Echeance(Inscription Inscription, Groupe Groupe, IReadOnlyList<Seance> Seances, IReadOnlyList<SommeDue> Sommes,
-        IReadOnlyDictionary<string, OrigineDuReglement> Origines);
+        IReadOnlyDictionary<string, OrigineDuReglement> Origines, CalendrierAPayer Calendrier, ConditionsDeLInscription Conditions);
 
     private async Task<List<Echeance>> EcheancesAsync(IReadOnlyCollection<Inscription> inscriptions)
     {
@@ -542,8 +551,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             var duGroupe = seances.GetValueOrDefault(i.GroupeId) ?? [];
             var regles = reglements[i.Id].ToList();
             var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe);
-            return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(Calendrier(groupe, duGroupe), conditions),
-                regles.ToDictionary(r => r.Cle, r => r.Origine));
+            var calendrier = Calendrier(groupe, duGroupe);
+            return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(calendrier, conditions),
+                regles.ToDictionary(r => r.Cle, r => r.Origine), calendrier, conditions);
         }).ToList();
     }
 

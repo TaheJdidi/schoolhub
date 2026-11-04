@@ -289,6 +289,41 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         Assert.Single((await InscriptionAsync(inscription)).Reglees);
     }
 
+    [Fact]
+    public async Task Une_seance_de_revision_ne_date_pas_d_avant_SchoolHub()
+    {
+        // À la séance, la séance 4 a lieu dans SchoolHub : elle se paie à la caisse, pas « avant SchoolHub ».
+        var inscription = await InscrireAsync(await GroupeAsync(RevisionDejaEnCours), "ALaSeance", DeuxiemeSeanceDuMois3);
+
+        Assert.Empty((await InscriptionAsync(inscription)).PayablesAvantSchoolHub);
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Séance 4")),
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+    }
+
+    [Fact]
+    public async Task Une_somme_a_zero_compte_comme_payee()
+    {
+        var inscription = await InscrireAsync(await GroupeAsync(RevisionDejaEnCours), "EnTotalite", DeuxiemeSeanceDuMois3);
+        await DecrireAsync(await _proprietaire.PutAsJsonAsync($"/api/inscriptions/{inscription}/prix-special", new PrixSpecialSaisi(0m, "Proche du centre")));
+
+        Assert.Empty((await InscriptionAsync(inscription)).PayablesAvantSchoolHub);
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Totalité")),
+            HttpStatusCode.Conflict, "Cette somme est déjà payée");
+    }
+
+    [Fact]
+    public async Task Une_assurance_a_zero_n_est_pas_due()
+    {
+        var reglages = await _proprietaire.PutAsJsonAsync("/api/centre/parametres", new ReglagesDuCentre(
+            "Centre Les Jasmins", "73 221 400", null, new AnneeScolaireSaisie(new DateOnly(2027, 9, 15), new DateOnly(2028, 6, 30)), 0m, null, null, null));
+        Assert.Equal(HttpStatusCode.OK, reglages.StatusCode);
+
+        await InscrireAsync(await GroupeAsync(Etude), null, DeuxiemeSeanceDuMois3);
+
+        Assert.Equal(["Mois 3 (3 séances)"], (await APayerAsync(_adem)).Lignes.Select(l => l.Libelle));
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.GetAsync($"/api/eleves/{_adem}/assurance")).StatusCode);
+    }
+
     // ----- Payer tout le reste (ELV-10) -----
 
     [Fact]
@@ -306,6 +341,19 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         Assert.Equal([new LigneAPayer(inscription, "Informatique · Groupe Samedi 10h → 12h", "Reste de la Formation", "Reste", 200m, new DateOnly(2027, 11, 27))],
             (await APayerAsync(_adem)).Lignes);
         await VerifierLeRefusAsync(await _client.PostAsync($"/api/inscriptions/{inscription}/reste", null), HttpStatusCode.Conflict, "Le reste est déjà regroupé");
+    }
+
+    [Fact]
+    public async Task Le_reste_laisse_la_tranche_d_avant_SchoolHub()
+    {
+        // La Formation commence dans SchoolHub le 04/12, à la séance 4 : la tranche 1, payée avant, n'est pas encore notée.
+        var inscription = await InscrireAsync(await GroupeAsync(FormationDejaEnCours with { DateDeDebut = new DateOnly(2027, 12, 4) }), "EnTranches",
+            new DateOnly(2027, 12, 4));
+
+        var regroupee = await DecrireAsync(await _client.PostAsync($"/api/inscriptions/{inscription}/reste", null));
+
+        Assert.Equal([new SommePayable("Tranche 1", "Tranche 1", 100m)], regroupee.PayablesAvantSchoolHub);
+        Assert.Equal([("Reste de la Formation", 200m)], (await APayerAsync(_adem)).Lignes.Select(l => (l.Libelle, l.Montant)));
     }
 
     [Fact]

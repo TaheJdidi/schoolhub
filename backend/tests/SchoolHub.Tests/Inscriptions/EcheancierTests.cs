@@ -293,4 +293,49 @@ public sealed class EcheancierTests
 
         Assert.Equal([("Tranche 1", 100m), ("Reste", 50m)], sommes.Select(s => (s.Cle, s.Montant)));
     }
+
+    // ----- Corrections de la relecture -----
+
+    [Fact]
+    public void Le_reste_laisse_a_part_la_tranche_due_a_l_arrivee()
+    {
+        // Une Formation saisie à la séance 4 (tranches aux séances 1, 5 et 9) : la tranche 1, d'avant SchoolHub, est due à la
+        // première séance de l'élève, encore à venir. « Payer tout le reste » la veille ne regroupe que les tranches 2 et 3.
+        var seances = Samedis(7);
+        var formation = new CalendrierAPayer(TypeDeGroupe.Formation, 4, seances, [], 300m, 10,
+            [new Tranche(100m, 1), new Tranche(100m, 5), new Tranche(100m, 9)]);
+        var veille = seances[0].AddDays(-1);
+
+        var sommes = Echeancier.Calculer(formation, new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, null, veille));
+
+        Assert.Equal([("Reste", 200m, veille), ("Tranche 1", 100m, seances[0])], sommes.Select(s => (s.Cle, s.Montant, s.Date)));
+    }
+
+    [Fact]
+    public void Le_prix_special_compte_le_reste_deja_regle()
+    {
+        // La tranche 1 n'est pas payée ; le reste (tranches 2 et 3, 200 TND) l'est. Un prix spécial de 150 TND : la tranche 1 vaut 0.
+        var seances = Samedis(10);
+
+        var sommes = Echeancier.Calculer(FormationEnTranches(seances),
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 150m, Reglees(("Reste", 200m)), seances[2]));
+
+        Assert.Equal([("Tranche 1", 0m, false), ("Reste", 200m, true)], sommes.Select(s => (s.Cle, s.Montant, s.Reglee)));
+    }
+
+    [Fact]
+    public void On_ne_regroupe_pas_un_reste_nul()
+    {
+        // La tranche 1 est payée 100 TND, et le prix spécial vaut 100 TND : les tranches 2 et 3 valent 0, rien n'est à regrouper.
+        var seances = Samedis(10);
+        var formation = FormationEnTranches(seances);
+
+        Assert.True(Echeancier.PeutRegrouperLeReste(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, Reglees(("Tranche 1", 100m))), seances[2]));
+        Assert.False(Echeancier.PeutRegrouperLeReste(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 100m, Reglees(("Tranche 1", 100m))), seances[2]));
+        Assert.False(Echeancier.PeutRegrouperLeReste(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, null, seances[1]), seances[2]));
+    }
+
 }

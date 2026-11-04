@@ -100,18 +100,35 @@ public static class Echeancier
             ModeDeTarification.EnTotalite => [EnTotalite(groupe, suivies, special)],
             ModeDeTarification.EnUneFois =>
                 [new SommeDue("Formation en une fois", special ?? groupe.PrixTotal!.Value, suivies[0].Numero, suivies[0].Date, "Une fois")],
-            _ => EnTranches(groupe, suivies, special, reglements),
+            _ => EnTranches(groupe, suivies, special, reglements, conditions.ResteRegroupeLe),
         };
 
         // Une somme réglée vaut son règlement : ni un prix spécial ni un nouveau prix ne la change.
         sommes = sommes
             .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle, Reglee = true } : somme)
             .ToList();
-        if (conditions.Mode == ModeDeTarification.EnTranches && conditions.ResteRegroupeLe is { } regroupeLe)
-            sommes = RegrouperLeReste(sommes, regroupeLe, reglements);
 
         return sommes.OrderBy(s => s.Date).ThenBy(s => s.Seance).ToList();
     }
+
+    /// <summary>
+    /// ELV-10 : « Payer tout le reste » est possible pour une Formation en tranches pas encore regroupée, qui a une tranche à
+    /// regrouper aujourd'hui, et de plus de 0 TND.
+    /// </summary>
+    public static bool PeutRegrouperLeReste(CalendrierAPayer groupe, ConditionsDeLInscription conditions, DateOnly aujourdhui)
+    {
+        if (conditions.Mode != ModeDeTarification.EnTranches || conditions.ResteRegroupeLe is not null
+            || PremiereSeance(groupe, conditions.DebutLe) is not { } premiere)
+            return false;
+        return Calculer(groupe, conditions).Any(s => Regroupable(s, aujourdhui, premiere) && s.Montant > 0);
+    }
+
+    /// <summary>
+    /// Une tranche se regroupe si elle n'est pas réglée, vient après le jour du regroupement, et n'est pas due à la première
+    /// séance de l'élève : ce qui était dû à son arrivée (ou avant SchoolHub) reste à part.
+    /// </summary>
+    private static bool Regroupable(SommeDue somme, DateOnly regroupeLe, int premiereSeance) =>
+        !somme.Reglee && somme.Date > regroupeLe && somme.Seance > premiereSeance;
 
     private sealed record SeanceSuivie(int Numero, DateOnly Date);
 
@@ -169,46 +186,45 @@ public static class Echeancier
 
     /// <summary>
     /// Chaque tranche à sa séance, ou à la première de l'élève si elle est passée. Avec un prix spécial, les tranches pas
-    /// réglées se partagent ce qui reste du prix spécial une fois retirés les règlements, sans descendre sous 0.
+    /// réglées se partagent ce qui reste du prix spécial une fois retirés les règlements (le reste regroupé compris), sans
+    /// descendre sous 0. ELV-10 : regroupées, les tranches à venir deviennent « Reste de la Formation », due ce jour-là.
     /// </summary>
     private static List<SommeDue> EnTranches(
         CalendrierAPayer groupe,
         List<SeanceSuivie> suivies,
         decimal? special,
-        IReadOnlyDictionary<string, decimal> reglements)
+        IReadOnlyDictionary<string, decimal> reglements,
+        DateOnly? regroupeLe)
     {
-        var tranches = groupe.Tranches
+        var premiere = suivies[0].Numero;
+        var sommes = groupe.Tranches
             .OrderBy(t => t.Seance)
             .Select((tranche, i) => (Cle: $"Tranche {i + 1}", tranche.Montant,
-                Seance: suivies.FirstOrDefault(s => s.Numero == Math.Max(tranche.Seance, suivies[0].Numero))))
+                Seance: suivies.FirstOrDefault(s => s.Numero == Math.Max(tranche.Seance, premiere))))
             .Where(t => t.Seance is not null)
+            .Select(t => reglements.TryGetValue(t.Cle, out var regle)
+                ? new SommeDue(t.Cle, regle, t.Seance!.Numero, t.Seance.Date, t.Cle, true)
+                : new SommeDue(t.Cle, t.Montant, t.Seance!.Numero, t.Seance.Date, t.Cle))
             .ToList();
-        var montants = tranches.Select(t => t.Montant).ToList();
+        var regroupees = regroupeLe is { } le ? sommes.Where(s => Regroupable(s, le, premiere)).Select(s => s.Cle).ToHashSet() : [];
+        var resteRegle = regroupees.Count > 0 && reglements.ContainsKey(CleDuReste);
+
         if (special is { } prix)
         {
-            var aRegler = tranches.Select((t, i) => (t.Cle, Rang: i)).Where(t => !reglements.ContainsKey(t.Cle)).ToList();
-            var reste = Math.Max(0m, prix - tranches.Where(t => reglements.ContainsKey(t.Cle)).Sum(t => reglements[t.Cle]));
+            // Le reste regroupé et payé compte comme ses tranches payées.
+            var regle = sommes.Where(s => s.Reglee).Sum(s => s.Montant) + (resteRegle ? reglements[CleDuReste] : 0m);
+            var aRegler = sommes.Where(s => !s.Reglee && !(resteRegle && regroupees.Contains(s.Cle))).Select(s => s.Cle).ToList();
+            var reste = Math.Max(0m, prix - regle);
             var parts = aRegler.Count == 0 ? [] : reste == 0 ? Enumerable.Repeat(0m, aRegler.Count).ToList() : CalendrierDuGroupe.PrixDesSeances(reste, aRegler.Count);
-            for (var i = 0; i < aRegler.Count; i++)
-                montants[aRegler[i].Rang] = parts[i];
+            sommes = sommes.Select(s => aRegler.IndexOf(s.Cle) is var rang and >= 0 ? s with { Montant = parts[rang] } : s).ToList();
         }
 
-        return tranches.Select((t, i) => new SommeDue(t.Cle, montants[i], t.Seance!.Numero, t.Seance.Date, t.Cle)).ToList();
-    }
-
-    /// <summary>
-    /// ELV-10 : les tranches pas réglées dont la date vient après le regroupement deviennent « Reste de la Formation »,
-    /// due ce jour-là. Celles déjà dues restent à part. Pas de réduction.
-    /// </summary>
-    private static List<SommeDue> RegrouperLeReste(List<SommeDue> sommes, DateOnly regroupeLe, IReadOnlyDictionary<string, decimal> reglements)
-    {
-        var aVenir = sommes.Where(s => !s.Reglee && s.Date > regroupeLe).ToList();
-        if (aVenir.Count == 0)
+        if (regroupees.Count == 0)
             return sommes;
-
-        var reste = new SommeDue("Reste de la Formation", aVenir.Sum(s => s.Montant), aVenir.Min(s => s.Seance), regroupeLe, CleDuReste);
-        if (reglements.TryGetValue(CleDuReste, out var regle))
-            reste = reste with { Montant = regle, Reglee = true };
-        return [.. sommes.Except(aVenir), reste];
+        var aVenir = sommes.Where(s => regroupees.Contains(s.Cle)).ToList();
+        var leReste = new SommeDue("Reste de la Formation", aVenir.Sum(s => s.Montant), aVenir.Min(s => s.Seance), regroupeLe!.Value, CleDuReste);
+        if (reglements.TryGetValue(CleDuReste, out var montantDuReste))
+            leReste = leReste with { Montant = montantDuReste, Reglee = true };
+        return [.. sommes.Where(s => !regroupees.Contains(s.Cle)), leReste];
     }
 }
