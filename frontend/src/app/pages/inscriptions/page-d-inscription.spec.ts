@@ -340,6 +340,27 @@ describe("la page d'inscription", () => {
     expect(page.querySelector('.actions a[href="/eleves/e2"]')).not.toBeNull();
   });
 
+  it("oublie l'élève choisi quand on cherche autre chose : on n'inscrit pas un élève qu'on ne voit plus", async () => {
+    await depuisLeGroupe();
+    saisir(page, '[aria-label="Chercher un élève"]', 'adem');
+    (await vi.waitFor(() => http.expectOne((r) => r.params.get('recherche') === 'adem'))).flush([
+      { id: 'e2', prenom: 'Adem', nom: 'Miled', niveau: '7ᵉ année de base' },
+      { id: 'e3', prenom: 'Adem', nom: 'Miled', niveau: '9ᵉ année de base' },
+    ]);
+    await vi.waitFor(() => expect(page.querySelector('input[name="eleve"][value="e2"]')).not.toBeNull());
+    (page.querySelector('input[name="eleve"][value="e2"]') as HTMLInputElement).click();
+
+    saisir(page, '[aria-label="Chercher un élève"]', '22 345');
+    (await vi.waitFor(() => http.expectOne((r) => r.params.get('recherche') === '22 345'))).flush([
+      { id: 'e3', prenom: 'Adem', nom: 'Miled', niveau: '9ᵉ année de base' },
+    ]);
+    await vi.waitFor(() => expect(page.querySelector('input[name="eleve"][value="e2"]')).toBeNull());
+    bouton('Inscrire')!.click();
+
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain("Choisissez l'élève et le groupe"));
+    http.expectNone({ method: 'POST', url: '/api/inscriptions' });
+  });
+
   it("n'inscrit plus dans un groupe fermé", async () => {
     await depuisLeGroupe({ ...FICHE_MATHS, fermeLe: '2027-11-15', motifDeFermeture: "Trop peu d'élèves" });
 

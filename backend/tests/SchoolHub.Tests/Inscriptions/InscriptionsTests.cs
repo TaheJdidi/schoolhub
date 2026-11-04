@@ -230,6 +230,25 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     }
 
     [Fact]
+    public async Task L_assurance_s_annonce_a_la_seance_ou_elle_devient_due()
+    {
+        // Adem commence les Maths le 27/11 : l'assurance y est due. Il commence ensuite l'Arabe plus tôt, le 20/11 :
+        // c'est à cette séance qu'il la paiera. Une Physique d'Étude à partir du 04/12 ne la change plus.
+        var maths = await GroupeAsync(Etude);
+        var arabe = await GroupeAsync(Etude with { Matiere = "Arabe" });
+        var physique = await GroupeAsync(Etude with { Matiere = "Physique" });
+
+        var deMaths = await InscrireAsync(new DemandeDInscription(_adem, maths, null, new DateOnly(2027, 11, 27)));
+        var dArabe = await InscrireAsync(new DemandeDInscription(_adem, arabe, null, DeuxiemeSeanceDuMois3));
+        var dePhysique = await InscrireAsync(new DemandeDInscription(_adem, physique, null, new DateOnly(2027, 12, 4)));
+
+        Assert.Contains(new SommeALArrivee("Assurance 2027-2028", 20m), deMaths.APayerALArrivee);
+        Assert.Contains(new SommeALArrivee("Assurance 2027-2028", 20m), dArabe.APayerALArrivee);
+        Assert.DoesNotContain(dePhysique.APayerALArrivee, s => s.Libelle.StartsWith("Assurance", StringComparison.Ordinal));
+        Assert.Equal(1, await CompterAsync(contexte => contexte.Assurances));
+    }
+
+    [Fact]
     public async Task Pas_d_assurance_sans_montant()
     {
         await ReglerLeCentreAsync("73 221 400", null);
@@ -271,7 +290,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var adem = await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Equal(
-            "Bonjour, l'inscription d'Adem Miled au Centre Les Jasmins est enregistrée.\n"
+            "Bonjour, l'inscription d'Adem Miled est enregistrée.\n"
             + "Mathématiques avec Karim Ben Salah, Groupe Samedi 10h → 12h : première séance le samedi 20/11/2027 à 10h.\n"
             + "À bientôt. Centre Les Jasmins, 73 221 400",
             adem.Texte);
@@ -279,7 +298,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
 
         await ReglerLeCentreAsync(null, 20m);
         var sansTelephone = await InscrireAsync(new DemandeDInscription(lina, etude, null, DeuxiemeSeanceDuMois3));
-        Assert.StartsWith("Bonjour, l'inscription de Lina Trabelsi au Centre Les Jasmins", sansTelephone.Texte);
+        Assert.StartsWith("Bonjour, l'inscription de Lina Trabelsi est enregistrée.\n", sansTelephone.Texte);
         Assert.EndsWith("\nÀ bientôt. Centre Les Jasmins", sansTelephone.Texte);
     }
 

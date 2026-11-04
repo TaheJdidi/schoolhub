@@ -85,17 +85,19 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var inscription = new Inscription(eleveId, groupeId, mode, debutLe, temps.GetUtcNow());
         contexte.Inscriptions.Add(inscription);
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
-        var assurance = await NouvelleAssuranceAsync(eleveId, groupe, centre);
+        var assurance = await AssuranceALArriveeAsync(eleveId, groupe, centre, debutLe);
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
 
         var decrite = (await DecrireAsync([inscription]))[0];
-        var aPayer = Echeancier.Calculer(Calendrier(groupe, seances), mode, debutLe)
-            .Where(s => s.Seance == Echeancier.PremiereSeance(Calendrier(groupe, seances), debutLe))
+        var calendrier = Calendrier(groupe, seances);
+        var premiere = Echeancier.PremiereSeance(calendrier, debutLe);
+        var aPayer = Echeancier.Calculer(calendrier, mode, debutLe)
+            .Where(s => s.Seance == premiere)
             .Select(s => new SommeALArrivee(s.Libelle, s.Montant))
             .ToList();
         if (assurance is not null)
-            aPayer.Add(new SommeALArrivee(AssuranceDeLAnnee.Libelle(assurance.Value.Annee), assurance.Value.Assurance.Montant));
+            aPayer.Add(assurance);
 
         var texte = TexteDeConfirmation(eleve, decrite, seances.First(s => s.Date == debutLe), centre);
         var messages = DestinatairesDeLEleve.De(eleve)
@@ -189,44 +191,59 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         if (assurance is null)
             return (true, null);
 
+        var dueLe = await PremiereSeanceDEtudeAsync(eleveId, annee!.Id);
+        return (true, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee), assurance.Montant, dueLe));
+    }
+
+    /// <summary>
+    /// L'assurance à payer à la première séance de cette inscription en Étude. La première inscription en Étude d'une
+    /// année crée l'assurance, au montant du centre ce jour-là (un centre sans montant n'en réclame pas). Une inscription
+    /// suivante qui commence plus tôt que les autres l'avance à sa première séance : elle s'y annonce aussi. Doit être
+    /// appelée avant l'enregistrement de l'inscription.
+    /// </summary>
+    private async Task<SommeALArrivee?> AssuranceALArriveeAsync(Guid eleveId, Groupe groupe, Centre centre, DateOnly debutLe)
+    {
+        if (groupe.Type != TypeDeGroupe.Etude || groupe.AnneeScolaireId is not { } anneeId)
+            return null;
+        var annee = await contexte.AnneesScolaires.SingleAsync(a => a.Id == anneeId);
+        var existante = await contexte.Assurances.SingleOrDefaultAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == anneeId);
+        if (existante is null)
+        {
+            if (centre.MontantDeLAssurance is not { } montant)
+                return null;
+            contexte.Assurances.Add(new AssuranceDeLAnnee(eleveId, anneeId, montant));
+            return new SommeALArrivee(AssuranceDeLAnnee.Libelle(annee), montant);
+        }
+
+        var dueLe = await PremiereSeanceDEtudeAsync(eleveId, anneeId);
+        return dueLe is null || debutLe < dueLe ? new SommeALArrivee(AssuranceDeLAnnee.Libelle(annee), existante.Montant) : null;
+    }
+
+    /// <summary>La plus ancienne première séance des inscriptions en Étude de l'élève, cette année : l'assurance y est due.</summary>
+    private async Task<DateOnly?> PremiereSeanceDEtudeAsync(Guid eleveId, Guid anneeId)
+    {
         var etudes = await contexte.Inscriptions
             .Where(i => i.EleveId == eleveId)
-            .Join(contexte.Groupes.Where(g => g.Type == TypeDeGroupe.Etude && g.AnneeScolaireId == annee!.Id),
+            .Join(contexte.Groupes.Where(g => g.Type == TypeDeGroupe.Etude && g.AnneeScolaireId == anneeId),
                 i => i.GroupeId, g => g.Id, (i, g) => new { i.GroupeId, i.DebutLe })
             .ToListAsync();
         var groupeIds = etudes.Select(e => e.GroupeId).ToList();
         var seances = await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).Select(s => new { s.GroupeId, s.Date }).ToListAsync();
-        DateOnly? dueLe = etudes
+        return etudes
             .Select(e => seances.Where(s => s.GroupeId == e.GroupeId && s.Date >= e.DebutLe).Select(s => (DateOnly?)s.Date).Min())
             .Min();
-        return (true, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee!), assurance.Montant, dueLe));
     }
 
     /// <summary>
-    /// La première inscription en Étude d'une année scolaire crée l'assurance de l'année, au montant du centre ce jour-là.
-    /// Un centre sans montant n'en réclame pas.
-    /// </summary>
-    private async Task<(AssuranceDeLAnnee Assurance, AnneeScolaire Annee)?> NouvelleAssuranceAsync(Guid eleveId, Groupe groupe, Centre centre)
-    {
-        if (groupe.Type != TypeDeGroupe.Etude || groupe.AnneeScolaireId is not { } anneeId || centre.MontantDeLAssurance is not { } montant)
-            return null;
-        if (await contexte.Assurances.AnyAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == anneeId))
-            return null;
-
-        var assurance = new AssuranceDeLAnnee(eleveId, anneeId, montant);
-        contexte.Assurances.Add(assurance);
-        return (assurance, await contexte.AnneesScolaires.SingleAsync(a => a.Id == anneeId));
-    }
-
-    /// <summary>
-    /// « Bonjour, l'inscription d'Adem Miled au Centre Les Jasmins est enregistrée. » ; la matière, le professeur, le groupe,
-    /// la date et l'heure de la première séance ; puis le nom du centre et son téléphone, s'il en a un.
+    /// « Bonjour, l'inscription d'Adem Miled est enregistrée. » ; la matière, le professeur, le groupe, la date et l'heure de
+    /// la première séance ; puis le nom du centre et son téléphone, s'il en a un. Le nom du centre ne va qu'en signature :
+    /// « au Les Jasmins » ou « au Académie Ennour » ne se lirait pas.
     /// </summary>
     private static string TexteDeConfirmation(Eleve eleve, InscriptionDeLEleve inscription, Seance premiere, Centre centre)
     {
         var jour = Jours.De(premiere.Date.DayOfWeek).ToString().ToLowerInvariant();
         var signature = centre.Telephone is { } telephone ? $"{centre.Nom}, {TelephoneTunisien.Grouper(telephone)}" : centre.Nom;
-        return $"Bonjour, l'inscription {Francais.De($"{eleve.Prenom} {eleve.Nom}")} au {centre.Nom} est enregistrée.\n"
+        return $"Bonjour, l'inscription {Francais.De($"{eleve.Prenom} {eleve.Nom}")} est enregistrée.\n"
             + $"{inscription.Groupe.Matiere} avec {inscription.Professeur}, {inscription.Groupe.Nom} : première séance le {jour} "
             + $"{SaisieDuGroupe.EcrireUneDate(premiere.Date)} à {CalendrierDuGroupe.Heure(premiere.Debut)}.\n"
             + $"À bientôt. {signature}";

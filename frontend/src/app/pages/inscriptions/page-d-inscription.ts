@@ -174,9 +174,11 @@ export class PageDInscription implements OnInit {
 
   // ----- Depuis le groupe : chercher l'élève -----
 
+  /** Une nouvelle recherche oublie l'élève choisi : on n'inscrit jamais un élève qu'on ne voit plus dans la liste. */
   protected chercher(evenement: Event): void {
     const texte = (evenement.target as HTMLInputElement).value.trim();
     this.recherche.set(texte);
+    this.eleveChoisi.set(null);
     clearTimeout(this.minuterie);
     if (!texte) {
       this.derniereRecherche++;

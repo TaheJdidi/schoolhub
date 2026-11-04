@@ -68,15 +68,15 @@ Toute personne connectée du centre. Un élève, un groupe ou une inscription d'
 
 **Une inscription, en JSON** : `{ "id", "eleve": { "id", "prenom", "nom" }, "groupe": { "id", "nom", "type", "matiere" }, "professeur", "mode", "prixNormal", "nombreDeTranches", "premiereSeance": { "date", "debut" } }`. `prixNormal` est le prix du Mois à venir pour une Étude, le prix total sinon ; `premiereSeance` vaut `null` si le groupe n'a plus de séance à cette date ou après.
 
-**`aPayerALArrivee`** : les sommes dues à sa première séance, assurance comprise si elle vient d'être créée : `[{ "libelle": "Mois 3 (3 séances)", "montant": 30.000 }, { "libelle": "Assurance 2026-2027", "montant": 20.000 }]`.
+**`aPayerALArrivee`** : les sommes dues à sa première séance, assurance comprise si elle vient d'être créée, ou si cette Étude commence plus tôt que les autres de l'année (l'assurance y devient due) : `[{ "libelle": "Mois 3 (3 séances)", "montant": 30.000 }, { "libelle": "Assurance 2026-2027", "montant": 20.000 }]`.
 
 **`messages`** : `[{ "destinataire": "Parent", "telephone": "98 401 220", "lien": "https://wa.me/21698401220?text=…" }]`, et le `texte` commun :
 
-> Bonjour, l'inscription d'Adem Miled au Centre Les Jasmins est enregistrée.
+> Bonjour, l'inscription d'Adem Miled est enregistrée.
 > Mathématiques avec Karim Ben Ali, Groupe Samedi 10h → 12h : première séance le samedi 15/11/2026 à 10h.
 > À bientôt. Centre Les Jasmins, 73 221 400
 
-Sans téléphone du centre, la dernière ligne s'arrête au nom. Le destinataire vaut « Parent » ou le prénom de l'élève.
+Sans téléphone du centre, la dernière ligne s'arrête au nom. Le nom du centre ne va qu'en signature : « au Les Jasmins » ou « au Académie Ennour » ne se lirait pas. Le destinataire vaut « Parent » ou le prénom de l'élève.
 
 ### Les refus
 
