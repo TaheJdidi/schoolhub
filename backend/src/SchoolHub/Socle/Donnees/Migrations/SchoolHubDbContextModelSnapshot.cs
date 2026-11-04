@@ -341,6 +341,95 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("seances", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.AssuranceDeLAnnee", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AnneeScolaireId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("annee_scolaire_id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<Guid>("EleveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eleve_id");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assurances");
+
+                    b.HasIndex("AnneeScolaireId")
+                        .HasDatabaseName("ix_assurances_annee_scolaire_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_assurances_centre_id");
+
+                    b.HasIndex("EleveId", "AnneeScolaireId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_assurances_eleve_id_annee_scolaire_id");
+
+                    b.ToTable("assurances", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.Inscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("DebutLe")
+                        .HasColumnType("date")
+                        .HasColumnName("debut_le");
+
+                    b.Property<Guid>("EleveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eleve_id");
+
+                    b.Property<Guid>("GroupeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("groupe_id");
+
+                    b.Property<DateTimeOffset>("InscritLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inscrit_le");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("mode");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inscriptions");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_inscriptions_centre_id");
+
+                    b.HasIndex("GroupeId")
+                        .HasDatabaseName("ix_inscriptions_groupe_id");
+
+                    b.HasIndex("EleveId", "GroupeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_inscriptions_eleve_id_groupe_id");
+
+                    b.ToTable("inscriptions", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>
                 {
                     b.Property<Guid>("Id")
@@ -902,6 +991,54 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_seances_groupes_groupe_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.AssuranceDeLAnnee", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.AnneeScolaire", null)
+                        .WithMany()
+                        .HasForeignKey("AnneeScolaireId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_assurances_annees_scolaires_annee_scolaire_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_assurances_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
+                        .WithMany()
+                        .HasForeignKey("EleveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_assurances_eleves_eleve_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.Inscription", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inscriptions_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
+                        .WithMany()
+                        .HasForeignKey("EleveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inscriptions_eleves_eleve_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Groupe", null)
+                        .WithMany()
+                        .HasForeignKey("GroupeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inscriptions_groupes_groupe_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>

@@ -125,6 +125,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
+        var inscrits = await contexte.Inscriptions
+            .GroupBy(i => i.GroupeId)
+            .Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
+            .ToDictionaryAsync(g => g.GroupeId, g => g.Nombre);
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
 
         return groupes
@@ -137,7 +141,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
                 g.NiveauId is { } niveauId ? niveaux[niveauId] : null,
                 g.Creneaux.Select(CreneauDuGroupe.De).ToList(),
                 g.Capacite,
-                Eleves: 0,
+                Eleves: inscrits.GetValueOrDefault(g.Id),
                 CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui),
                 Ferme: g.FermeLe is not null))
             .ToList();
@@ -270,7 +274,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             niveau is null ? null : new NiveauDuGroupe(niveau.Id, niveau.Nom),
             groupe.Creneaux.Select(CreneauDuGroupe.De).ToList(),
             groupe.Capacite,
-            Eleves: 0,
+            Eleves: await contexte.Inscriptions.CountAsync(i => i.GroupeId == id),
             groupe.DateDeDebut,
             prixDuMois,
             mois,
@@ -400,7 +404,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     }
 
     /// <summary>Le numéro du premier Mois d'Étude qui n'a pas commencé, en comptant depuis le Mois en cours à la création.</summary>
-    private static int PremierMoisAVenir(Groupe groupe, IReadOnlyList<Seance> seances, DateOnly aujourdhui) =>
+    internal static int PremierMoisAVenir(Groupe groupe, IReadOnlyList<Seance> seances, DateOnly aujourdhui) =>
         CalendrierDuGroupe.MoisDeLaSeance(groupe.PremiereSeance) - 1
         + CalendrierDuGroupe.PremierMoisNonCommence(CalendrierDuGroupe.EnMois(seances).Select(m => m[0].Date).ToList(), aujourdhui);
 

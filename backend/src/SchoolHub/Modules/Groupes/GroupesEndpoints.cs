@@ -111,7 +111,7 @@ public sealed record ModificationDUnGroupe(string? Nom, int? Capacite, decimal? 
 
 /// <summary>
 /// Un groupe dans la liste des groupes du centre, pour les cadres de la page Professeurs. <see cref="Niveau"/> est
-/// le nom du niveau ; <see cref="Eleves"/> vaut 0 jusqu'aux inscriptions (ELV).
+/// le nom du niveau ; <see cref="Eleves"/> compte ses inscriptions (ELV-03).
 /// </summary>
 public sealed record ResumeDuGroupe(
     Guid Id,
@@ -168,7 +168,7 @@ public sealed record MoisDuGroupe(int Numero, decimal Prix, bool Commence, List<
 /// La fiche d'un groupe. Étude : <see cref="Mois"/>, et <see cref="PrixDuMois"/>, le prix du premier Mois qui n'a pas
 /// commencé (celui que le formulaire de modification propose). Révision et Formation : <see cref="Seances"/> numérotées,
 /// <see cref="PrixTotal"/>, <see cref="NombreDeSeances"/> et, pour une Formation, <see cref="Tranches"/>.
-/// <see cref="Eleves"/> vaut 0 jusqu'aux inscriptions (ELV).
+/// <see cref="Eleves"/> compte ses inscriptions (ELV-03).
 /// </summary>
 public sealed record FicheDuGroupe(
     Guid Id,

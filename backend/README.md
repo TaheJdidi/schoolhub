@@ -72,6 +72,7 @@ src/SchoolHub/
 │   ├── Journal/           le journal : qui a fait quoi, et quand
 │   ├── Emails/            l'envoi des emails (dans la console en développement)
 │   ├── Dates/             la date du jour à Tunis
+│   ├── Messages/          les liens WhatsApp (wa.me) et l'élision « d'Adem » des messages
 │   ├── Pages/             les pages Angular : fichiers publics, index.html par défaut,
 │   │                      adresse /api inconnue, en-tête Referrer-Policy
 │   └── Donnees/           le contexte EF Core et les migrations
@@ -80,7 +81,11 @@ src/SchoolHub/
     │                      bibliothèque, professeurs, RH et achats, journal
     ├── Professeurs/       les professeurs du centre (ajouter, modifier, supprimer,
     │                      marquer parti, revenir au centre)
-    ├── Eleves/            les élèves : la fiche, le doublon possible, la recherche sans accents
+    ├── Eleves/            les élèves : la fiche, le doublon possible, la recherche sans accents,
+    │                      les destinataires d'un message (l'élève, son parent, ou les deux)
+    ├── Inscriptions/      les inscriptions : le mode de tarification, la première séance,
+    │                      l'assurance de l'année, l'échéancier (ce que l'élève doit, séance par
+    │                      séance, même arrivé en cours de route), le message de confirmation
     └── Groupes/           les groupes d'Étude, de Révision et de Formation (tranches), déjà en
                            cours ou non ; leurs créneaux, séances et prix ; les matières ; le
                            calendrier (Mois, numéros et prix des séances, « terminé » se calculent)

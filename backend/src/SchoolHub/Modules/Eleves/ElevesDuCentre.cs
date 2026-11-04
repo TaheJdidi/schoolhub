@@ -29,6 +29,7 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     private const string EmailParentPasValable = "L'email du parent n'est pas valable";
     private const string EtablissementTropLong = "L'établissement fait au plus 200 caractères";
     private const string Introuvable = "Élève introuvable";
+    private const string AvecHistorique = "Cette fiche a un historique : elle ne se supprime pas";
 
     /// <summary>Le nombre de résultats d'une recherche : assez pour une page, jamais toute une base.</summary>
     public const int ResultatsAuPlus = 100;
@@ -100,14 +101,16 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     }
 
     /// <summary>
-    /// ELV-11 : supprime une fiche créée par erreur. Il n'y a encore ni inscription, ni paiement, ni présence :
-    /// chaque étape qui en ajoute refusera de supprimer une fiche qui a un historique.
+    /// ELV-11 : supprime une fiche créée par erreur. Une fiche qui a une inscription a un historique : elle reste.
+    /// Les paiements et les présences ajouteront leur propre refus.
     /// </summary>
     public async Task<IssueSurUnEleve> SupprimerAsync(Guid id)
     {
         var eleve = await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == id);
         if (eleve is null)
             return EleveIntrouvable;
+        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == id))
+            return new IssueSurUnEleve(null, StatusCodes.Status409Conflict, AvecHistorique);
 
         contexte.Eleves.Remove(eleve);
         await contexte.SaveChangesAsync();
