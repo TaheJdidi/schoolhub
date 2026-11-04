@@ -355,6 +355,7 @@ describe('la page « Professeurs »', () => {
     creneaux: [{ jour: 'Samedi', debut: '10:00', fin: '12:00' }],
     capacite: 16,
     eleves: 0,
+    termine: false,
   };
   const DIMANCHE: ResumeDuGroupe = {
     ...SAMEDI,
@@ -429,5 +430,49 @@ describe('la page « Professeurs »', () => {
 
     expect(page.querySelector('.liste .note.bad')?.textContent).toContain('Erreur des groupes');
     expect(bouton(groupesDuProfesseur(), 'Nouveau groupe').disabled).toBe(true);
+  });
+
+  // ----- Les types et les anciens groupes (GRP-05, GRP-06) -----
+
+  const REVISION_FINIE: ResumeDuGroupe = {
+    ...SAMEDI,
+    id: 'g4',
+    nom: 'Révision du lundi',
+    type: 'Revision',
+    creneaux: [{ jour: 'Lundi', debut: '17:00', fin: '19:00' }],
+    termine: true,
+  };
+  const cadresOuverts = () => cadres().filter((c) => !c.closest('details'));
+
+  it('montre le type de chaque groupe', async () => {
+    await ouvrir([KARIM], [{ ...SAMEDI, type: 'Formation' }]);
+
+    expect(cadres()[0].querySelector('.tag')?.textContent?.trim()).toBe('Formation');
+  });
+
+  it('range les groupes terminés dans « Anciens groupes »', async () => {
+    await ouvrir([KARIM], [SAMEDI, REVISION_FINIE]);
+
+    expect(cadresOuverts().map((c) => c.getAttribute('href'))).toEqual(['/professeurs/groupes/g1']);
+    const anciens = page.querySelector('.groupes-du-professeur details') as HTMLDetailsElement;
+    expect(anciens.open).toBe(false);
+    expect(anciens.querySelector('summary')?.textContent?.trim()).toBe('Anciens groupes (1)');
+    expect(anciens.querySelector('.cadre')?.textContent).toContain('Révision du lundi');
+    expect(anciens.querySelector('.cadre .pill')?.textContent?.trim()).toBe('Terminé');
+    expect(anciens.querySelector('.cadre .tag')?.textContent?.trim()).toBe('Révision');
+  });
+
+  it('ne filtre par jour que les groupes ouverts', async () => {
+    await ouvrir([KARIM], [SAMEDI, REVISION_FINIE]);
+
+    expect(bouton(groupesDuProfesseur(), 'Lun').classList).toContain('off');
+  });
+
+  it('dit « Aucun groupe ouvert » quand tous ses groupes sont terminés', async () => {
+    await ouvrir([KARIM], [REVISION_FINIE]);
+
+    expect(groupesDuProfesseur().textContent).toContain('Aucun groupe ouvert');
+    expect(cadresOuverts()).toHaveLength(0);
+    expect(page.querySelector('.groupes-du-professeur details summary')?.textContent?.trim()).toBe('Anciens groupes (1)');
   });
 });

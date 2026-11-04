@@ -40,3 +40,6 @@
 .cadre b { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .cadre small { color: var(--ink-2); font-size: 12.5px; }
 .tag { justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 500; }
+.etiquettes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.anciens summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
+.anciens .cadres { margin-top: 10px; }

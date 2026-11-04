@@ -12,10 +12,10 @@ export const JOURS: readonly { jour: Jour; court: string }[] = [
   { jour: 'Dimanche', court: 'Dim' },
 ];
 
-/** Le type d'un groupe ; Révision et Formation viendront (GRP-05, GRP-06). */
-export type TypeDeGroupe = 'Etude';
+/** Le type d'un groupe, tel que l'API l'écrit. */
+export type TypeDeGroupe = 'Etude' | 'Revision' | 'Formation';
 
-export const TYPES: Record<TypeDeGroupe, string> = { Etude: 'Étude' };
+export const TYPES: Record<TypeDeGroupe, string> = { Etude: 'Étude', Revision: 'Révision', Formation: 'Formation' };
 
 /** Un créneau de la semaine, avec ses heures « HH:mm ». */
 export interface CreneauDuGroupe {
@@ -37,6 +37,8 @@ export interface ResumeDuGroupe {
   capacite: number | null;
   /** 0 jusqu'aux inscriptions (ELV). */
   eleves: number;
+  /** Une Révision ou une Formation dont la dernière séance est passée : elle va dans « Anciens groupes ». */
+  termine: boolean;
 }
 
 export interface SeanceDuGroupe {

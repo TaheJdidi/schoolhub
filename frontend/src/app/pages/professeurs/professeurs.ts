@@ -77,16 +77,19 @@ export class Professeurs implements OnInit {
     () => this.visibles().find((p) => p.id === this.choisiId()) ?? this.visibles()[0] ?? null,
   );
 
-  /** Les groupes ouverts du professeur choisi, rangés par leur premier créneau. */
-  protected readonly groupesDuChoisi = computed(() =>
+  /** Les groupes du professeur choisi, rangés par leur premier créneau. */
+  private readonly groupesDuChoisi = computed(() =>
     parCreneau(this.groupes().filter((g) => g.professeurId === this.choisi()?.id)),
   );
+  /** Ses groupes ouverts, dans les cadres ; les terminés vont dans « Anciens groupes ». */
+  protected readonly cadresOuverts = computed(() => this.groupesDuChoisi().filter((g) => !g.termine));
+  protected readonly anciensGroupes = computed(() => this.groupesDuChoisi().filter((g) => g.termine));
   protected readonly groupesAffiches = computed(() => {
     const jour = this.jour();
-    return jour ? this.groupesDuChoisi().filter((g) => g.creneaux.some((c) => c.jour === jour)) : this.groupesDuChoisi();
+    return jour ? this.cadresOuverts().filter((g) => g.creneaux.some((c) => c.jour === jour)) : this.cadresOuverts();
   });
-  /** Les jours où le professeur choisi a un groupe : les autres sont grisés dans le filtre. */
-  protected readonly joursAvecGroupe = computed(() => new Set(this.groupesDuChoisi().flatMap((g) => g.creneaux.map((c) => c.jour))));
+  /** Les jours où le professeur choisi a un groupe ouvert : les autres sont grisés dans le filtre. */
+  protected readonly joursAvecGroupe = computed(() => new Set(this.cadresOuverts().flatMap((g) => g.creneaux.map((c) => c.jour))));
 
   /** Les professeurs et les groupes se chargent en même temps. */
   async ngOnInit(): Promise<void> {

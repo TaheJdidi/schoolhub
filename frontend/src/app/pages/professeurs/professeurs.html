@@ -124,7 +124,7 @@
           }
         </div>
 
-        @if (groupesDuChoisi().length === 0) {
+        @if (cadresOuverts().length === 0) {
           <p class="groupes">Aucun groupe ouvert</p>
         } @else {
           <div class="filtres jours" role="group" aria-label="Filtrer par jour">
@@ -154,6 +154,21 @@
               <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>
             }
           </div>
+        }
+
+        @if (anciensGroupes().length > 0) {
+          <details class="anciens">
+            <summary>Anciens groupes ({{ anciensGroupes().length }})</summary>
+            <div class="cadres">
+              @for (groupe of anciensGroupes(); track groupe.id) {
+                <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
+                  <span class="etiquettes"><span class="tag">{{ types[groupe.type] }}</span><span class="pill muted">Terminé</span></span>
+                  <b>{{ groupe.nom }}</b>
+                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
+                </a>
+              }
+            </div>
+          </details>
         }
       </section>
     }
