@@ -162,7 +162,7 @@
             <div class="cadres">
               @for (groupe of anciensGroupes(); track groupe.id) {
                 <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
-                  <span class="etiquettes"><span class="tag">{{ types[groupe.type] }}</span><span class="pill muted">Terminé</span></span>
+                  <span class="etiquettes"><span class="tag">{{ types[groupe.type] }}</span><span class="pill muted">{{ groupe.ferme ? 'Fermé' : 'Terminé' }}</span></span>
                   <b>{{ groupe.nom }}</b>
                   <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
                 </a>

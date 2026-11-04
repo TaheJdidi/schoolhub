@@ -39,6 +39,8 @@ export interface ResumeDuGroupe {
   eleves: number;
   /** Une Révision ou une Formation dont la dernière séance est passée : elle va dans « Anciens groupes ». */
   termine: boolean;
+  /** Un groupe fermé (GRP-08) va aussi dans « Anciens groupes ». */
+  ferme: boolean;
 }
 
 export interface SeanceDuGroupe {
@@ -97,12 +99,21 @@ export interface FicheDuGroupe {
   nombreDeSeances: number | null;
   seances: SeanceNumerotee[];
   tranches: TrancheDuGroupe[];
+  /** La date de fermeture (GRP-08), « 2028-03-15 » ; vide tant que le groupe est ouvert. */
+  fermeLe: string | null;
+  motifDeFermeture: string | null;
 }
 
 /** « 10:00 » donne « 10h », « 17:30 » donne « 17h30 », « 08:00 » donne « 8h ». */
 export function heure(texte: string): string {
   const [heures, minutes] = texte.split(':');
   return `${Number(heures)}h${minutes === '00' ? '' : minutes}`;
+}
+
+/** La date du jour sur l'appareil, « 2028-03-15 » : la date de fermeture proposée. */
+export function dateDuJourLocale(maintenant = new Date()): string {
+  const deuxChiffres = (n: number) => String(n).padStart(2, '0');
+  return `${maintenant.getFullYear()}-${deuxChiffres(maintenant.getMonth() + 1)}-${deuxChiffres(maintenant.getDate())}`;
 }
 
 /** Le jour de la semaine d'une date « 2028-05-20 » (lue comme une date locale, sans fuseau). */

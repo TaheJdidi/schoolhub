@@ -81,9 +81,9 @@ export class Professeurs implements OnInit {
   private readonly groupesDuChoisi = computed(() =>
     parCreneau(this.groupes().filter((g) => g.professeurId === this.choisi()?.id)),
   );
-  /** Ses groupes ouverts, dans les cadres ; les terminés vont dans « Anciens groupes ». */
-  protected readonly cadresOuverts = computed(() => this.groupesDuChoisi().filter((g) => !g.termine));
-  protected readonly anciensGroupes = computed(() => this.groupesDuChoisi().filter((g) => g.termine));
+  /** Ses groupes ouverts, dans les cadres ; les terminés et les fermés vont dans « Anciens groupes ». */
+  protected readonly cadresOuverts = computed(() => this.groupesDuChoisi().filter((g) => !g.termine && !g.ferme));
+  protected readonly anciensGroupes = computed(() => this.groupesDuChoisi().filter((g) => g.termine || g.ferme));
   protected readonly groupesAffiches = computed(() => {
     const jour = this.jour();
     return jour ? this.cadresOuverts().filter((g) => g.creneaux.some((c) => c.jour === jour)) : this.cadresOuverts();

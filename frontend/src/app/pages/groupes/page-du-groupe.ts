@@ -1,13 +1,14 @@
 import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
-import { eleves, FicheDuGroupe, heure, TYPES } from './groupe';
+import { dateDuJourLocale, eleves, FicheDuGroupe, heure, TYPES } from './groupe';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
 
@@ -33,12 +34,14 @@ function prixDuGroupe(fiche: FicheDuGroupe): string {
   }
 }
 const CAPACITE_ILLISIBLE = 'Écrivez la capacité en nombre de places, par exemple 16';
+const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 
 /**
  * GRP-04 à GRP-07 : la fiche d'un groupe. Une Étude montre ses Mois ; une Révision ou une Formation, ses séances
  * numérotées (avec leur prix pour une Révision) et les tranches d'une Formation. « Modifier » change le nom, la capacité
  * et, pour une Étude seulement, le prix du Mois ; le nouveau prix vaut pour les Mois qui n'ont pas encore commencé, et
- * c'est le serveur qui le décide.
+ * c'est le serveur qui le décide. « Fermer le groupe » (GRP-08) le ferme à une date, avec un motif : ses séances après
+ * cette date disparaissent, et il ne se modifie plus.
  */
 @Component({
   selector: 'sh-page-du-groupe',
@@ -50,6 +53,7 @@ const CAPACITE_ILLISIBLE = 'Écrivez la capacité en nombre de places, par exemp
 export class PageDuGroupe implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly eleves = eleves;
   protected readonly heure = heure;
@@ -58,6 +62,9 @@ export class PageDuGroupe implements OnInit {
   protected readonly fiche = signal<FicheDuGroupe | null>(null);
   protected readonly introuvable = signal(false);
   protected readonly enModification = signal(false);
+  protected readonly enFermeture = signal(false);
+  /** La date de fermeture choisie, pour compter les séances qui disparaîtront. */
+  private readonly dateDeFermeture = signal('');
   protected readonly envoi = signal(false);
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
@@ -66,6 +73,24 @@ export class PageDuGroupe implements OnInit {
     nom: new FormControl('', { nonNullable: true }),
     capacite: new FormControl('', { nonNullable: true }),
     prix: new FormControl('', { nonNullable: true }),
+  });
+
+  protected readonly fermeture = new FormGroup({
+    dateDeFermeture: new FormControl('', { nonNullable: true }),
+    motif: new FormControl('', { nonNullable: true }),
+  });
+
+  /** « Les 3 séances prévues après le 02/10/2027 seront supprimées. » */
+  protected readonly avertissementDeFermeture = computed(() => {
+    const fiche = this.fiche();
+    const date = this.dateDeFermeture();
+    if (!fiche || !date) return '';
+    const dates = [...fiche.mois.flatMap((m) => m.seances), ...fiche.seances].map((s) => s.date);
+    const supprimees = dates.filter((d) => d > date).length;
+    const le = this.date(date);
+    if (supprimees === 0) return `Aucune séance prévue après le ${le}.`;
+    if (supprimees === 1) return `La séance prévue après le ${le} sera supprimée.`;
+    return `Les ${supprimees} séances prévues après le ${le} seront supprimées.`;
   });
 
   /** « Mathématiques · 9ᵉ année de base · Karim Ben Salah · Étude, 60,000 TND par Mois ». */
@@ -86,6 +111,9 @@ export class PageDuGroupe implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    this.fermeture.controls.dateDeFermeture.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((date) => this.dateDeFermeture.set(date));
     try {
       this.fiche.set(await firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)));
     } catch (erreur) {
@@ -118,6 +146,41 @@ export class PageDuGroupe implements OnInit {
   protected annuler(): void {
     this.enModification.set(false);
     this.erreur.set(null);
+  }
+
+  protected ouvrirLaFermeture(): void {
+    this.fermeture.setValue({ dateDeFermeture: dateDuJourLocale(), motif: '' });
+    this.succes.set(null);
+    this.erreur.set(null);
+    this.enFermeture.set(true);
+  }
+
+  protected annulerLaFermeture(): void {
+    this.enFermeture.set(false);
+    this.erreur.set(null);
+  }
+
+  protected async fermer(): Promise<void> {
+    if (this.envoi()) return;
+
+    const { dateDeFermeture, motif } = this.fermeture.getRawValue();
+    if (!dateDeFermeture || !motif.trim()) return this.refuser(FERMETURE_INCOMPLETE);
+
+    this.envoi.set(true);
+    this.succes.set(null);
+    this.erreur.set(null);
+    try {
+      const fiche = await firstValueFrom(
+        this.http.post<FicheDuGroupe>(`/api/groupes/${this.id}/fermeture`, { date: dateDeFermeture, motif: motif.trim() }),
+      );
+      this.fiche.set(fiche);
+      this.enFermeture.set(false);
+      this.succes.set('Groupe fermé');
+    } catch (erreur) {
+      this.erreur.set(messageDErreur(erreur));
+    } finally {
+      this.envoi.set(false);
+    }
   }
 
   protected async enregistrer(): Promise<void> {

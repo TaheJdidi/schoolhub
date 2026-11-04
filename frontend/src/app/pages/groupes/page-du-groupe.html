@@ -6,7 +6,9 @@
       </nav>
       <h1 class="h1">
         {{ fiche.nom }}
-        @if (fiche.termine) {
+        @if (fiche.fermeLe) {
+          <span class="pill muted">Fermé</span>
+        } @else if (fiche.termine) {
           <span class="pill muted">Terminé</span>
         }
       </h1>
@@ -43,11 +45,34 @@
             <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
           </div>
         </form>
+      } @else if (enFermeture()) {
+        <form class="formulaire" [formGroup]="fermeture" (ngSubmit)="fermer()" novalidate>
+          <div class="champs">
+            <label class="f">
+              Date de fermeture
+              <input type="date" formControlName="dateDeFermeture" />
+            </label>
+            <label class="f">
+              Motif
+              <input formControlName="motif" autocomplete="off" placeholder="Trop peu d'élèves" />
+            </label>
+          </div>
+          <p class="aide">{{ avertissementDeFermeture() }}</p>
+          <div class="actions">
+            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaFermeture()">Annuler</button>
+            <button type="submit" class="btn primary" [disabled]="envoi()">Fermer le groupe</button>
+          </div>
+        </form>
       } @else {
         <p class="resume">{{ horaire() }} · depuis le {{ date(fiche.dateDeDebut) }} · {{ eleves(fiche) }}</p>
-        <div class="actions">
-          <button type="button" class="btn" (click)="modifier(fiche)">Modifier</button>
-        </div>
+        @if (fiche.fermeLe) {
+          <p class="resume">Fermé le {{ date(fiche.fermeLe) }} : {{ fiche.motifDeFermeture }}</p>
+        } @else {
+          <div class="actions">
+            <button type="button" class="btn" (click)="modifier(fiche)">Modifier</button>
+            <button type="button" class="btn" (click)="ouvrirLaFermeture()">Fermer le groupe</button>
+          </div>
+        }
       }
 
       @if (succes(); as succes) {

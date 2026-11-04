@@ -356,6 +356,7 @@ describe('la page « Professeurs »', () => {
     capacite: 16,
     eleves: 0,
     termine: false,
+    ferme: false,
   };
   const DIMANCHE: ResumeDuGroupe = {
     ...SAMEDI,
@@ -474,5 +475,14 @@ describe('la page « Professeurs »', () => {
     expect(groupesDuProfesseur().textContent).toContain('Aucun groupe ouvert');
     expect(cadresOuverts()).toHaveLength(0);
     expect(page.querySelector('.groupes-du-professeur details summary')?.textContent?.trim()).toBe('Anciens groupes (1)');
+  });
+
+  it('range les groupes fermés dans « Anciens groupes »', async () => {
+    await ouvrir([KARIM], [{ ...SAMEDI, ferme: true }]);
+
+    expect(cadresOuverts()).toHaveLength(0);
+    const anciens = page.querySelector('.groupes-du-professeur details') as HTMLDetailsElement;
+    expect(anciens.querySelector('summary')?.textContent?.trim()).toBe('Anciens groupes (1)');
+    expect(anciens.querySelector('.cadre .pill')?.textContent?.trim()).toBe('Fermé');
   });
 });

@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { envoyer, saisir } from '../../test/formulaires';
 import { PageDeTest } from '../../test/page-de-test';
-import { FicheDuGroupe, SeanceDuGroupe } from './groupe';
+import { dateDuJourLocale, FicheDuGroupe, SeanceDuGroupe } from './groupe';
 import { PageDuGroupe } from './page-du-groupe';
 
 describe('la fiche d’un groupe', () => {
@@ -38,6 +38,8 @@ describe('la fiche d’un groupe', () => {
     nombreDeSeances: null,
     seances: [],
     tranches: [],
+    fermeLe: null,
+    motifDeFermeture: null,
   };
 
   let http: HttpTestingController;
@@ -262,5 +264,78 @@ describe('la fiche d’un groupe', () => {
     await ouvrir({ ...FICHE, premiereSeance: 17, mois: FICHE.mois.map((m, i) => ({ ...m, numero: 5 + i })) });
 
     expect(page.querySelector('.mois')?.textContent).toContain('Mois 5');
+  });
+
+  // ----- Fermer le groupe (GRP-08) -----
+
+  const FERME: FicheDuGroupe = { ...FICHE, fermeLe: '2027-10-02', motifDeFermeture: "Trop peu d'élèves" };
+  const avertissement = () => page.querySelector('.le-groupe .aide')?.textContent?.trim();
+
+  it('ferme le groupe à une date, avec un motif', async () => {
+    await ouvrir();
+
+    await cliquer('Fermer le groupe');
+    expect(champ('dateDeFermeture').value).toBe(dateDuJourLocale());
+    saisir(page, '[formcontrolname="dateDeFermeture"]', '2027-10-02');
+    await harness.fixture.whenStable();
+    expect(avertissement()).toBe('Les 3 séances prévues après le 02/10/2027 seront supprimées.');
+    saisir(page, '[formcontrolname="dateDeFermeture"]', '2027-10-16');
+    await harness.fixture.whenStable();
+    expect(avertissement()).toBe('La séance prévue après le 16/10/2027 sera supprimée.');
+    saisir(page, '[formcontrolname="dateDeFermeture"]', '2027-10-23');
+    await harness.fixture.whenStable();
+    expect(avertissement()).toBe('Aucune séance prévue après le 23/10/2027.');
+
+    saisir(page, '[formcontrolname="dateDeFermeture"]', '2027-10-02');
+    saisir(page, '[formcontrolname="motif"]', "Trop peu d'élèves");
+    envoyer(page);
+    const requete = http.expectOne({ method: 'POST', url: `${ADRESSE}/fermeture` });
+    expect(requete.request.body).toEqual({ date: '2027-10-02', motif: "Trop peu d'élèves" });
+    await vi.waitFor(() => expect(bouton('Fermer le groupe').disabled).toBe(true));
+    requete.flush(FERME);
+
+    await attendre('Groupe fermé');
+    expect(page.querySelector('h1 .pill')?.textContent?.trim()).toBe('Fermé');
+    expect(carte().textContent).toContain("Fermé le 02/10/2027 : Trop peu d'élèves");
+    expect([...page.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain('Modifier');
+    expect([...page.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain('Fermer le groupe');
+  });
+
+  it('ne ferme pas sans motif', async () => {
+    await ouvrir();
+    await cliquer('Fermer le groupe');
+
+    envoyer(page);
+
+    await attendre('Choisissez la date et écrivez le motif');
+  });
+
+  it('montre un refus de la fermeture sous la carte', async () => {
+    await ouvrir();
+    await cliquer('Fermer le groupe');
+    saisir(page, '[formcontrolname="motif"]', 'Erreur');
+
+    envoyer(page);
+    http.expectOne(`${ADRESSE}/fermeture`).flush({ message: 'Ce groupe est déjà fermé' }, { status: 409, statusText: 'Conflict' });
+
+    await attendre('Ce groupe est déjà fermé');
+    expect(carte().querySelector('.note.bad')?.textContent).toContain('Ce groupe est déjà fermé');
+  });
+
+  it('annule la fermeture', async () => {
+    await ouvrir();
+    await cliquer('Fermer le groupe');
+
+    await cliquer('Annuler');
+
+    expect(page.querySelector('form')).toBeNull();
+  });
+
+  it('montre un groupe fermé', async () => {
+    await ouvrir(FERME);
+
+    expect(page.querySelector('h1 .pill')?.textContent?.trim()).toBe('Fermé');
+    expect(carte().textContent).toContain("Fermé le 02/10/2027 : Trop peu d'élèves");
+    expect(carte().querySelectorAll('button')).toHaveLength(0);
   });
 });
