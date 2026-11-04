@@ -48,8 +48,49 @@ public static class CalendrierDuGroupe
         return premieresDatesDesMois.Count + 1;
     }
 
+    /// <summary>
+    /// Les <paramref name="nombre"/> premières séances depuis <paramref name="du"/> (compris), en suivant les créneaux :
+    /// une Révision ou une Formation s'arrête à son nombre de séances, pas à la fin de l'année.
+    /// </summary>
+    public static IReadOnlyList<SeancePrevue> SeancesEnNombre(IEnumerable<Creneau> creneaux, DateOnly du, int nombre)
+    {
+        var parJour = creneaux.ToLookup(c => Jours.VersDayOfWeek(c.Jour));
+        var seances = new List<SeancePrevue>();
+        for (var date = du; seances.Count < nombre; date = date.AddDays(1))
+            seances.AddRange(parJour[date.DayOfWeek].OrderBy(c => c.Debut).Select(c => new SeancePrevue(date, c.Debut, c.Fin)));
+
+        return seances.Take(nombre).ToList();
+    }
+
+    /// <summary>
+    /// Le prix de chaque séance d'une Révision : le total divisé par le nombre de séances, arrondi au millime, et la
+    /// dernière prend la différence (exigences communes) : 50 TND en 3 séances donnent 16,667 + 16,667 + 16,666.
+    /// </summary>
+    public static IReadOnlyList<decimal> PrixDesSeances(decimal total, int nombre)
+    {
+        var part = decimal.Round(total / nombre, 3, MidpointRounding.AwayFromZero);
+        return [.. Enumerable.Repeat(part, nombre - 1), total - part * (nombre - 1)];
+    }
+
+    /// <summary>Le Mois d'une séance d'Étude, d'après son numéro : les séances 17 à 20 forment le Mois 5.</summary>
+    public static int MoisDeLaSeance(int numero) => (numero - 1) / SeancesParMois + 1;
+
+    /// <summary>Le numéro de la séance 1 d'un Mois : le Mois 5 commence à la séance 17.</summary>
+    public static int PremiereSeanceDuMois(int mois) => (mois - 1) * SeancesParMois + 1;
+
+    /// <summary>
+    /// Une Révision ou une Formation est terminée le lendemain de sa dernière séance. Une Étude ne l'est jamais avant
+    /// le passage à l'année suivante (CEN-04).
+    /// </summary>
+    public static bool EstTermine(TypeDeGroupe type, DateOnly? derniereSeance, DateOnly aujourdhui) =>
+        type != TypeDeGroupe.Etude && derniereSeance is { } derniere && derniere < aujourdhui;
+
     /// <summary>« Groupe Samedi 10h → 12h » : le nom que la page propose depuis le premier créneau.</summary>
     public static string NomPropose(Creneau premier) => $"Groupe {premier.Jour} {Heure(premier.Debut)} → {Heure(premier.Fin)}";
+
+    /// <summary>Le nom proposé depuis la première date saisie une à une : le jour de cette date, et ses heures.</summary>
+    public static string NomPropose(SeancePrevue premiere) =>
+        NomPropose(new Creneau(Jours.De(premiere.Date.DayOfWeek), premiere.Debut, premiere.Fin));
 
     /// <summary>« 10h », « 10h30 », « 8h ».</summary>
     public static string Heure(TimeOnly heure) => heure.Minute == 0 ? $"{heure.Hour}h" : $"{heure.Hour}h{heure.Minute:00}";

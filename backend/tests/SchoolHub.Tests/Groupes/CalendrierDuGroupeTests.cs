@@ -177,4 +177,79 @@ public sealed class CalendrierDuGroupeTests
             CultureInfo.CurrentCulture = avant;
         }
     }
+
+    // ----- Révision, Formation, groupe déjà en cours -----
+
+    [Theory]
+    [InlineData(50, 3, new[] { 16.667, 16.667, 16.666 })]
+    [InlineData(100, 4, new[] { 25.0, 25.0, 25.0, 25.0 })]
+    [InlineData(100, 3, new[] { 33.333, 33.333, 33.334 })]
+    [InlineData(10, 1, new[] { 10.0 })]
+    public void Le_prix_des_seances_de_revision(int total, int nombre, double[] attendus)
+    {
+        var prix = CalendrierDuGroupe.PrixDesSeances(total, nombre);
+
+        Assert.Equal(attendus.Select(p => (decimal)p), prix);
+        Assert.Equal(total, prix.Sum());
+    }
+
+    [Fact]
+    public void Les_seances_en_nombre()
+    {
+        var seances = CalendrierDuGroupe.SeancesEnNombre([Samedi10h], new DateOnly(2028, 1, 15), 7);
+
+        Assert.Equal(7, seances.Count);
+        Assert.Equal(new DateOnly(2028, 1, 15), seances[0].Date);
+        Assert.Equal(new DateOnly(2028, 2, 26), seances[^1].Date);
+    }
+
+    [Fact]
+    public void Les_seances_en_nombre_suivent_plusieurs_creneaux()
+    {
+        Creneau[] creneaux = [Samedi10h, new(Jour.Mardi, new TimeOnly(17, 0), new TimeOnly(19, 0))];
+
+        var seances = CalendrierDuGroupe.SeancesEnNombre(creneaux, new DateOnly(2028, 1, 15), 3);
+
+        Assert.Equal([new DateOnly(2028, 1, 15), new DateOnly(2028, 1, 18), new DateOnly(2028, 1, 22)], seances.Select(s => s.Date));
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(4, 1)]
+    [InlineData(5, 2)]
+    [InlineData(17, 5)]
+    [InlineData(20, 5)]
+    public void Le_mois_d_une_seance(int numero, int mois)
+    {
+        Assert.Equal(mois, CalendrierDuGroupe.MoisDeLaSeance(numero));
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 5)]
+    [InlineData(5, 17)]
+    public void La_premiere_seance_d_un_mois(int mois, int numero)
+    {
+        Assert.Equal(numero, CalendrierDuGroupe.PremiereSeanceDuMois(mois));
+    }
+
+    [Fact]
+    public void Termine_le_lendemain_de_la_derniere_seance()
+    {
+        var derniere = new DateOnly(2028, 5, 20);
+
+        Assert.False(CalendrierDuGroupe.EstTermine(TypeDeGroupe.Revision, derniere, new DateOnly(2028, 5, 20)));
+        Assert.True(CalendrierDuGroupe.EstTermine(TypeDeGroupe.Revision, derniere, new DateOnly(2028, 5, 21)));
+        Assert.True(CalendrierDuGroupe.EstTermine(TypeDeGroupe.Formation, derniere, new DateOnly(2028, 6, 1)));
+        Assert.False(CalendrierDuGroupe.EstTermine(TypeDeGroupe.Etude, derniere, new DateOnly(2028, 6, 1)));
+        Assert.False(CalendrierDuGroupe.EstTermine(TypeDeGroupe.Revision, null, new DateOnly(2028, 6, 1)));
+    }
+
+    [Fact]
+    public void Le_nom_propose_depuis_une_date()
+    {
+        var nom = CalendrierDuGroupe.NomPropose(new SeancePrevue(new DateOnly(2028, 5, 20), new TimeOnly(10, 0), new TimeOnly(12, 0)));
+
+        Assert.Equal("Groupe Samedi 10h → 12h", nom);
+    }
 }

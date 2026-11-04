@@ -5,10 +5,17 @@ using SchoolHub.Socle.Centres;
 
 namespace SchoolHub.Modules.Groupes;
 
-/// <summary>Le type d'un groupe. Révision et Formation viendront avec GRP-05 et GRP-06.</summary>
+/// <summary>Le type d'un groupe (ticket 01, Q8) : il fixe la façon de payer.</summary>
 public enum TypeDeGroupe
 {
+    /// <summary>Toute l'année, payée par Mois de 4 séances.</summary>
     Etude,
+
+    /// <summary>Quelques séances, au prix total ou à la séance (GRP-05).</summary>
+    Revision,
+
+    /// <summary>Un prix total, en une fois ou en tranches (GRP-06).</summary>
+    Formation,
 }
 
 /// <summary>
@@ -129,6 +136,8 @@ public enum Jour
 public static class Jours
 {
     public static DayOfWeek VersDayOfWeek(Jour jour) => (DayOfWeek)((int)jour % 7);
+
+    public static Jour De(DayOfWeek jour) => jour == DayOfWeek.Sunday ? Jour.Dimanche : (Jour)(int)jour;
 
     /// <summary>« Samedi » ou « samedi » ; un nombre ou un jour en anglais ne se lit pas.</summary>
     public static bool EssayerDeLire(string? saisie, out Jour jour)
