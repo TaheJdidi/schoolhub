@@ -8,7 +8,6 @@ import { Bientot } from './pages/bientot/bientot';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Eleves } from './pages/eleves/eleves';
-import { PageDeLEleve } from './pages/eleves/fiche-de-l-eleve';
 import { NouvelEleve } from './pages/eleves/nouvel-eleve';
 import { Invitation } from './pages/invitation/invitation';
 import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
@@ -23,7 +22,8 @@ import { estConnecte, estProprietaire, nonConnecte } from './socle/session/garde
 
 const titre = (page: string) => `${page} · SchoolHub`;
 
-/** La page d'inscription se charge à la demande : elle ne pèse pas sur le premier chargement de l'application. */
+/** La fiche d'un élève et la page d'inscription se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
+const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((module) => module.PageDeLEleve);
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
@@ -74,7 +74,7 @@ export const routes: Routes = [
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
       { path: 'eleves/nouveau', component: NouvelEleve, title: titre('Nouvel élève') },
       { path: 'eleves/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'eleve' }, title: titre('Inscription') },
-      { path: 'eleves/:id', component: PageDeLEleve, title: titre('Élève') },
+      { path: 'eleves/:id', loadComponent: pageDeLEleve, title: titre('Élève') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },

@@ -32,3 +32,16 @@
 .inscription a:hover { text-decoration: underline; }
 .inscription small { color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
 .ligne { margin: 0; }
+
+/* « À payer » et les actions sur les inscriptions et l'assurance (ELV-04 à ELV-07, ELV-10) */
+.ligne-a-payer { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); min-width: 0; }
+.ligne-a-payer:first-of-type { border-top: 0; }
+.ligne-a-payer .deux { display: grid; min-width: 0; }
+.ligne-a-payer .deux b { font-weight: 500; overflow-wrap: anywhere; }
+.ligne-a-payer small { color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.montant { white-space: nowrap; }
+.total { margin: 0; display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line-2); }
+.special { color: var(--ink) !important; }
+.sous-action { display: grid; gap: 6px; padding-top: 4px; }
+.inscription .actions { justify-content: flex-start; margin-top: 6px; }
+.aide, .etat { margin: 0; color: var(--ink-2); }

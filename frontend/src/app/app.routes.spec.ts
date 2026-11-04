@@ -124,7 +124,7 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Élèves · SchoolHub');
 
     await harness.navigateByUrl('/eleves/e1');
-    for (const adresse of ['/api/eleves/e1', '/api/eleves/e1/assurance']) {
+    for (const adresse of ['/api/eleves/e1', '/api/eleves/e1/assurance', '/api/eleves/e1/a-payer']) {
       http.expectOne(adresse).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     }
     http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });

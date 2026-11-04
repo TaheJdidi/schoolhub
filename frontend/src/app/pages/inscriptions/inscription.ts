@@ -16,6 +16,15 @@ export interface InscriptionDeLEleve {
   nombreDeTranches: number;
   /** « 2027-11-20 » et « 10:00:00 » ; `null` si le groupe n'a plus de séance à sa date ou après. */
   premiereSeance: { date: string; debut: string } | null;
+  /** ELV-05 : le prix qui remplace le prix normal pour ce qui n'est pas payé ; 0 : gratuit. */
+  prixSpecial: number | null;
+  raisonDuPrixSpecial: string | null;
+  /** Les sommes déjà réglées : « Tranche 1 », 100, « AvantSchoolHub ». */
+  reglees: { libelle: string; montant: number; origine: string }[];
+  /** ELV-07 : les sommes d'avant SchoolHub qu'on peut noter payées. */
+  payablesAvantSchoolHub: { cle: string; libelle: string; montant: number }[];
+  /** ELV-10 : une Formation en tranches qui a encore une tranche à venir. */
+  peutRegrouperLeReste: boolean;
 }
 
 /** Une somme due à la première séance de l'élève. */
@@ -59,6 +68,24 @@ export interface AssuranceDeLEleve {
   annee: string;
   montant: number;
   dueLe: string | null;
+  etat: 'APayer' | 'PayeeAvantSchoolHub' | 'Dispensee';
+  raisonDeLaDispense: string | null;
+}
+
+/** Une ligne de « À payer » (GET /api/eleves/{id}/a-payer) : `inscriptionId` vaut `null` pour l'assurance. */
+export interface LigneAPayer {
+  inscriptionId: string | null;
+  groupe: string;
+  libelle: string;
+  cle: string;
+  montant: number;
+  dueLe: string;
+}
+
+/** Ce que l'élève doit à ce jour, et le total. */
+export interface APayer {
+  lignes: LigneAPayer[];
+  total: number;
 }
 
 /** Le texte de la capacité atteinte, sur la page comme dans la réponse du serveur. */

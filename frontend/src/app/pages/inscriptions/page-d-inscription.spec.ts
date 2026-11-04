@@ -114,6 +114,11 @@ describe("la page d'inscription", () => {
     prixNormal: 40,
     nombreDeTranches: 0,
     premiereSeance: { date: '2027-11-20', debut: '10:00:00' },
+    prixSpecial: null,
+    raisonDuPrixSpecial: null,
+    reglees: [],
+    payablesAvantSchoolHub: [],
+    peutRegrouperLeReste: false,
   };
 
   const ENREGISTREMENT: EnregistrementDeLInscription = {

@@ -56,6 +56,11 @@ describe('la fiche d’un groupe', () => {
     prixNormal: 100,
     nombreDeTranches: 0,
     premiereSeance: { date: '2027-09-25', debut: '10:00:00' },
+    prixSpecial: null,
+    raisonDuPrixSpecial: null,
+    reglees: [],
+    payablesAvantSchoolHub: [],
+    peutRegrouperLeReste: false,
   };
 
   /** La fiche du groupe et ses élèves, demandés ensemble. */

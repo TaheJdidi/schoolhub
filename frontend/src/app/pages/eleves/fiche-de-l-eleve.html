@@ -11,6 +11,26 @@
   </div>
 
   <div class="cartes">
+    <section class="card carte a-payer">
+      <h2 class="titre">À payer</h2>
+      @if (aPayer(); as aPayer) {
+        @for (ligne of aPayer.lignes; track $index) {
+          <div class="ligne-a-payer">
+            <span class="deux">
+              <b>{{ ligne.libelle }}</b>
+              <small>{{ ligne.groupe }} · dû le {{ date(ligne.dueLe) }}</small>
+            </span>
+            <b class="montant">{{ montant(ligne.montant) }} TND</b>
+          </div>
+        } @empty {
+          <p class="vide">Rien à payer aujourd'hui.</p>
+        }
+        @if (aPayer.lignes.length > 0) {
+          <p class="total">Total <b>{{ montant(aPayer.total) }} TND</b></p>
+        }
+      }
+    </section>
+
     @if (enModification()) {
       <sh-formulaire-de-l-eleve [eleve]="fiche" (enregistre)="enregistre($event)" (annule)="enModification.set(false)" />
     } @else {
@@ -64,12 +84,104 @@
           <a [routerLink]="['/professeurs/groupes', inscription.groupe.id]">{{ inscription.groupe.nom }}</a>
           <small>{{ inscription.groupe.matiere }} · {{ inscription.professeur }}</small>
           <small>{{ libelleDuMode(inscription) }}</small>
+          @if (inscription.prixSpecial !== null) {
+            <small class="special">
+              Prix spécial {{ montant(inscription.prixSpecial) }} TND au lieu de {{ montant(inscription.prixNormal) }} TND
+              ({{ inscription.raisonDuPrixSpecial }})
+            </small>
+          }
           @if (inscription.premiereSeance; as premiere) {
             <small>Depuis le {{ jour(premiere.date) }}</small>
+          }
+          @for (reglee of inscription.reglees; track reglee.libelle) {
+            <small>{{ reglee.libelle }} · {{ montant(reglee.montant) }} TND · payé avant SchoolHub</small>
+          }
+          @for (payable of inscription.payablesAvantSchoolHub; track payable.cle) {
+            <div class="sous-action">
+              <small>{{ payable.libelle }} · {{ montant(payable.montant) }} TND</small>
+              @if (payeAvantOuvertPour(inscription.id, payable.cle)) {
+                <p class="question">Noter « {{ payable.libelle }} » comme payé avant SchoolHub ?</p>
+                <div class="actions">
+                  <button type="button" class="btn primary" [disabled]="agit()" (click)="payerAvantSchoolHub(inscription.id, payable.cle)">Oui</button>
+                  <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Non</button>
+                </div>
+              } @else {
+                <div class="actions">
+                  <button type="button" class="btn" (click)="ouvrir({ genre: 'payeAvant', inscription: inscription.id, cle: payable.cle })">
+                    Déjà payé avant SchoolHub
+                  </button>
+                </div>
+              }
+            </div>
+          }
+          @if (inscription.peutRegrouperLeReste) {
+            @if (resteOuvertPour(inscription.id)) {
+              <p class="question">Regrouper les tranches à venir en une somme due aujourd'hui ?</p>
+              <div class="actions">
+                <button type="button" class="btn primary" [disabled]="agit()" (click)="regrouperLeReste(inscription.id)">Oui</button>
+                <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Non</button>
+              </div>
+            } @else {
+              <div class="actions">
+                <button type="button" class="btn" (click)="ouvrir({ genre: 'reste', inscription: inscription.id })">Payer tout le reste</button>
+              </div>
+            }
+          }
+          @if (proprietaire()) {
+            @if (prixOuvertPour(inscription.id)) {
+              <div class="champs">
+                <label class="f">
+                  Prix spécial (TND)
+                  <input
+                    #montantSpecial
+                    class="inp"
+                    inputmode="decimal"
+                    aria-label="Prix spécial (TND)"
+                    autocomplete="off"
+                    [value]="inscription.prixSpecial === null ? '' : montant(inscription.prixSpecial)"
+                  />
+                </label>
+                <label class="f">
+                  Raison
+                  <input
+                    #raisonSpeciale
+                    class="inp"
+                    aria-label="Raison du prix spécial"
+                    autocomplete="off"
+                    placeholder="Famille en difficulté"
+                    [value]="inscription.raisonDuPrixSpecial ?? ''"
+                  />
+                </label>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Annuler</button>
+                <button
+                  type="button"
+                  class="btn primary"
+                  [disabled]="agit()"
+                  (click)="accorderUnPrixSpecial(inscription.id, montantSpecial.value, raisonSpeciale.value)"
+                >
+                  Enregistrer le prix spécial
+                </button>
+              </div>
+            } @else {
+              <div class="actions">
+                <button type="button" class="btn" (click)="ouvrir({ genre: 'prix', inscription: inscription.id })">Prix spécial</button>
+                @if (inscription.prixSpecial !== null) {
+                  <button type="button" class="btn" [disabled]="agit()" (click)="retirerLePrixSpecial(inscription.id)">Retirer le prix spécial</button>
+                }
+              </div>
+            }
           }
         </div>
       } @empty {
         <p class="vide">Aucune inscription : cet élève vient seulement à la bibliothèque.</p>
+      }
+      @if (!proprietaire() && inscriptions().length > 0) {
+        <p class="aide">Seul le propriétaire accorde un prix spécial. Inscrivez au prix normal et prévenez-le.</p>
+      }
+      @if (erreurDesInscriptions(); as erreur) {
+        <p class="note bad" role="alert">{{ erreur }}</p>
       }
     </section>
 
@@ -79,6 +191,40 @@
         <p class="ligne">
           Année {{ assurance.annee }} : {{ montant(assurance.montant) }} TND@if (assurance.dueLe; as dueLe) {, due le {{ date(dueLe) }}}
         </p>
+        <p class="etat">{{ etatDeLAssurance(assurance) }}</p>
+        @if (assurance.etat === 'APayer') {
+          @if (action()?.genre === 'assurancePayee') {
+            <p class="question">Noter l'assurance {{ assurance.annee }} comme payée avant SchoolHub ?</p>
+            <div class="actions">
+              <button type="button" class="btn primary" [disabled]="agit()" (click)="assurancePayeeAvantSchoolHub(fiche.id)">Oui</button>
+              <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Non</button>
+            </div>
+          } @else if (action()?.genre === 'dispense') {
+            <label class="f">
+              Raison
+              <input #raisonDeLaDispense class="inp" aria-label="Raison de la dispense" autocomplete="off" placeholder="Orphelin" />
+            </label>
+            <div class="actions">
+              <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Annuler</button>
+              <button type="button" class="btn primary" [disabled]="agit()" (click)="dispenser(fiche.id, raisonDeLaDispense.value)">
+                Dispenser l'assurance
+              </button>
+            </div>
+          } @else {
+            <div class="actions">
+              <button type="button" class="btn" (click)="ouvrir({ genre: 'assurancePayee' })">Déjà payée avant SchoolHub</button>
+              @if (proprietaire()) {
+                <button type="button" class="btn" (click)="ouvrir({ genre: 'dispense' })">Dispenser</button>
+              }
+            </div>
+            @if (!proprietaire()) {
+              <p class="aide">Seul le propriétaire dispense de l'assurance.</p>
+            }
+          }
+        }
+        @if (erreurDeLAssurance(); as erreur) {
+          <p class="note bad" role="alert">{{ erreur }}</p>
+        }
       } @else {
         <p class="vide">Sans objet : aucune inscription en Étude cette année.</p>
       }
