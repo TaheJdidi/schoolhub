@@ -1,0 +1,26 @@
+/* La page « Élèves », la création et la fiche : une colonne sur un téléphone, sans défilement de côté. */
+.fil { font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+.fil a { color: var(--accent); text-decoration: none; }
+.fil a:hover { text-decoration: underline; }
+
+.cartes { display: grid; gap: 16px; }
+.carte { display: grid; gap: 14px; padding: 16px; }
+.titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+.opt { color: var(--ink-3); font-weight: 400; }
+.case { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.note, .question { margin: 0; }
+.vide { margin: 0; color: var(--ink-2); }
+
+.liste { display: grid; }
+.ligne-eleve { display: grid; padding: 9px 4px; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; min-width: 0; }
+.ligne-eleve:first-child { border-top: 0; }
+.ligne-eleve:hover { background: var(--sunk); }
+.ligne-eleve b { overflow-wrap: anywhere; }
+.ligne-eleve small { color: var(--ink-2); font-size: 12.5px; }
+
+.coordonnees { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+.coordonnees dt { color: var(--ink-2); }
+.coordonnees dd { margin: 0; overflow-wrap: anywhere; }
+.contacts .pill { justify-self: start; }

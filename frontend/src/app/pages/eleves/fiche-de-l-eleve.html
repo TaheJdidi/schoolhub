@@ -1,0 +1,75 @@
+@if (fiche(); as fiche) {
+  <div class="pagehead">
+    <div>
+      <nav class="fil" aria-label="Fil d'Ariane"><a routerLink="/eleves">Élèves</a> ›</nav>
+      <h1 class="h1">{{ fiche.prenom }} {{ fiche.nom }}</h1>
+      <p class="sub">{{ fiche.niveau.nom }}</p>
+    </div>
+    @if (!enModification()) {
+      <button type="button" class="btn" (click)="modifier()">Modifier</button>
+    }
+  </div>
+
+  <div class="cartes">
+    @if (enModification()) {
+      <sh-formulaire-de-l-eleve [eleve]="fiche" (enregistre)="enregistre($event)" (annule)="enModification.set(false)" />
+    } @else {
+      <section class="card carte contacts">
+        <h2 class="titre">Contacts</h2>
+        <dl class="coordonnees">
+          <dt>L'élève</dt>
+          <dd>{{ joindre(fiche.telephoneEleve, fiche.emailEleve) }}</dd>
+          <dt>Le parent</dt>
+          <dd>{{ joindre(fiche.telephoneParent, fiche.emailParent) }}</dd>
+          @if (fiche.etablissement) {
+            <dt>Établissement</dt>
+            <dd>{{ fiche.etablissement }}</dd>
+          }
+        </dl>
+        @if (fiche.majeur) {
+          <span class="pill info">Élève majeur</span>
+        }
+
+        @if (aConfirmer()) {
+          <p class="question">Supprimer la fiche {{ de(fiche.prenom + ' ' + fiche.nom) }} ? Seulement en cas d'erreur de saisie.</p>
+          <div class="actions">
+            <button type="button" class="btn primary" [disabled]="envoi()" (click)="supprimer()">Oui</button>
+            <button type="button" class="btn" [disabled]="envoi()" (click)="aConfirmer.set(false)">Non</button>
+          </div>
+        } @else {
+          <div class="actions">
+            <button type="button" class="btn" (click)="demanderConfirmation()">Supprimer la fiche</button>
+          </div>
+        }
+
+        @if (succes(); as succes) {
+          <p class="note ok" role="status">{{ succes }}</p>
+        }
+        @if (avertissement(); as avertissement) {
+          <p class="note warn" role="status">{{ avertissement }}</p>
+        }
+        @if (erreur(); as erreur) {
+          <p class="note bad" role="alert">{{ erreur }}</p>
+        }
+      </section>
+    }
+
+    <section class="card carte">
+      <h2 class="titre">Inscriptions</h2>
+      <p class="vide">Aucune inscription : cet élève vient seulement à la bibliothèque.</p>
+    </section>
+  </div>
+} @else if (introuvable()) {
+  <div class="pagehead">
+    <div>
+      <h1 class="h1">Élève introuvable</h1>
+      <p class="sub">Cet élève n'existe pas.</p>
+    </div>
+  </div>
+  <a class="btn" routerLink="/eleves">Revenir aux élèves</a>
+} @else if (erreur(); as erreur) {
+  <div class="pagehead">
+    <div><h1 class="h1">Élève</h1></div>
+  </div>
+  <p class="note bad" role="alert">{{ erreur }}</p>
+}

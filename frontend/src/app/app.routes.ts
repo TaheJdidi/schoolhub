@@ -7,6 +7,9 @@ import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
+import { Eleves } from './pages/eleves/eleves';
+import { PageDeLEleve } from './pages/eleves/fiche-de-l-eleve';
+import { NouvelEleve } from './pages/eleves/nouvel-eleve';
 import { Invitation } from './pages/invitation/invitation';
 import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
 import { PageDuGroupe } from './pages/groupes/page-du-groupe';
@@ -23,6 +26,7 @@ const titre = (page: string) => `${page} · SchoolHub`;
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
   professeurs: Professeurs,
+  eleves: Eleves,
   comptes: Comptes,
   parametres: Parametres,
 };
@@ -63,6 +67,9 @@ export const routes: Routes = [
       // Les groupes s'ouvrent sous la page Professeurs : le menu garde « Professeurs » allumé.
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
+      // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
+      { path: 'eleves/nouveau', component: NouvelEleve, title: titre('Nouvel élève') },
+      { path: 'eleves/:id', component: PageDeLEleve, title: titre('Élève') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },

@@ -54,7 +54,8 @@ src/app/
 ├── cadre/              l'en-tête, le menu, les onglets du téléphone, la page « Plus »,
 │                       et la carte des pages sans connexion
 ├── pages/              une page par dossier : connexion, invitation, mots de passe,
-│                       aujourd'hui, professeurs, groupes (création et fiche), comptes,
+│                       aujourd'hui, professeurs, groupes (création et fiche), élèves
+│                       (liste, création, fiche), comptes,
 │                       paramètres du centre, bientôt, accès réservé, introuvable
 └── test/               les outils des tests
 ```

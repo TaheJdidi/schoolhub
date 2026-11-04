@@ -115,6 +115,28 @@ describe("les adresses de l'application", () => {
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('une secrétaire voit la page « Élèves » sur /eleves, et sa fiche sur /eleves/e1', async () => {
+    await ouvrir('/eleves', AMIRA);
+    http.expectOne('/api/eleves').flush([]);
+    await vi.waitFor(() => expect(texte()).toContain('Ajouter un élève'));
+    expect(texte()).not.toContain('Cette page arrive bientôt');
+    expect(titre()).toBe('Élèves · SchoolHub');
+
+    await harness.navigateByUrl('/eleves/e1');
+    http.expectOne('/api/eleves/e1').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
+    expect(titre()).toBe('Élève · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('une secrétaire crée un élève sur /eleves/nouveau', async () => {
+    await ouvrir('/eleves/nouveau', AMIRA);
+    http.expectOne('/api/niveaux').flush([]);
+    await vi.waitFor(() => expect(texte()).toContain('Nouvel élève'));
+    expect(titre()).toBe('Nouvel élève · SchoolHub');
+  });
+
   it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
     await ouvrir('/parametres', AMIRA);
 
