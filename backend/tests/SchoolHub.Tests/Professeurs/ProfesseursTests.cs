@@ -204,7 +204,142 @@ public sealed class ProfesseursTests(PostgreSqlDeTest postgreSql) : IAsyncLifeti
         Assert.Null((await AjouterAsync(_client, Leila with { Telephone = Karim.Telephone })).Avertissement);
     }
 
+    // ----- Modifier, supprimer -----
+
+    [Fact]
+    public async Task Modifier_un_professeur()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{karim.Id}", new FicheDuProfesseur("Karim", "Ben Salah Jr", "22 918 004", null));
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        var attendu = new ProfesseurDuCentre(karim.Id, "Karim", "Ben Salah Jr", "22 918 004", null, false, 0);
+        Assert.Equal(new EnregistrementDuProfesseur(attendu, null), await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>());
+        Assert.Equal([attendu], await ListeAsync(_client));
+    }
+
+    [Fact]
+    public async Task Modifier_sans_changer_le_telephone_ne_previent_pas()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{karim.Id}", Karim with { Email = "karim.bensalah@exemple.tn" });
+
+        Assert.Null((await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>())!.Avertissement);
+    }
+
+    [Fact]
+    public async Task Modifier_vers_un_telephone_pris_previent()
+    {
+        await AjouterAsync(_client, Karim);
+        var leila = (await AjouterAsync(_client, Leila)).Professeur;
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{leila.Id}", Leila with { Telephone = Karim.Telephone });
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("Ce téléphone est aussi celui de Karim Ben Salah",
+            (await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>())!.Avertissement);
+    }
+
+    [Fact]
+    public async Task Une_modification_incomplete_est_refusee()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{karim.Id}", Karim with { Prenom = "" });
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.BadRequest, "Le prénom est obligatoire");
+        Assert.Equal([karim], await ListeAsync(_client));
+    }
+
+    [Fact]
+    public async Task Supprimer_un_professeur()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        var reponse = await _client.DeleteAsync($"{Adresse}/{karim.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, reponse.StatusCode);
+        Assert.Empty(await ListeAsync(_client));
+    }
+
+    // ----- Partir, revenir (GRP-03) -----
+
+    [Fact]
+    public async Task Partir_puis_revenir()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        var depart = await _client.PostAsync($"{Adresse}/{karim.Id}/depart", null);
+
+        Assert.Equal(HttpStatusCode.OK, depart.StatusCode);
+        Assert.Equal(karim with { Parti = true }, await depart.Content.ReadFromJsonAsync<ProfesseurDuCentre>());
+        Assert.Equal([karim with { Parti = true }], await ListeAsync(_client));
+
+        var retour = await _client.PostAsync($"{Adresse}/{karim.Id}/retour", null);
+
+        Assert.Equal(HttpStatusCode.OK, retour.StatusCode);
+        Assert.Equal(karim, await retour.Content.ReadFromJsonAsync<ProfesseurDuCentre>());
+    }
+
+    [Fact]
+    public async Task Un_second_depart_ne_change_rien()
+    {
+        var karim = (await AjouterAsync(_client, Karim)).Professeur;
+
+        await _client.PostAsync($"{Adresse}/{karim.Id}/depart", null);
+        var second = await _client.PostAsync($"{Adresse}/{karim.Id}/depart", null);
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.True((await second.Content.ReadFromJsonAsync<ProfesseurDuCentre>())!.Parti);
+
+        await _client.PostAsync($"{Adresse}/{karim.Id}/retour", null);
+        var secondRetour = await _client.PostAsync($"{Adresse}/{karim.Id}/retour", null);
+
+        Assert.Equal(HttpStatusCode.OK, secondRetour.StatusCode);
+        Assert.False((await secondRetour.Content.ReadFromJsonAsync<ProfesseurDuCentre>())!.Parti);
+    }
+
+    // ----- Introuvable -----
+
+    [Theory]
+    [InlineData("PUT")]
+    [InlineData("DELETE")]
+    [InlineData("depart")]
+    [InlineData("retour")]
+    public async Task Un_professeur_inconnu_est_introuvable(string action)
+    {
+        var reponse = await AgirAsync(_client, action, Guid.NewGuid());
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.NotFound, "Professeur introuvable");
+    }
+
+    [Theory]
+    [InlineData("PUT")]
+    [InlineData("DELETE")]
+    [InlineData("depart")]
+    [InlineData("retour")]
+    public async Task Un_centre_ne_touche_pas_aux_professeurs_d_un_autre(string action)
+    {
+        var clientDesOliviers = await ClientDesOliviersAsync();
+        var karimDesOliviers = (await AjouterAsync(clientDesOliviers, Karim)).Professeur;
+
+        var reponse = await AgirAsync(_client, action, karimDesOliviers.Id);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.NotFound, "Professeur introuvable");
+        Assert.Equal([karimDesOliviers], await ListeAsync(clientDesOliviers));
+    }
+
     // ----- Outils -----
+
+    /// <summary>Une action sur un professeur : PUT (avec la fiche de Leila), DELETE, « depart » ou « retour ».</summary>
+    private static Task<HttpResponseMessage> AgirAsync(HttpClient client, string action, Guid id) => action switch
+    {
+        "PUT" => client.PutAsJsonAsync($"{Adresse}/{id}", Leila),
+        "DELETE" => client.DeleteAsync($"{Adresse}/{id}"),
+        _ => client.PostAsync($"{Adresse}/{id}/{action}", null),
+    };
 
     private async Task<HttpClient> ClientDesOliviersAsync()
     {

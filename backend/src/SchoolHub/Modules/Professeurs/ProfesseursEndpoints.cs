@@ -13,7 +13,39 @@ public static class ProfesseursEndpoints
         groupe.MapGet("", async (ProfesseursDuCentre professeurs) =>
             (await professeurs.ListerAsync()).Select(ProfesseurDuCentre.De).ToList());
         groupe.MapPost("", AjouterAsync);
+        groupe.MapPut("/{id:guid}", ModifierAsync);
+        groupe.MapDelete("/{id:guid}", SupprimerAsync);
+        groupe.MapPost("/{id:guid}/depart", (Guid id, ProfesseursDuCentre professeurs) => ChangerAsync(professeurs.PartirAsync(id)));
+        groupe.MapPost("/{id:guid}/retour", (Guid id, ProfesseursDuCentre professeurs) => ChangerAsync(professeurs.RevenirAsync(id)));
         return api;
+    }
+
+    private static async Task<Results<Ok<EnregistrementDuProfesseur>, JsonHttpResult<Avis>>> ModifierAsync(
+        Guid id,
+        FicheDuProfesseur saisie,
+        ProfesseursDuCentre professeurs)
+    {
+        var issue = await professeurs.ModifierAsync(id, saisie);
+        return issue.Professeur is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Ok(EnregistrementDuProfesseur.De(issue));
+    }
+
+    private static async Task<Results<NoContent, JsonHttpResult<Avis>>> SupprimerAsync(Guid id, ProfesseursDuCentre professeurs)
+    {
+        var issue = await professeurs.SupprimerAsync(id);
+        return issue.Professeur is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.NoContent();
+    }
+
+    /// <summary>Le départ ou le retour : le professeur à jour, ou le refus.</summary>
+    private static async Task<Results<Ok<ProfesseurDuCentre>, JsonHttpResult<Avis>>> ChangerAsync(Task<IssueSurUnProfesseur> action)
+    {
+        var issue = await action;
+        return issue.Professeur is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Ok(ProfesseurDuCentre.De(issue.Professeur));
     }
 
     private static async Task<Results<Created<EnregistrementDuProfesseur>, JsonHttpResult<Avis>>> AjouterAsync(

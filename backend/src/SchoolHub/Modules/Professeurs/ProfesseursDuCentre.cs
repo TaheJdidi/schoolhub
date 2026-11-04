@@ -18,6 +18,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
     private const string TelephoneObligatoire = "Le téléphone est obligatoire";
     private const string TelephonePasValable = "Le téléphone doit avoir 8 chiffres";
     private const string EmailPasValable = "Cet email n'est pas valable";
+    private const string Introuvable = "Professeur introuvable";
 
     /// <summary>Tous les professeurs, partis compris, par prénom puis par nom.</summary>
     public Task<List<Professeur>> ListerAsync() =>
@@ -34,6 +35,67 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
         contexte.Professeurs.Add(professeur);
         await contexte.SaveChangesAsync();
         return IssueSurUnProfesseur.Reussie(professeur, StatusCodes.Status201Created, avertissement);
+    }
+
+    public async Task<IssueSurUnProfesseur> ModifierAsync(Guid id, FicheDuProfesseur saisie)
+    {
+        var (professeur, introuvable) = await TrouverAsync(id);
+        if (introuvable is not null)
+            return introuvable;
+
+        var (fiche, refus) = VerifierLaFiche(saisie);
+        if (refus is not null)
+            return refus;
+
+        // Le professeur lui-même ne compte pas : garder son téléphone ne le met pas en double.
+        var avertissement = await AvertissementAsync(fiche.Telephone, sauf: id);
+        professeur!.Modifier(fiche.Prenom, fiche.Nom, fiche.Telephone, fiche.Email);
+        await contexte.SaveChangesAsync();
+        return IssueSurUnProfesseur.Reussie(professeur, avertissement: avertissement);
+    }
+
+    /// <summary>
+    /// Supprime une erreur de saisie. Les groupes n'existent pas encore : GRP-04 refusera de supprimer un professeur
+    /// qui a eu un groupe (« Ce professeur a eu des groupes : marquez-le parti »), sinon la clé étrangère répondrait 500.
+    /// </summary>
+    public async Task<IssueSurUnProfesseur> SupprimerAsync(Guid id)
+    {
+        var (professeur, introuvable) = await TrouverAsync(id);
+        if (introuvable is not null)
+            return introuvable;
+
+        contexte.Professeurs.Remove(professeur!);
+        await contexte.SaveChangesAsync();
+        return IssueSurUnProfesseur.Reussie(professeur!, StatusCodes.Status204NoContent);
+    }
+
+    /// <summary>
+    /// Marque le professeur parti ; s'il l'est déjà, rien ne change. Les groupes n'existent pas encore : GRP-04 refusera
+    /// le départ d'un professeur qui a un groupe ouvert (409 « Fermez d'abord ses groupes »).
+    /// </summary>
+    public Task<IssueSurUnProfesseur> PartirAsync(Guid id) => ChangerAsync(id, p => p.Partir());
+
+    /// <summary>« Revenir au centre » : le professeur reprend sa place dans la liste ; s'il y est déjà, rien ne change.</summary>
+    public Task<IssueSurUnProfesseur> RevenirAsync(Guid id) => ChangerAsync(id, p => p.Revenir());
+
+    private async Task<IssueSurUnProfesseur> ChangerAsync(Guid id, Action<Professeur> changement)
+    {
+        var (professeur, introuvable) = await TrouverAsync(id);
+        if (introuvable is not null)
+            return introuvable;
+
+        changement(professeur!);
+        await contexte.SaveChangesAsync();
+        return IssueSurUnProfesseur.Reussie(professeur!);
+    }
+
+    /// <summary>Le professeur de ce centre, ou le refus 404 : inconnu, ou d'un autre centre.</summary>
+    private async Task<(Professeur? Professeur, IssueSurUnProfesseur? Introuvable)> TrouverAsync(Guid id)
+    {
+        var professeur = await contexte.Professeurs.SingleOrDefaultAsync(p => p.Id == id);
+        return professeur is null
+            ? (null, IssueSurUnProfesseur.Refusee(StatusCodes.Status404NotFound, Introuvable))
+            : (professeur, null);
     }
 
     /// <summary>
