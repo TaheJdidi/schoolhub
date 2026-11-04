@@ -3,7 +3,9 @@ using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Dates;
+using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
+using SchoolHub.Socle.Journal;
 using SchoolHub.Socle.Messages;
 
 namespace SchoolHub.Modules.Inscriptions;
@@ -13,8 +15,24 @@ namespace SchoolHub.Modules.Inscriptions;
 /// groupe d'un autre centre est « introuvable ». L'inscription dit ce que l'élève paiera à sa première séance, prévient
 /// d'un groupe complet sans bloquer, et prépare le message WhatsApp de confirmation.
 /// </summary>
-public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvider temps, CentreCourant centreCourant)
+public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvider temps, CentreCourant centreCourant, JournalDuCentre journal)
 {
+    /// <summary>La taille de la colonne d'une raison : prix spécial, dispense.</summary>
+    public const int LongueurMaximaleDUneRaison = 200;
+
+    /// <summary>La taille de la colonne du détail d'une ligne du journal.</summary>
+    private const int LongueurMaximaleDuDetail = 500;
+
+    private const string InscriptionIntrouvable = "Inscription introuvable";
+    private const string PrixSpecialPasValable = "Le prix spécial doit être positif ou nul, au millime près";
+    private const string RaisonDuPrixSpecialObligatoire = "Écrivez la raison du prix spécial";
+    private const string RaisonTropLongue = "La raison fait au plus 200 caractères";
+    private const string SansPrixSpecial = "Cette inscription n'a pas de prix spécial";
+    private const string AucuneAssurance = "Aucune assurance cette année";
+    private const string AssuranceDejaPayee = "L'assurance est déjà payée";
+    private const string AssuranceDejaDispensee = "L'assurance est déjà dispensée";
+    private const string RaisonDeLaDispenseObligatoire = "Écrivez la raison de la dispense";
+
     public const string ChoisirLEleve = "Choisissez l'élève";
     public const string EleveIntrouvable = "Élève introuvable";
     private const string ChoisirLEleveOuLeGroupe = "Choisissez l'élève ou le groupe";
@@ -184,16 +202,174 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     {
         if (!await contexte.Eleves.AnyAsync(e => e.Id == eleveId))
             return (false, null);
-        var annee = await contexte.AnneesScolaires.OrderByDescending(a => a.Debut).FirstOrDefaultAsync();
-        var assurance = annee is null
-            ? null
-            : await contexte.Assurances.SingleOrDefaultAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == annee.Id);
-        if (assurance is null)
-            return (true, null);
-
-        var dueLe = await PremiereSeanceDEtudeAsync(eleveId, annee!.Id);
-        return (true, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee), assurance.Montant, dueLe));
+        return (true, (await AssuranceEnCoursAsync(eleveId))?.Decrite);
     }
+
+    /// <summary>
+    /// ELV-04 : ce que l'élève doit à ce jour, groupe par groupe, puis l'assurance : chaque somme dont la séance a eu lieu
+    /// ou a lieu aujourd'hui, pas réglée, et de plus de 0 TND (une somme à 0 TND compte comme payée). <c>null</c> si
+    /// l'élève n'est pas dans ce centre.
+    /// </summary>
+    public async Task<APayer?> APayerAsync(Guid eleveId)
+    {
+        if (!await contexte.Eleves.AnyAsync(e => e.Id == eleveId))
+            return null;
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var echeances = await EcheancesAsync(await contexte.Inscriptions.Where(i => i.EleveId == eleveId).ToListAsync());
+        var matiereIds = echeances.Select(e => e.Groupe.MatiereId).Distinct().ToList();
+        var matieres = await contexte.Matieres.Where(m => matiereIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, m => m.Nom);
+
+        var lignes = echeances
+            .OrderBy(e => e.Groupe.Nom).ThenBy(e => matieres[e.Groupe.MatiereId]).ThenBy(e => e.Inscription.Id)
+            .SelectMany(e => e.Sommes
+                .Where(somme => somme.Date <= aujourdhui && !somme.Reglee && somme.Montant > 0)
+                .Select(somme => new LigneAPayer(
+                    e.Inscription.Id, $"{matieres[e.Groupe.MatiereId]} · {e.Groupe.Nom}", somme.Libelle, somme.Cle, somme.Montant, somme.Date)))
+            .ToList();
+        if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer, DueLe: { } dueLe } assurance } && dueLe <= aujourdhui)
+            lignes.Add(new LigneAPayer(null, "Assurance", $"Assurance {assurance.Annee}", Reglement.CleDeLAssurance, assurance.Montant, dueLe));
+        return new APayer(lignes, lignes.Sum(l => l.Montant));
+    }
+
+    /// <summary>
+    /// ELV-05 : le propriétaire accorde ou change le prix spécial d'une inscription, avec sa raison. Il vaut pour ce qui
+    /// n'est pas encore payé. L'action va au journal, avec le prix d'avant et celui d'après.
+    /// </summary>
+    public async Task<IssueSurUneInscription> AccorderUnPrixSpecialAsync(Compte auteur, Guid id, PrixSpecialSaisi saisie)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var inscription = await InscriptionVerrouilleeAsync(id);
+        if (inscription is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (saisie.Montant is not { } montant || montant < 0 || montant >= 1_000_000 || decimal.Round(montant, 3) != montant)
+            return RefusSurUneInscription(StatusCodes.Status400BadRequest, PrixSpecialPasValable);
+        var raison = saisie.Raison?.Trim() ?? "";
+        if (raison.Length == 0)
+            return RefusSurUneInscription(StatusCodes.Status400BadRequest, RaisonDuPrixSpecialObligatoire);
+        if (raison.Length > LongueurMaximaleDUneRaison)
+            return RefusSurUneInscription(StatusCodes.Status400BadRequest, RaisonTropLongue);
+
+        var avant = (await DecrireAsync([inscription]))[0];
+        journal.Noter(auteur, ActionDuJournal.PrixSpecialAccorde, Couper($"{await QuiEtOuAsync(inscription)} · {raison}"),
+            EcrireLePrix(avant.Groupe.Type, avant.PrixSpecial ?? avant.PrixNormal), EcrireLePrix(avant.Groupe.Type, montant));
+        inscription.AccorderUnPrixSpecial(montant, raison);
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>ELV-05 : le propriétaire retire le prix spécial ; le prix normal revient pour ce qui n'est pas payé.</summary>
+    public async Task<IssueSurUneInscription> RetirerLePrixSpecialAsync(Compte auteur, Guid id)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var inscription = await InscriptionVerrouilleeAsync(id);
+        if (inscription is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (inscription.PrixSpecial is not { } special)
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, SansPrixSpecial);
+
+        var avant = (await DecrireAsync([inscription]))[0];
+        journal.Noter(auteur, ActionDuJournal.PrixSpecialRetire, Couper(await QuiEtOuAsync(inscription)),
+            EcrireLePrix(avant.Groupe.Type, special), EcrireLePrix(avant.Groupe.Type, avant.PrixNormal));
+        inscription.RetirerLePrixSpecial();
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// ELV-06 : le propriétaire dispense l'élève de l'assurance de l'année, avec une raison ; elle n'est plus due.
+    /// L'année suivante a sa propre assurance. La dispense va au journal.
+    /// </summary>
+    public async Task<IssueSurUneAssurance> DispenserAsync(Compte auteur, Guid eleveId, RaisonSaisie saisie)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var eleve = await EleveVerrouilleAsync(eleveId);
+        if (eleve is null)
+            return new IssueSurUneAssurance(null, StatusCodes.Status404NotFound, EleveIntrouvable);
+        if (await AssuranceEnCoursAsync(eleveId) is not { } enCours)
+            return new IssueSurUneAssurance(null, StatusCodes.Status404NotFound, AucuneAssurance);
+        if (enCours.Decrite.Etat == EtatDispensee)
+            return new IssueSurUneAssurance(null, StatusCodes.Status409Conflict, AssuranceDejaDispensee);
+        if (enCours.Decrite.Etat != EtatAPayer)
+            return new IssueSurUneAssurance(null, StatusCodes.Status409Conflict, AssuranceDejaPayee);
+        var raison = saisie.Raison?.Trim() ?? "";
+        if (raison.Length == 0)
+            return new IssueSurUneAssurance(null, StatusCodes.Status400BadRequest, RaisonDeLaDispenseObligatoire);
+        if (raison.Length > LongueurMaximaleDUneRaison)
+            return new IssueSurUneAssurance(null, StatusCodes.Status400BadRequest, RaisonTropLongue);
+
+        journal.Noter(auteur, ActionDuJournal.AssuranceDispensee,
+            Couper($"{eleve.Prenom} {eleve.Nom} · Assurance {enCours.Decrite.Annee} · {raison}"), "À payer", "Dispensée");
+        enCours.Assurance.Dispenser(DateDeTunis.Aujourdhui(temps), raison);
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneAssurance((await AssuranceEnCoursAsync(eleveId))!.Value.Decrite, StatusCodes.Status200OK, null);
+    }
+
+    private const string EtatAPayer = "APayer";
+    private const string EtatPayeeAvantSchoolHub = "PayeeAvantSchoolHub";
+    private const string EtatDispensee = "Dispensee";
+
+    /// <summary>
+    /// L'assurance de l'élève pour l'année scolaire du centre (la plus récente), et ce que la fiche en montre : due à la
+    /// plus ancienne première séance de ses inscriptions en Étude de cette année ; à payer, payée avant SchoolHub, ou
+    /// dispensée. <c>null</c> quand elle est sans objet.
+    /// </summary>
+    private async Task<(AssuranceDeLAnnee Assurance, AssuranceDeLEleve Decrite)?> AssuranceEnCoursAsync(Guid eleveId)
+    {
+        var annee = await contexte.AnneesScolaires.OrderByDescending(a => a.Debut).FirstOrDefaultAsync();
+        if (annee is null)
+            return null;
+        var assurance = await contexte.Assurances.SingleOrDefaultAsync(a => a.EleveId == eleveId && a.AnneeScolaireId == annee.Id);
+        if (assurance is null)
+            return null;
+
+        var reglee = await contexte.Reglements.AnyAsync(r => r.AssuranceId == assurance.Id);
+        var etat = assurance.DispenseeLe is not null ? EtatDispensee : reglee ? EtatPayeeAvantSchoolHub : EtatAPayer;
+        var dueLe = await PremiereSeanceDEtudeAsync(eleveId, annee.Id);
+        return (assurance, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee), assurance.Montant, dueLe, etat, assurance.RaisonDeLaDispense));
+    }
+
+    /// <summary>« 40,000 TND par Mois » pour une Étude, « 100,000 TND » sinon : le prix comme le journal l'écrit.</summary>
+    private static string EcrireLePrix(string type, decimal montant) =>
+        type == nameof(TypeDeGroupe.Etude) ? $"{SaisieDuGroupe.EcrireUnMontant(montant)} TND par Mois" : $"{SaisieDuGroupe.EcrireUnMontant(montant)} TND";
+
+    /// <summary>« Adem Miled · Groupe Samedi 10h → 12h (Mathématiques) » : l'élève et le groupe d'une ligne du journal.</summary>
+    private async Task<string> QuiEtOuAsync(Inscription inscription)
+    {
+        var eleve = await contexte.Eleves.SingleAsync(e => e.Id == inscription.EleveId);
+        var groupe = await contexte.Groupes.SingleAsync(g => g.Id == inscription.GroupeId);
+        var matiere = await contexte.Matieres.SingleAsync(m => m.Id == groupe.MatiereId);
+        return $"{eleve.Prenom} {eleve.Nom} · {groupe.Nom} ({matiere.Nom})";
+    }
+
+    /// <summary>Un nom, un groupe et une raison à leur plus long dépasseraient la colonne du détail : il est coupé.</summary>
+    private static string Couper(string detail) => detail.Length > LongueurMaximaleDuDetail ? detail[..LongueurMaximaleDuDetail] : detail;
+
+    /// <summary>
+    /// L'inscription de ce centre, la ligne de son élève verrouillée jusqu'à la fin de la transaction : deux actions sur le
+    /// même élève, venues de deux onglets, passent l'une après l'autre.
+    /// </summary>
+    private async Task<Inscription?> InscriptionVerrouilleeAsync(Guid id)
+    {
+        var inscription = await contexte.Inscriptions.SingleOrDefaultAsync(i => i.Id == id);
+        if (inscription is null)
+            return null;
+        await EleveVerrouilleAsync(inscription.EleveId);
+        // Relue après le verrou : une action passée entre-temps est vue.
+        await contexte.Entry(inscription).ReloadAsync();
+        return inscription;
+    }
+
+    /// <summary>L'élève de ce centre, sa ligne verrouillée jusqu'à la fin de la transaction ; <c>null</c> s'il n'y est pas.</summary>
+    private async Task<Eleve?> EleveVerrouilleAsync(Guid eleveId)
+    {
+        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM eleves WHERE id = {eleveId} AND centre_id = {CentreId} FOR NO KEY UPDATE");
+        return await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == eleveId);
+    }
+
+    private static IssueSurUneInscription RefusSurUneInscription(int statut, string message) => new(null, statut, message);
 
     /// <summary>
     /// L'assurance à payer à la première séance de cette inscription en Étude. La première inscription en Étude d'une
@@ -249,30 +425,54 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             + $"À bientôt. {signature}";
     }
 
-    /// <summary>Les inscriptions telles que les pages les montrent, avec leur élève, leur groupe et leur première séance.</summary>
-    private async Task<List<InscriptionDeLEleve>> DecrireAsync(IReadOnlyCollection<Inscription> inscriptions)
+    /// <summary>Une inscription, son groupe et ses sommes dues : prix spécial, règlements et reste regroupé compris.</summary>
+    private sealed record Echeance(Inscription Inscription, Groupe Groupe, IReadOnlyList<Seance> Seances, IReadOnlyList<SommeDue> Sommes,
+        IReadOnlyDictionary<string, OrigineDuReglement> Origines);
+
+    private async Task<List<Echeance>> EcheancesAsync(IReadOnlyCollection<Inscription> inscriptions)
     {
-        var eleveIds = inscriptions.Select(i => i.EleveId).Distinct().ToList();
+        var inscriptionIds = inscriptions.Select(i => (Guid?)i.Id).ToList();
         var groupeIds = inscriptions.Select(i => i.GroupeId).Distinct().ToList();
-        var eleves = await contexte.Eleves.Where(e => eleveIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id);
         var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
-        var professeurIds = groupes.Values.Select(g => g.ProfesseurId).Distinct().ToList();
-        var matiereIds = groupes.Values.Select(g => g.MatiereId).Distinct().ToList();
-        var professeurs = await contexte.Professeurs.Where(p => professeurIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
-        var matieres = await contexte.Matieres.Where(m => matiereIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, m => m.Nom);
         var seances = (await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).ToListAsync())
             .GroupBy(s => s.GroupeId)
             .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id).ToList());
-        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var reglements = (await contexte.Reglements.Where(r => inscriptionIds.Contains(r.InscriptionId)).ToListAsync())
+            .ToLookup(r => r.InscriptionId!.Value);
 
         return inscriptions.Select(i =>
         {
-            var eleve = eleves[i.EleveId];
             var groupe = groupes[i.GroupeId];
             var duGroupe = seances.GetValueOrDefault(i.GroupeId) ?? [];
-            var premiere = duGroupe.FirstOrDefault(s => s.Date >= i.DebutLe);
+            var regles = reglements[i.Id].ToList();
+            var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe);
+            return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(Calendrier(groupe, duGroupe), conditions),
+                regles.ToDictionary(r => r.Cle, r => r.Origine));
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Les inscriptions telles que les pages les montrent, avec leur élève, leur groupe, leur première séance, leur prix
+    /// spécial et ce qui est réglé.
+    /// </summary>
+    private async Task<List<InscriptionDeLEleve>> DecrireAsync(IReadOnlyCollection<Inscription> inscriptions)
+    {
+        var eleveIds = inscriptions.Select(i => i.EleveId).Distinct().ToList();
+        var echeances = await EcheancesAsync(inscriptions);
+        var eleves = await contexte.Eleves.Where(e => eleveIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id);
+        var professeurIds = echeances.Select(e => e.Groupe.ProfesseurId).Distinct().ToList();
+        var matiereIds = echeances.Select(e => e.Groupe.MatiereId).Distinct().ToList();
+        var professeurs = await contexte.Professeurs.Where(p => professeurIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
+        var matieres = await contexte.Matieres.Where(m => matiereIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+
+        return echeances.Select(e =>
+        {
+            var (i, groupe) = (e.Inscription, e.Groupe);
+            var eleve = eleves[i.EleveId];
+            var premiere = e.Seances.FirstOrDefault(s => s.Date >= i.DebutLe);
             var prixNormal = groupe.Type == TypeDeGroupe.Etude
-                ? CalendrierDuGroupe.PrixDuMois(groupe.Prix, GroupesDuCentre.PremierMoisAVenir(groupe, duGroupe, aujourdhui))
+                ? CalendrierDuGroupe.PrixDuMois(groupe.Prix, GroupesDuCentre.PremierMoisAVenir(groupe, e.Seances, aujourdhui))
                 : groupe.PrixTotal!.Value;
             return new InscriptionDeLEleve(
                 i.Id,
@@ -282,7 +482,12 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 i.Mode.ToString(),
                 prixNormal,
                 groupe.Tranches.Count,
-                premiere is null ? null : new SeanceDeDebut(premiere.Date, premiere.Debut));
+                premiere is null ? null : new SeanceDeDebut(premiere.Date, premiere.Debut),
+                i.PrixSpecial,
+                i.RaisonDuPrixSpecial,
+                e.Sommes.Where(s => s.Reglee).Select(s => new SommeReglee(s.Libelle, s.Montant, e.Origines[s.Cle].ToString())).ToList(),
+                [],
+                false);
         }).ToList();
     }
 
@@ -307,6 +512,12 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
 /// <summary>Ce qu'une inscription a donné : l'enregistrement et le statut HTTP, ou un refus (statut et message).</summary>
 public sealed record IssueDInscription(EnregistrementDeLInscription? Enregistrement, int Statut, string? Message);
+
+/// <summary>Ce qu'une action sur une inscription a donné : l'inscription et le statut HTTP, ou un refus.</summary>
+public sealed record IssueSurUneInscription(InscriptionDeLEleve? Inscription, int Statut, string? Message);
+
+/// <summary>Ce qu'une action sur l'assurance a donné : l'assurance et le statut HTTP, ou un refus.</summary>
+public sealed record IssueSurUneAssurance(AssuranceDeLEleve? Assurance, int Statut, string? Message);
 
 /// <summary>Une liste d'inscriptions, ou un refus (statut et message).</summary>
 public sealed record IssueDesInscriptions(List<InscriptionDeLEleve>? Liste, int Statut, string? Message);

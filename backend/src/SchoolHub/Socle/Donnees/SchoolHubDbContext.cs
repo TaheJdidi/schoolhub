@@ -44,6 +44,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
 
     public DbSet<AssuranceDeLAnnee> Assurances => Set<AssuranceDeLAnnee>();
 
+    public DbSet<Reglement> Reglements => Set<Reglement>();
+
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;
 

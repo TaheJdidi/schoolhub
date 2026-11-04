@@ -36,6 +36,29 @@ public sealed class Inscription : IAppartientAuCentre
     public DateOnly DebutLe { get; private set; }
 
     public DateTimeOffset InscritLe { get; private set; }
+
+    /// <summary>ELV-05 : le prix qui remplace le prix normal pour ce qui n'est pas payé ; 0 : gratuit.</summary>
+    public decimal? PrixSpecial { get; private set; }
+
+    public string? RaisonDuPrixSpecial { get; private set; }
+
+    /// <summary>ELV-10 : le jour où les tranches à venir d'une Formation sont devenues une seule somme, due ce jour-là.</summary>
+    public DateOnly? ResteRegroupeLe { get; private set; }
+
+    /// <summary>Le prix spécial et sa raison, déjà vérifiés.</summary>
+    public void AccorderUnPrixSpecial(decimal montant, string raison)
+    {
+        PrixSpecial = montant;
+        RaisonDuPrixSpecial = raison;
+    }
+
+    public void RetirerLePrixSpecial()
+    {
+        PrixSpecial = null;
+        RaisonDuPrixSpecial = null;
+    }
+
+    public void RegrouperLeReste(DateOnly aujourdhui) => ResteRegroupeLe = aujourdhui;
 }
 
 /// <summary>
@@ -61,6 +84,18 @@ public sealed class AssuranceDeLAnnee : IAppartientAuCentre
 
     public decimal Montant { get; private set; }
 
+    /// <summary>ELV-06 : le jour où le propriétaire l'a dispensée ; elle n'est plus due.</summary>
+    public DateOnly? DispenseeLe { get; private set; }
+
+    public string? RaisonDeLaDispense { get; private set; }
+
+    /// <summary>La dispense et sa raison, déjà vérifiées.</summary>
+    public void Dispenser(DateOnly aujourdhui, string raison)
+    {
+        DispenseeLe = aujourdhui;
+        RaisonDeLaDispense = raison;
+    }
+
     /// <summary>« Assurance 2027-2028 ».</summary>
     public static string Libelle(AnneeScolaire annee) => $"Assurance {Annee(annee)}";
 
@@ -75,6 +110,8 @@ internal sealed class InscriptionConfiguration : IEntityTypeConfiguration<Inscri
         // La clé étrangère vers le centre et le filtre par centre viennent de SchoolHubDbContext.
         inscription.ToTable("inscriptions");
         inscription.Property(i => i.Mode).HasConversion<string>().HasMaxLength(20);
+        inscription.Property(i => i.PrixSpecial).HasPrecision(12, 3);
+        inscription.Property(i => i.RaisonDuPrixSpecial).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
         inscription.HasOne<Eleve>().WithMany().HasForeignKey(i => i.EleveId).OnDelete(DeleteBehavior.Restrict);
         inscription.HasOne<Groupe>().WithMany().HasForeignKey(i => i.GroupeId).OnDelete(DeleteBehavior.Restrict);
         // Un élève n'est inscrit qu'une fois dans un groupe ; l'arrêt (ELV-08) rendra la réinscription possible.
@@ -90,6 +127,7 @@ internal sealed class AssuranceDeLAnneeConfiguration : IEntityTypeConfiguration<
         // La clé étrangère vers le centre et le filtre par centre viennent de SchoolHubDbContext.
         assurance.ToTable("assurances");
         assurance.Property(a => a.Montant).HasPrecision(12, 3);
+        assurance.Property(a => a.RaisonDeLaDispense).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
         assurance.HasOne<Eleve>().WithMany().HasForeignKey(a => a.EleveId).OnDelete(DeleteBehavior.Restrict);
         assurance.HasOne<AnneeScolaire>().WithMany().HasForeignKey(a => a.AnneeScolaireId).OnDelete(DeleteBehavior.Restrict);
         assurance.HasIndex(a => new { a.EleveId, a.AnneeScolaireId }).IsUnique();

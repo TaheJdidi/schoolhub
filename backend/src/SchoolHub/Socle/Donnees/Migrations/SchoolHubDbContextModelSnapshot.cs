@@ -356,6 +356,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
 
+                    b.Property<DateOnly?>("DispenseeLe")
+                        .HasColumnType("date")
+                        .HasColumnName("dispensee_le");
+
                     b.Property<Guid>("EleveId")
                         .HasColumnType("uuid")
                         .HasColumnName("eleve_id");
@@ -364,6 +368,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasPrecision(12, 3)
                         .HasColumnType("numeric(12,3)")
                         .HasColumnName("montant");
+
+                    b.Property<string>("RaisonDeLaDispense")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("raison_de_la_dispense");
 
                     b.HasKey("Id")
                         .HasName("pk_assurances");
@@ -414,6 +423,20 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("mode");
 
+                    b.Property<decimal?>("PrixSpecial")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("prix_special");
+
+                    b.Property<string>("RaisonDuPrixSpecial")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("raison_du_prix_special");
+
+                    b.Property<DateOnly?>("ResteRegroupeLe")
+                        .HasColumnType("date")
+                        .HasColumnName("reste_regroupe_le");
+
                     b.HasKey("Id")
                         .HasName("pk_inscriptions");
 
@@ -428,6 +451,75 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasDatabaseName("ix_inscriptions_eleve_id_groupe_id");
 
                     b.ToTable("inscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.Reglement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssuranceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assurance_id");
+
+                    b.Property<Guid>("AuteurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auteur_id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Cle")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("cle");
+
+                    b.Property<Guid?>("InscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inscription_id");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.Property<string>("Origine")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origine");
+
+                    b.Property<DateTimeOffset>("RegleLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("regle_le");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reglements");
+
+                    b.HasIndex("AssuranceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_reglements_assurance_id")
+                        .HasFilter("assurance_id IS NOT NULL");
+
+                    b.HasIndex("AuteurId")
+                        .HasDatabaseName("ix_reglements_auteur_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_reglements_centre_id");
+
+                    b.HasIndex("InscriptionId", "Cle")
+                        .IsUnique()
+                        .HasDatabaseName("ix_reglements_inscription_id_cle")
+                        .HasFilter("inscription_id IS NOT NULL");
+
+                    b.ToTable("reglements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_reglements_une_somme", "(inscription_id IS NULL) <> (assurance_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>
@@ -1039,6 +1131,35 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_inscriptions_groupes_groupe_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Inscriptions.Reglement", b =>
+                {
+                    b.HasOne("SchoolHub.Modules.Inscriptions.AssuranceDeLAnnee", null)
+                        .WithMany()
+                        .HasForeignKey("AssuranceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reglements_assurances_assurance_id");
+
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AuteurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_reglements_asp_net_users_auteur_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_reglements_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Inscriptions.Inscription", null)
+                        .WithMany()
+                        .HasForeignKey("InscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reglements_inscriptions_inscription_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>

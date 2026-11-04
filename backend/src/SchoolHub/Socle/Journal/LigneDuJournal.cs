@@ -62,6 +62,10 @@ public enum ActionDuJournal
     CompteDesactive,
     CompteReactive,
     GroupeFerme,
+    PrixSpecialAccorde,
+    PrixSpecialRetire,
+    AssuranceDispensee,
+    PayeAvantSchoolHub,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

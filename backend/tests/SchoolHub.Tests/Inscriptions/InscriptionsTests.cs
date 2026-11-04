@@ -412,7 +412,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
 
         var assurance = await _client.GetFromJsonAsync<AssuranceDeLEleve>($"/api/eleves/{_adem}/assurance");
 
-        Assert.Equal(new AssuranceDeLEleve("2027-2028", 20m, DeuxiemeSeanceDuMois3), assurance);
+        Assert.Equal(new AssuranceDeLEleve("2027-2028", 20m, DeuxiemeSeanceDuMois3, "APayer", null), assurance);
     }
 
     [Fact]
