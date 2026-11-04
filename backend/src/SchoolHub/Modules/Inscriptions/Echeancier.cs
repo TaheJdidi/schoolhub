@@ -43,14 +43,17 @@ public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateO
 
 /// <summary>
 /// Ce que l'inscription ajoute au calendrier du groupe : son mode, sa première séance, son prix spécial (ELV-05), ses
-/// règlements par clé, et la date où la secrétaire a regroupé le reste d'une Formation (ELV-10).
+/// règlements par clé, la date où la secrétaire a regroupé le reste d'une Formation (ELV-10), le dernier jour compté
+/// d'une inscription arrêtée (ELV-08), et le report venu d'un ancien groupe (ELV-09).
 /// </summary>
 public sealed record ConditionsDeLInscription(
     ModeDeTarification Mode,
     DateOnly DebutLe,
     decimal? PrixSpecial = null,
     IReadOnlyDictionary<string, decimal>? Reglements = null,
-    DateOnly? ResteRegroupeLe = null);
+    DateOnly? ResteRegroupeLe = null,
+    DateOnly? ArreteLe = null,
+    decimal Report = 0m);
 
 /// <summary>
 /// ELV-03 : toutes les sommes qu'une inscription doit, depuis la première séance de l'élève, sans base de données.
@@ -103,13 +106,59 @@ public static class Echeancier
             _ => EnTranches(groupe, suivies, special, reglements, conditions.ResteRegroupeLe),
         };
 
-        // Une somme réglée vaut son règlement : ni un prix spécial ni un nouveau prix ne la change.
         sommes = sommes
-            .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle, Reglee = true } : somme)
+            .Select(somme => somme with { Reglee = somme.Reglee || reglements.ContainsKey(somme.Cle) })
+            // ELV-08 : après le dernier jour compté, plus rien n'est dû ; ce qui est payé reste payé, sans remboursement.
+            .Where(somme => somme.Reglee || conditions.ArreteLe is not { } arreteLe || somme.Date <= arreteLe)
+            .OrderBy(s => s.Date).ThenBy(s => s.Seance)
             .ToList();
 
-        return sommes.OrderBy(s => s.Date).ThenBy(s => s.Seance).ToList();
+        // ELV-09 : le report réduit les sommes une à une, dans l'ordre ; une somme réglée garde sa part.
+        var report = conditions.Report;
+        for (var i = 0; i < sommes.Count && report > 0; i++)
+        {
+            var part = Math.Min(sommes[i].Montant, report);
+            report -= part;
+            if (!sommes[i].Reglee)
+                sommes[i] = sommes[i] with { Montant = sommes[i].Montant - part };
+        }
+
+        // Une somme réglée vaut son règlement : ni un prix spécial, ni un nouveau prix, ni le report ne la change.
+        return sommes
+            .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle } : somme)
+            .ToList();
     }
+
+    /// <summary>
+    /// ELV-09 : la valeur des séances payées et pas suivies à partir de cette date. Pour chaque somme réglée, son montant
+    /// réglé × ses séances à cette date ou après ÷ ses séances, au millime. Une Formation compte ensemble tout ce qui est
+    /// réglé, sur toutes les séances de l'élève.
+    /// </summary>
+    public static decimal ValeurNonSuivie(CalendrierAPayer groupe, ConditionsDeLInscription conditions, DateOnly depuisLe)
+    {
+        if (Rang(groupe, conditions.DebutLe) is not { } rang)
+            return 0m;
+        var suivies = groupe.Seances.Skip(rang).Select((date, i) => new SeanceSuivie(groupe.PremiereSeance + rang + i, date)).ToList();
+        var reglees = Calculer(groupe, conditions with { ArreteLe = null }).Where(s => s.Reglee).ToList();
+
+        if (groupe.Type == TypeDeGroupe.Formation)
+            return Part(reglees.Sum(s => s.Montant), suivies, depuisLe);
+        return reglees.Sum(somme => Part(somme.Montant, SeancesDeLaSomme(somme, suivies), depuisLe));
+    }
+
+    /// <summary>Les séances qu'une somme paie : celles de son Mois, sa séance, ou toutes celles de l'élève pour la totalité.</summary>
+    private static List<SeanceSuivie> SeancesDeLaSomme(SommeDue somme, List<SeanceSuivie> suivies)
+    {
+        if (somme.Cle.StartsWith("Mois ", StringComparison.Ordinal) && int.TryParse(somme.Cle["Mois ".Length..], out var mois))
+            return suivies.Where(s => CalendrierDuGroupe.MoisDeLaSeance(s.Numero) == mois).ToList();
+        if (somme.Cle.StartsWith("Séance ", StringComparison.Ordinal) && int.TryParse(somme.Cle["Séance ".Length..], out var numero))
+            return suivies.Where(s => s.Numero == numero).ToList();
+        return suivies;
+    }
+
+    /// <summary>La part d'un montant pour ses séances à cette date ou après, au millime.</summary>
+    private static decimal Part(decimal montant, List<SeanceSuivie> seances, DateOnly depuisLe) =>
+        seances.Count == 0 ? 0m : decimal.Round(montant * seances.Count(s => s.Date >= depuisLe) / seances.Count, 3, MidpointRounding.AwayFromZero);
 
     /// <summary>
     /// ELV-10 : « Payer tout le reste » est possible pour une Formation en tranches pas encore regroupée, qui a une tranche à

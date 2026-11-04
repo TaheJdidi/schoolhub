@@ -338,4 +338,96 @@ public sealed class EcheancierTests
             new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, null, seances[1]), seances[2]));
     }
 
+    // ----- L'arrêt et le report (ELV-08, ELV-09) -----
+
+    [Fact]
+    public void L_exemple_de_l_arret()
+    {
+        // ELV-08 : le Mois 5 a commencé (séance 17) ; l'arrêt tombe 10 jours plus tard : le Mois 5 reste dû en entier, le Mois 6 ne l'est plus.
+        var seances = Samedis(24);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], ArreteLe: seances[16].AddDays(10)));
+
+        Assert.Equal(["Mois 1", "Mois 2", "Mois 3", "Mois 4", "Mois 5"], sommes.Select(s => s.Cle));
+        Assert.Equal(40m, sommes[^1].Montant);
+    }
+
+    [Fact]
+    public void Une_somme_payee_apres_l_arret_reste_reglee()
+    {
+        var seances = Samedis(24);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], null, Reglees(("Mois 6", 40m)), ArreteLe: seances[16].AddDays(10)));
+
+        Assert.Equal(("Mois 6", 40m, true), (sommes[^1].Cle, sommes[^1].Montant, sommes[^1].Reglee));
+    }
+
+    [Fact]
+    public void Un_arret_avant_la_premiere_seance()
+    {
+        var seances = Samedis(8);
+
+        Assert.Empty(Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], ArreteLe: seances[0].AddDays(-1))));
+    }
+
+    [Fact]
+    public void L_exemple_du_report()
+    {
+        // ELV-09 : Adem arrive à la 2ᵉ séance d'un Mois à 48 TND : il doit 36 TND, moins 30 TND, soit 6 TND.
+        var seances = Samedis(8);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 48m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], Report: 30m));
+
+        Assert.Equal([6m, 48m], sommes.Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Le_surplus_du_report()
+    {
+        var seances = Samedis(8);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 48m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], Report: 50m));
+
+        Assert.Equal([0m, 34m], sommes.Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Une_somme_reglee_garde_sa_part_du_report()
+    {
+        // Les 6 TND du Mois 1 sont payés : recalculer ne refait pas servir le report sur le Mois 2.
+        var seances = Samedis(8);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 48m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], null, Reglees(("Mois 1", 6m)), Report: 30m));
+
+        Assert.Equal([(6m, true), (48m, false)], sommes.Select(s => (s.Montant, s.Reglee)));
+    }
+
+    [Fact]
+    public void La_valeur_non_suivie()
+    {
+        var seances = Samedis(10);
+
+        // Le Mois 1 payé 40 TND, le changement après sa séance 1 : 3 séances sur 4, 30 TND.
+        Assert.Equal(30m, Echeancier.ValeurNonSuivie(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], null, Reglees(("Mois 1", 40m))), seances[1]));
+        // Deux séances de Révision payées d'avance, pas suivies : leur prix.
+        Assert.Equal(20m, Echeancier.ValeurNonSuivie(Revision(seances, 100m, 10),
+            new ConditionsDeLInscription(ModeDeTarification.ALaSeance, seances[3], null, Reglees(("Séance 5", 10m), ("Séance 6", 10m))), seances[4]));
+        // La totalité des séances 4 à 10 payée 70 TND, le changement à la séance 7 : 4 séances sur 7, 40 TND.
+        Assert.Equal(40m, Echeancier.ValeurNonSuivie(Revision(Samedis(7), 100m, 10, premiereSeance: 4),
+            new ConditionsDeLInscription(ModeDeTarification.EnTotalite, seances[0], null, Reglees(("Totalité", 70m))), seances[3]));
+        // Une Formation payée 300 TND en une fois, 10 séances, le changement à la séance 6 : la moitié.
+        Assert.Equal(150m, Echeancier.ValeurNonSuivie(FormationEnTranches(seances),
+            new ConditionsDeLInscription(ModeDeTarification.EnUneFois, seances[0], null, Reglees(("Une fois", 300m))), seances[5]));
+        // Rien de payé : rien à reporter.
+        Assert.Equal(0m, Echeancier.ValeurNonSuivie(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0]), seances[1]));
+    }
+
 }
