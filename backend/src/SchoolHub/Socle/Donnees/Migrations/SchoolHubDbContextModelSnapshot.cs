@@ -110,7 +110,7 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("AnneeScolaireId")
+                    b.Property<Guid?>("AnneeScolaireId")
                         .HasColumnType("uuid")
                         .HasColumnName("annee_scolaire_id");
 
@@ -139,6 +139,21 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("nom");
+
+                    b.Property<int?>("NombreDeSeances")
+                        .HasColumnType("integer")
+                        .HasColumnName("nombre_de_seances");
+
+                    b.Property<int>("PremiereSeance")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("premiere_seance");
+
+                    b.Property<decimal?>("PrixTotal")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("prix_total");
 
                     b.Property<Guid>("ProfesseurId")
                         .HasColumnType("uuid")
@@ -625,7 +640,6 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .WithMany()
                         .HasForeignKey("AnneeScolaireId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_groupes_annees_scolaires_annee_scolaire_id");
 
                     b.HasOne("SchoolHub.Socle.Centres.Centre", null)
@@ -724,9 +738,43 @@ namespace SchoolHub.Socle.Donnees.Migrations
                                 .HasConstraintName("fk_prix_des_groupes_groupes_groupe_id");
                         });
 
+                    b.OwnsMany("SchoolHub.Modules.Groupes.Tranche", "Tranches", b1 =>
+                        {
+                            b1.Property<Guid>("GroupeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("groupe_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<decimal>("Montant")
+                                .HasPrecision(12, 3)
+                                .HasColumnType("numeric(12,3)")
+                                .HasColumnName("montant");
+
+                            b1.Property<int>("Seance")
+                                .HasColumnType("integer")
+                                .HasColumnName("seance");
+
+                            b1.HasKey("GroupeId", "Id")
+                                .HasName("pk_tranches_des_groupes");
+
+                            b1.ToTable("tranches_des_groupes", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("GroupeId")
+                                .HasConstraintName("fk_tranches_des_groupes_groupes_groupe_id");
+                        });
+
                     b.Navigation("Creneaux");
 
                     b.Navigation("Prix");
+
+                    b.Navigation("Tranches");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Groupes.Matiere", b =>

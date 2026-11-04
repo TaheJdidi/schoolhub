@@ -58,7 +58,10 @@ public sealed record MatiereDuCentre(Guid Id, string Nom);
 /// <summary>Un créneau tel que la page l'envoie : « Samedi », « 10:00 », « 12:00 ».</summary>
 public sealed record CreneauSaisi(string? Jour, string? Debut, string? Fin);
 
-/// <summary>Ce que la page envoie pour créer un groupe d'Étude. Un nom vide prend le nom proposé.</summary>
+/// <summary>
+/// Ce que la page envoie pour créer un groupe. Un nom vide prend le nom proposé ; un type vide fait une Étude.
+/// Une Révision ou une Formation prend ses dates des créneaux, ou de <see cref="Dates"/> si la liste n'est pas vide.
+/// </summary>
 public sealed record CreationDUnGroupe(
     Guid? ProfesseurId,
     string? Matiere,
@@ -67,7 +70,20 @@ public sealed record CreationDUnGroupe(
     decimal? PrixDuMois,
     DateOnly? DateDeDebut,
     int? Capacite,
-    string? Nom);
+    string? Nom,
+    string? Type = null,
+    decimal? PrixTotal = null,
+    int? NombreDeSeances = null,
+    List<SeanceSaisie>? Dates = null,
+    List<TrancheSaisie>? Tranches = null,
+    int? MoisEnCours = null,
+    int? SeanceEnCours = null);
+
+/// <summary>Une séance saisie une à une : sa date et ses heures « HH:mm ».</summary>
+public sealed record SeanceSaisie(DateOnly? Date, string? Debut, string? Fin);
+
+/// <summary>Une tranche d'une Formation telle que la page l'envoie : son montant et la séance où elle est due.</summary>
+public sealed record TrancheSaisie(decimal? Montant, int? Seance);
 
 /// <summary>Ce que la page envoie pour modifier un groupe : tout ensemble. Un nom vide reprend le nom proposé.</summary>
 public sealed record ModificationDUnGroupe(string? Nom, int? Capacite, decimal? PrixDuMois);
@@ -85,7 +101,8 @@ public sealed record ResumeDuGroupe(
     string? Niveau,
     List<CreneauDuGroupe> Creneaux,
     int? Capacite,
-    int Eleves);
+    int Eleves,
+    bool Termine);
 
 /// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm », quelle que soit la langue du serveur.</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)
@@ -104,12 +121,32 @@ public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string
         new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture));
 }
 
+/// <summary>
+/// Une séance de Révision ou de Formation, avec son numéro (à partir de la première séance dans SchoolHub) et, pour une
+/// Révision, son prix.
+/// </summary>
+public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string Debut, string Fin, decimal? Prix)
+{
+    public static SeanceNumerotee De(Seance seance, int numero, IReadOnlyList<decimal>? prixDesSeances) => new(
+        seance.Id,
+        numero,
+        seance.Date,
+        seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture),
+        seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture),
+        prixDesSeances?[numero - 1]);
+}
+
+/// <summary>Une tranche d'une Formation : son montant, et la séance où elle est due.</summary>
+public sealed record TrancheDuGroupe(decimal Montant, int Seance);
+
 /// <summary>Un Mois du groupe : son numéro, son prix, s'il a commencé (sa séance 1 a eu lieu), et ses séances.</summary>
 public sealed record MoisDuGroupe(int Numero, decimal Prix, bool Commence, List<SeanceDuGroupe> Seances);
 
 /// <summary>
-/// La fiche d'un groupe. <see cref="PrixDuMois"/> est le prix du premier Mois qui n'a pas commencé : celui que
-/// le formulaire de modification propose. <see cref="Eleves"/> vaut 0 jusqu'aux inscriptions (ELV).
+/// La fiche d'un groupe. Étude : <see cref="Mois"/>, et <see cref="PrixDuMois"/>, le prix du premier Mois qui n'a pas
+/// commencé (celui que le formulaire de modification propose). Révision et Formation : <see cref="Seances"/> numérotées,
+/// <see cref="PrixTotal"/>, <see cref="NombreDeSeances"/> et, pour une Formation, <see cref="Tranches"/>.
+/// <see cref="Eleves"/> vaut 0 jusqu'aux inscriptions (ELV).
 /// </summary>
 public sealed record FicheDuGroupe(
     Guid Id,
@@ -122,5 +159,11 @@ public sealed record FicheDuGroupe(
     int? Capacite,
     int Eleves,
     DateOnly DateDeDebut,
-    decimal PrixDuMois,
-    List<MoisDuGroupe> Mois);
+    decimal? PrixDuMois,
+    List<MoisDuGroupe> Mois,
+    bool Termine,
+    int PremiereSeance,
+    decimal? PrixTotal,
+    int? NombreDeSeances,
+    List<SeanceNumerotee> Seances,
+    List<TrancheDuGroupe> Tranches);

@@ -19,9 +19,9 @@ public enum TypeDeGroupe
 }
 
 /// <summary>
-/// Un groupe (GRP-04) : un professeur, une matière, un niveau, un ou plusieurs créneaux par semaine et un prix.
-/// Ses séances sont enregistrées à part (<see cref="Seance"/>) ; ses Mois se calculent (<see cref="CalendrierDuGroupe"/>).
-/// Tous les groupes sont ouverts jusqu'à GRP-08 (fermer un groupe).
+/// Un groupe (GRP-04 à GRP-07) : un professeur, une matière, un niveau, un ou plusieurs créneaux par semaine et un prix.
+/// Ses séances sont enregistrées à part (<see cref="Seance"/>) ; leurs numéros, les Mois d'une Étude, les prix des
+/// séances d'une Révision et l'état « terminé » se calculent (<see cref="CalendrierDuGroupe"/>).
 /// </summary>
 public sealed class Groupe : IAppartientAuCentre
 {
@@ -30,6 +30,7 @@ public sealed class Groupe : IAppartientAuCentre
 
     private readonly List<Creneau> _creneaux = [];
     private readonly List<PrixDuGroupe> _prix = [];
+    private readonly List<Tranche> _tranches = [];
 
     // Pour EF Core.
     private Groupe()
@@ -43,9 +44,10 @@ public sealed class Groupe : IAppartientAuCentre
         Guid professeurId,
         Guid matiereId,
         Guid? niveauId,
-        Guid anneeScolaireId,
+        Guid? anneeScolaireId,
         int? capacite,
-        DateOnly dateDeDebut)
+        DateOnly dateDeDebut,
+        int premiereSeance)
     {
         Type = type;
         Nom = nom;
@@ -55,6 +57,7 @@ public sealed class Groupe : IAppartientAuCentre
         AnneeScolaireId = anneeScolaireId;
         Capacite = capacite;
         DateDeDebut = dateDeDebut;
+        PremiereSeance = premiereSeance;
     }
 
     public Guid Id { get; private set; } = Guid.CreateVersion7();
@@ -69,23 +72,41 @@ public sealed class Groupe : IAppartientAuCentre
 
     public Guid MatiereId { get; private set; }
 
-    /// <summary>Obligatoire pour une Étude ; une Formation n'en aura pas toujours (GRP-06).</summary>
+    /// <summary>Obligatoire pour une Étude et une Révision ; facultatif pour une Formation (GRP-06).</summary>
     public Guid? NiveauId { get; private set; }
 
-    /// <summary>L'année des séances : CEN-04 terminera les groupes de l'année qui finit.</summary>
-    public Guid AnneeScolaireId { get; private set; }
+    /// <summary>
+    /// L'année des séances : CEN-04 terminera les groupes de l'année qui finit. Obligatoire pour une Étude ; une Révision
+    /// ou une Formation garde l'année de sa première séance, s'il y en a une (une Formation peut se faire l'été).
+    /// </summary>
+    public Guid? AnneeScolaireId { get; private set; }
 
     public int? Capacite { get; private set; }
 
     public DateOnly DateDeDebut { get; private set; }
 
+    /// <summary>
+    /// Le numéro de la première séance dans SchoolHub : 1, sauf pour un groupe déjà en cours (GRP-07). « Séance 4 sur 10 »
+    /// donne 4 ; « Mois 5 » d'une Étude donne 17, la séance 1 du Mois 5.
+    /// </summary>
+    public int PremiereSeance { get; private set; } = 1;
+
+    /// <summary>Révision et Formation : le prix de toutes les séances ; vide pour une Étude.</summary>
+    public decimal? PrixTotal { get; private set; }
+
+    /// <summary>Révision et Formation : toutes les séances, celles d'avant SchoolHub comprises ; vide pour une Étude.</summary>
+    public int? NombreDeSeances { get; private set; }
+
     /// <summary>Dans l'ordre où la secrétaire les a saisis : le premier donne le nom proposé.</summary>
     public IReadOnlyList<Creneau> Creneaux => _creneaux;
 
-    /// <summary>Les prix, chacun « à partir du Mois N ».</summary>
+    /// <summary>Étude : les prix, chacun « à partir du Mois N ».</summary>
     public IReadOnlyList<PrixDuGroupe> Prix => _prix;
 
-    /// <summary>Un groupe d'Étude, déjà vérifié, au prix de son premier Mois.</summary>
+    /// <summary>Formation : les tranches, facultatives, chacune due à une séance (GRP-06).</summary>
+    public IReadOnlyList<Tranche> Tranches => _tranches;
+
+    /// <summary>Un groupe d'Étude, déjà vérifié, au prix de son premier Mois dans SchoolHub.</summary>
     internal static Groupe Etude(
         string nom,
         Guid professeurId,
@@ -95,11 +116,39 @@ public sealed class Groupe : IAppartientAuCentre
         int? capacite,
         DateOnly dateDeDebut,
         IEnumerable<Creneau> creneaux,
-        decimal prixDuMois)
+        decimal prixDuMois,
+        int premiereSeance = 1)
     {
-        var groupe = new Groupe(TypeDeGroupe.Etude, nom, professeurId, matiereId, niveauId, anneeScolaireId, capacite, dateDeDebut);
+        var groupe = new Groupe(TypeDeGroupe.Etude, nom, professeurId, matiereId, niveauId, anneeScolaireId, capacite, dateDeDebut,
+            premiereSeance);
         groupe._creneaux.AddRange(creneaux);
-        groupe._prix.Add(new PrixDuGroupe(1, prixDuMois));
+        groupe._prix.Add(new PrixDuGroupe(CalendrierDuGroupe.MoisDeLaSeance(premiereSeance), prixDuMois));
+        return groupe;
+    }
+
+    /// <summary>Une Révision ou une Formation, déjà vérifiée : son prix total, son nombre de séances et ses tranches.</summary>
+    internal static Groupe RevisionOuFormation(
+        TypeDeGroupe type,
+        string nom,
+        Guid professeurId,
+        Guid matiereId,
+        Guid? niveauId,
+        Guid? anneeScolaireId,
+        int? capacite,
+        DateOnly dateDeDebut,
+        IEnumerable<Creneau> creneaux,
+        decimal prixTotal,
+        int nombreDeSeances,
+        int premiereSeance,
+        IEnumerable<Tranche> tranches)
+    {
+        var groupe = new Groupe(type, nom, professeurId, matiereId, niveauId, anneeScolaireId, capacite, dateDeDebut, premiereSeance)
+        {
+            PrixTotal = prixTotal,
+            NombreDeSeances = nombreDeSeances,
+        };
+        groupe._creneaux.AddRange(creneaux);
+        groupe._tranches.AddRange(tranches);
         return groupe;
     }
 
@@ -169,6 +218,15 @@ public sealed class PrixDuGroupe(int aPartirDuMois, decimal montant)
     public decimal Montant { get; private set; } = montant;
 }
 
+/// <summary>Une tranche d'une Formation : un montant dû à une séance donnée, le même pour tous les élèves (GRP-06).</summary>
+public sealed class Tranche(decimal montant, int seance)
+{
+    public decimal Montant { get; private set; } = montant;
+
+    /// <summary>Le numéro de la séance où la tranche est due, de 1 au nombre de séances.</summary>
+    public int Seance { get; private set; } = seance;
+}
+
 internal sealed class GroupeConfiguration : IEntityTypeConfiguration<Groupe>
 {
     public void Configure(EntityTypeBuilder<Groupe> groupe)
@@ -177,6 +235,8 @@ internal sealed class GroupeConfiguration : IEntityTypeConfiguration<Groupe>
         groupe.ToTable("groupes");
         groupe.Property(g => g.Type).HasConversion<string>().HasMaxLength(20);
         groupe.Property(g => g.Nom).HasMaxLength(Groupe.LongueurMaximaleDuNom);
+        groupe.Property(g => g.PrixTotal).HasPrecision(12, 3);
+        groupe.Property(g => g.PremiereSeance).HasDefaultValue(1);
         groupe.HasOne<Professeur>().WithMany().HasForeignKey(g => g.ProfesseurId).OnDelete(DeleteBehavior.Restrict);
         groupe.HasOne<Matiere>().WithMany().HasForeignKey(g => g.MatiereId).OnDelete(DeleteBehavior.Restrict);
         groupe.HasOne<Niveau>().WithMany().HasForeignKey(g => g.NiveauId).OnDelete(DeleteBehavior.Restrict);
@@ -191,6 +251,11 @@ internal sealed class GroupeConfiguration : IEntityTypeConfiguration<Groupe>
         {
             prix.ToTable("prix_des_groupes");
             prix.Property(p => p.Montant).HasPrecision(12, 3);
+        });
+        groupe.OwnsMany(g => g.Tranches, tranche =>
+        {
+            tranche.ToTable("tranches_des_groupes");
+            tranche.Property(t => t.Montant).HasPrecision(12, 3);
         });
     }
 }
