@@ -40,6 +40,10 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private const string AucuneTrancheAVenir = "Il ne reste aucune tranche à venir";
     private const string DejaArretee = "Cette inscription est déjà arrêtée";
     private const string ChoisirLaDateDeLArret = "Choisissez la date de l'arrêt";
+    private const string ChoisirLeNouveauGroupe = "Choisissez le nouveau groupe";
+    private const string DejaDansCeGroupe = "L'élève est déjà dans ce groupe";
+    private const string PasLeMemeType = "Le nouveau groupe doit être du même type";
+    private const string ChangementTropTot = "Le changement vient avant sa première séance dans l'ancien groupe";
 
     public const string ChoisirLEleve = "Choisissez l'élève";
     public const string EleveIntrouvable = "Élève introuvable";
@@ -68,8 +72,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             return Refus(StatusCodes.Status400BadRequest, ChoisirLEleve);
 
         await using var transaction = await contexte.Database.BeginTransactionAsync();
-        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM eleves WHERE id = {eleveId} FOR NO KEY UPDATE");
-        var eleve = await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == eleveId);
+        var eleve = await EleveVerrouilleAsync(eleveId);
         if (eleve is null)
             return Refus(StatusCodes.Status404NotFound, EleveIntrouvable);
 
@@ -78,61 +81,147 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == groupeId);
         if (groupe is null)
             return Refus(StatusCodes.Status404NotFound, GroupeIntrouvable);
-        if (groupe.FermeLe is not null)
-            return Refus(StatusCodes.Status409Conflict, GroupeFerme);
-        var seances = await SeancesAsync(groupeId);
-        if (CalendrierDuGroupe.EstTermine(groupe.Type, seances.LastOrDefault()?.Date, DateDeTunis.Aujourdhui(temps)))
-            return Refus(StatusCodes.Status409Conflict, GroupeTermine);
-        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupeId && i.ArreteLe == null))
-            return Refus(StatusCodes.Status409Conflict, DejaInscrit);
+        var (mode, seances, refus) = await VerifierLeGroupeAsync(eleveId, groupe, demande.Mode, demande.DebutLe);
+        if (refus is not null)
+            return refus;
 
-        var modes = Echeancier.ModesPossibles(groupe.Type, groupe.Tranches.Count > 0);
-        ModeDeTarification mode;
-        if (string.IsNullOrWhiteSpace(demande.Mode))
-        {
-            if (modes.Count > 1)
-                return Refus(StatusCodes.Status400BadRequest, ChoisirLeMode);
-            mode = modes[0];
-        }
-        else if (!Enum.GetNames<ModeDeTarification>().Contains(demande.Mode.Trim())
-                 || !modes.Contains(mode = Enum.Parse<ModeDeTarification>(demande.Mode.Trim())))
-        {
-            return Refus(StatusCodes.Status400BadRequest, ModeQuiNeConvientPas);
-        }
-
-        if (demande.DebutLe is not { } debutLe)
-            return Refus(StatusCodes.Status400BadRequest, ChoisirLaPremiereSeance);
-        if (seances.All(s => s.Date != debutLe))
-            return Refus(StatusCodes.Status400BadRequest, PasDeSeanceCeJourLa);
-
-        var aujourdhui = DateDeTunis.Aujourdhui(temps);
-        var avertissement = groupe.Capacite is { } capacite
-            && await contexte.Inscriptions.CountAsync(i => i.GroupeId == groupeId && (i.ArreteLe == null || i.ArreteLe >= aujourdhui)) >= capacite
-            ? CapaciteAtteinte
-            : null;
-        var inscription = new Inscription(eleveId, groupeId, mode, debutLe, temps.GetUtcNow());
+        var debutLe = demande.DebutLe!.Value;
+        var avertissement = await AvertissementDeCapaciteAsync(groupe);
+        var inscription = new Inscription(eleveId, groupe.Id, mode, debutLe, temps.GetUtcNow());
         contexte.Inscriptions.Add(inscription);
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
         var assurance = await AssuranceALArriveeAsync(eleveId, groupe, centre, debutLe);
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
 
+        return new IssueDInscription(await EnregistrementAsync(eleve, inscription, groupe, seances, assurance, avertissement, centre),
+            StatusCodes.Status201Created, null);
+    }
+
+    /// <summary>
+    /// ELV-09 : passe l'élève dans un autre groupe du même type, à sa première séance dans le nouveau groupe. L'ancienne
+    /// inscription s'arrête la veille ; la valeur de ses séances payées et pas suivies devient le report de la nouvelle.
+    /// Le changement va au journal.
+    /// </summary>
+    public async Task<IssueDInscription> ChangerDeGroupeAsync(Compte auteur, Guid id, DemandeDeChangement demande)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var ancienne = await InscriptionVerrouilleeAsync(id);
+        if (ancienne is null)
+            return Refus(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (ancienne.ArreteLe is not null)
+            return Refus(StatusCodes.Status409Conflict, DejaArretee);
+        if (demande.GroupeId is not { } groupeId)
+            return Refus(StatusCodes.Status400BadRequest, ChoisirLeNouveauGroupe);
+        var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == groupeId);
+        if (groupe is null)
+            return Refus(StatusCodes.Status404NotFound, GroupeIntrouvable);
+        if (groupe.Id == ancienne.GroupeId)
+            return Refus(StatusCodes.Status409Conflict, DejaDansCeGroupe);
+        var ancienGroupe = await contexte.Groupes.SingleAsync(g => g.Id == ancienne.GroupeId);
+        if (groupe.Type != ancienGroupe.Type)
+            return Refus(StatusCodes.Status409Conflict, PasLeMemeType);
+        var (mode, seances, refus) = await VerifierLeGroupeAsync(ancienne.EleveId, groupe, demande.Mode, demande.DebutLe);
+        if (refus is not null)
+            return refus;
+        var debutLe = demande.DebutLe!.Value;
+        if (debutLe < ancienne.DebutLe)
+            return Refus(StatusCodes.Status400BadRequest, ChangementTropTot);
+
+        var echeance = (await EcheancesAsync([ancienne]))[0];
+        var report = Echeancier.ValeurNonSuivie(echeance.Calendrier, echeance.Conditions, debutLe);
+        var eleve = (await contexte.Eleves.SingleAsync(e => e.Id == ancienne.EleveId))!;
+        var matieres = await contexte.Matieres.Where(m => m.Id == groupe.MatiereId || m.Id == ancienGroupe.MatiereId).ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var detail = $"{eleve.Prenom} {eleve.Nom} · {ancienGroupe.Nom} ({matieres[ancienGroupe.MatiereId]}) → {groupe.Nom} ({matieres[groupe.MatiereId]})"
+            + (report > 0 ? $" · report de {SaisieDuGroupe.EcrireUnMontant(report)} TND" : "");
+        journal.Noter(auteur, ActionDuJournal.ChangementDeGroupe, Couper(detail), CouperA100(ancienGroupe.Nom),
+            CouperA100($"{groupe.Nom}, depuis le {SaisieDuGroupe.EcrireUneDate(debutLe)}"));
+
+        var avertissement = await AvertissementDeCapaciteAsync(groupe);
+        ancienne.Arreter(debutLe.AddDays(-1));
+        var inscription = new Inscription(ancienne.EleveId, groupe.Id, mode, debutLe, temps.GetUtcNow(), report);
+        contexte.Inscriptions.Add(inscription);
+        var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
+        var assurance = await AssuranceALArriveeAsync(ancienne.EleveId, groupe, centre, debutLe);
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return new IssueDInscription(await EnregistrementAsync(eleve, inscription, groupe, seances, assurance, avertissement, centre),
+            StatusCodes.Status201Created, null);
+    }
+
+    /// <summary>
+    /// Les vérifications d'une inscription dans ce groupe, dans l'ordre de la spec : fermé, terminé, déjà inscrit, le mode,
+    /// la première séance. Rend le mode et les séances du groupe, ou le premier refus.
+    /// </summary>
+    private async Task<(ModeDeTarification Mode, List<Seance> Seances, IssueDInscription? Refus)> VerifierLeGroupeAsync(
+        Guid eleveId, Groupe groupe, string? modeSaisi, DateOnly? debutLe)
+    {
+        if (groupe.FermeLe is not null)
+            return (default, [], Refus(StatusCodes.Status409Conflict, GroupeFerme));
+        var seances = await SeancesAsync(groupe.Id);
+        if (CalendrierDuGroupe.EstTermine(groupe.Type, seances.LastOrDefault()?.Date, DateDeTunis.Aujourdhui(temps)))
+            return (default, [], Refus(StatusCodes.Status409Conflict, GroupeTermine));
+        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupe.Id && i.ArreteLe == null))
+            return (default, [], Refus(StatusCodes.Status409Conflict, DejaInscrit));
+
+        var modes = Echeancier.ModesPossibles(groupe.Type, groupe.Tranches.Count > 0);
+        ModeDeTarification mode;
+        if (string.IsNullOrWhiteSpace(modeSaisi))
+        {
+            if (modes.Count > 1)
+                return (default, [], Refus(StatusCodes.Status400BadRequest, ChoisirLeMode));
+            mode = modes[0];
+        }
+        else if (!Enum.GetNames<ModeDeTarification>().Contains(modeSaisi.Trim())
+                 || !modes.Contains(mode = Enum.Parse<ModeDeTarification>(modeSaisi.Trim())))
+        {
+            return (default, [], Refus(StatusCodes.Status400BadRequest, ModeQuiNeConvientPas));
+        }
+
+        if (debutLe is not { } date)
+            return (default, [], Refus(StatusCodes.Status400BadRequest, ChoisirLaPremiereSeance));
+        if (seances.All(s => s.Date != date))
+            return (default, [], Refus(StatusCodes.Status400BadRequest, PasDeSeanceCeJourLa));
+        return (mode, seances, null);
+    }
+
+    /// <summary>« Ce groupe a atteint sa capacité… » si le groupe compte déjà autant d'élèves inscrits que sa capacité.</summary>
+    private async Task<string?> AvertissementDeCapaciteAsync(Groupe groupe)
+    {
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        return groupe.Capacite is { } capacite
+            && await contexte.Inscriptions.CountAsync(i => i.GroupeId == groupe.Id && (i.ArreteLe == null || i.ArreteLe >= aujourdhui)) >= capacite
+            ? CapaciteAtteinte
+            : null;
+    }
+
+    /// <summary>
+    /// La réponse d'une inscription ou d'un changement : l'inscription, ce qu'il paiera à sa première séance (report déduit,
+    /// assurance comprise), l'avertissement, et le message WhatsApp pour ses destinataires.
+    /// </summary>
+    private async Task<EnregistrementDeLInscription> EnregistrementAsync(
+        Eleve eleve, Inscription inscription, Groupe groupe, List<Seance> seances, SommeALArrivee? assurance, string? avertissement, Centre centre)
+    {
         var decrite = (await DecrireAsync([inscription]))[0];
         var calendrier = Calendrier(groupe, seances);
-        var premiere = Echeancier.PremiereSeance(calendrier, debutLe);
-        var aPayer = Echeancier.Calculer(calendrier, mode, debutLe)
+        var premiere = Echeancier.PremiereSeance(calendrier, inscription.DebutLe);
+        var aPayer = Echeancier.Calculer(calendrier, new ConditionsDeLInscription(inscription.Mode, inscription.DebutLe, Report: inscription.Report))
             .Where(s => s.Seance == premiere)
             .Select(s => new SommeALArrivee(s.Libelle, s.Montant))
             .ToList();
         if (assurance is not null)
             aPayer.Add(assurance);
 
-        var texte = TexteDeConfirmation(eleve, decrite, seances.First(s => s.Date == debutLe), centre);
+        var texte = TexteDeConfirmation(eleve, decrite, seances.First(s => s.Date == inscription.DebutLe), centre);
         var messages = DestinatairesDeLEleve.De(eleve)
             .Select(d => new MessageWhatsApp(d.Nom, TelephoneTunisien.Grouper(d.Chiffres), WhatsApp.Lien(d.Chiffres, texte)))
             .ToList();
-        return new IssueDInscription(new EnregistrementDeLInscription(decrite, aPayer, avertissement, texte, messages), StatusCodes.Status201Created, null);
+        return new EnregistrementDeLInscription(decrite, aPayer, avertissement, texte, messages);
     }
+
+    /// <summary>L'avant et l'après d'une ligne du journal tiennent en 100 caractères.</summary>
+    private static string CouperA100(string texte) => texte.Length > 100 ? texte[..100] : texte;
 
     /// <summary>
     /// Les inscriptions d'un élève, par nom du groupe, ou celles d'un groupe, par nom puis prénom de l'élève ; un élève ou
@@ -162,13 +251,22 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     /// Les groupes où l'on peut inscrire l'élève : ouverts et pas terminés, ceux de son niveau d'abord, puis par matière
     /// et par nom. Un groupe où il est déjà inscrit est marqué. <c>null</c> si l'élève n'est pas dans ce centre.
     /// </summary>
-    public async Task<List<GroupePossible>?> GroupesPossiblesAsync(Guid eleveId)
+    public async Task<(List<GroupePossible>? Groupes, string? Introuvable)> GroupesPossiblesAsync(Guid eleveId, Guid? depuis = null)
     {
         var eleve = await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == eleveId);
         if (eleve is null)
-            return null;
+            return (null, EleveIntrouvable);
 
         var groupes = await contexte.Groupes.Where(g => g.FermeLe == null).ToListAsync();
+        // ELV-09 : pour un changement, seulement les groupes du même type que celui de départ, sans lui.
+        if (depuis is { } inscriptionId)
+        {
+            var ancienne = await contexte.Inscriptions.SingleOrDefaultAsync(i => i.Id == inscriptionId && i.EleveId == eleveId);
+            if (ancienne is null)
+                return (null, InscriptionIntrouvable);
+            var type = (await contexte.Groupes.SingleAsync(g => g.Id == ancienne.GroupeId)).Type;
+            groupes = groupes.Where(g => g.Type == type && g.Id != ancienne.GroupeId).ToList();
+        }
         var dernieresSeances = await contexte.Seances
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
@@ -186,7 +284,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
 
-        return groupes
+        return (groupes
             .Where(g => !CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui))
             .Select(g => new GroupePossible(
                 g.Id,
@@ -203,7 +301,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             .ThenBy(g => g.Matiere)
             .ThenBy(g => g.Nom)
             .ThenBy(g => g.Id)
-            .ToList();
+            .ToList(), null);
     }
 
     /// <summary>

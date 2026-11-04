@@ -24,6 +24,7 @@ public static class InscriptionsEndpoints
         groupe.MapPost("/{id:guid}/paye-avant-schoolhub", PayeAvantSchoolHubAsync);
         groupe.MapPost("/{id:guid}/arret", async (Guid id, DateSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
             InscriptionsDuCentre inscriptions) => Repondre(await inscriptions.ArreterAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
+        groupe.MapPost("/{id:guid}/changement", ChangerDeGroupeAsync);
         groupe.MapPost("/{id:guid}/reste", async (Guid id, InscriptionsDuCentre inscriptions) => Repondre(await inscriptions.RegrouperLeResteAsync(id)));
         api.MapPost("/eleves/{id:guid}/assurance/payee-avant-schoolhub", AssurancePayeeAvantSchoolHubAsync);
         return api;
@@ -96,14 +97,26 @@ public static class InscriptionsEndpoints
 
     private static async Task<Results<Ok<List<GroupePossible>>, JsonHttpResult<Avis>>> GroupesPossiblesAsync(
         Guid? eleve,
+        Guid? depuis,
         InscriptionsDuCentre inscriptions)
     {
         if (eleve is not { } eleveId)
             return ConnexionEndpoints.Refus(StatusCodes.Status400BadRequest, InscriptionsDuCentre.ChoisirLEleve);
-        var groupes = await inscriptions.GroupesPossiblesAsync(eleveId);
-        return groupes is null
-            ? ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, InscriptionsDuCentre.EleveIntrouvable)
-            : TypedResults.Ok(groupes);
+        var (groupes, introuvable) = await inscriptions.GroupesPossiblesAsync(eleveId, depuis);
+        return groupes is null ? ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, introuvable!) : TypedResults.Ok(groupes);
+    }
+
+    private static async Task<Results<Created<EnregistrementDeLInscription>, JsonHttpResult<Avis>>> ChangerDeGroupeAsync(
+        Guid id,
+        DemandeDeChangement demande,
+        ClaimsPrincipal utilisateur,
+        UserManager<Compte> comptes,
+        InscriptionsDuCentre inscriptions)
+    {
+        var issue = await inscriptions.ChangerDeGroupeAsync(await AuteurAsync(utilisateur, comptes), id, demande);
+        return issue.Enregistrement is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Created($"/api/inscriptions/{issue.Enregistrement.Inscription.Id}", issue.Enregistrement);
     }
 
     private static async Task<Results<Ok<AssuranceDeLEleve>, NoContent, JsonHttpResult<Avis>>> AssuranceAsync(
@@ -201,6 +214,9 @@ public sealed record PrixSpecialSaisi(decimal? Montant, string? Raison);
 
 /// <summary>Une raison, pour une dispense d'assurance.</summary>
 public sealed record RaisonSaisie(string? Raison);
+
+/// <summary>ELV-09 : le nouveau groupe, son mode (s'il y a un choix) et la première séance de l'élève dans ce groupe.</summary>
+public sealed record DemandeDeChangement(Guid? GroupeId, string? Mode, DateOnly? DebutLe);
 
 /// <summary>Une date, pour l'arrêt d'une inscription (ELV-08).</summary>
 public sealed record DateSaisie(DateOnly? Date);

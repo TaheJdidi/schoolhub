@@ -149,6 +149,109 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
             HttpStatusCode.NotFound, "Inscription introuvable");
     }
 
+    // ----- Changer de groupe (ELV-09) -----
+
+    /// <summary>Une Révision déjà en cours : 100 TND en 10 séances, saisie à la séance 4, le samedi 20/11, à 10h.</summary>
+    private CreationDUnGroupe RevisionDejaEnCours => new(
+        _karim, "Physique", _neuvieme, [Samedi10h], null, DeuxiemeSeanceDuMois3, null, "",
+        Type: "Revision", PrixTotal: 100m, NombreDeSeances: 10, SeanceEnCours: 4);
+
+    /// <summary>Une autre Révision de Physique, le samedi à 14h : 100 TND en 10 séances depuis le 13/11.</summary>
+    private CreationDUnGroupe AutreRevision => new(
+        _karim, "Physique", _neuvieme, [new CreneauSaisi("Samedi", "14:00", "16:00")], null, new DateOnly(2027, 11, 13), null, "",
+        Type: "Revision", PrixTotal: 100m, NombreDeSeances: 10);
+
+    /// <summary>Adem en totalité dans la Révision déjà en cours, ses séances 4 à 10 payées avant SchoolHub (70 TND).</summary>
+    private async Task<Guid> RevisionPayeeAsync()
+    {
+        var inscription = await InscrireAsync(_adem, await GroupeAsync(RevisionDejaEnCours), "EnTotalite", DeuxiemeSeanceDuMois3);
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Totalité")));
+        return inscription;
+    }
+
+    [Fact]
+    public async Task L_exemple_du_changement()
+    {
+        // Le 11/12 (séance 7 de l'ancien groupe), Adem passe dans l'autre Révision, à sa séance 5. Les séances 7 à 10, payées
+        // et pas suivies, valent 4 × 10 = 40 TND : la totalité des séances 5 à 10 (60 TND) ne lui coûte plus que 20 TND.
+        var ancienne = await RevisionPayeeAsync();
+        var autre = await GroupeAsync(AutreRevision);
+
+        var reponse = await _client.PostAsJsonAsync($"/api/inscriptions/{ancienne}/changement",
+            new DemandeDeChangement(autre, "EnTotalite", new DateOnly(2027, 12, 11)));
+
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        var changement = (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!;
+        Assert.Equal((autre, 40m), (changement.Inscription.Groupe.Id, changement.Inscription.Report));
+        Assert.Equal([new SommeALArrivee("Totalité, séances 5 à 10", 20m)], changement.APayerALArrivee);
+        var inscriptions = (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem}"))!;
+        Assert.Equal(new DateOnly(2027, 12, 10), inscriptions.Single(i => i.Id == ancienne).ArreteLe);
+        var ligne = Assert.Single(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.ChangementDeGroupe);
+        Assert.Equal(
+            ("Adem Miled · Groupe Samedi 10h → 12h (Physique) → Groupe Samedi 14h → 16h (Physique) · report de 40,000 TND",
+                "Groupe Samedi 10h → 12h", "Groupe Samedi 14h → 16h, depuis le 11/12/2027"),
+            (ligne.Detail, ligne.Avant, ligne.Apres));
+    }
+
+    [Theory]
+    [InlineData("sans groupe", HttpStatusCode.BadRequest, "Choisissez le nouveau groupe")]
+    [InlineData("groupe inconnu", HttpStatusCode.NotFound, "Groupe introuvable")]
+    [InlineData("le même groupe", HttpStatusCode.Conflict, "L'élève est déjà dans ce groupe")]
+    [InlineData("un autre type", HttpStatusCode.Conflict, "Le nouveau groupe doit être du même type")]
+    [InlineData("sans date", HttpStatusCode.BadRequest, "Choisissez la première séance")]
+    [InlineData("date sans séance", HttpStatusCode.BadRequest, "Ce groupe n'a pas de séance ce jour-là")]
+    [InlineData("avant la première séance", HttpStatusCode.BadRequest, "Le changement vient avant sa première séance dans l'ancien groupe")]
+    [InlineData("inscription inconnue", HttpStatusCode.NotFound, "Inscription introuvable")]
+    public async Task Un_changement_incomplet_est_refuse(string cas, HttpStatusCode statut, string message)
+    {
+        var ancienne = await RevisionPayeeAsync();
+        var ancienGroupe = (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem}"))!.Single().Groupe.Id;
+        var autre = await GroupeAsync(AutreRevision);
+        var etude = await GroupeAsync(Etude);
+        var (id, demande) = cas switch
+        {
+            "sans groupe" => (ancienne, new DemandeDeChangement(null, "EnTotalite", new DateOnly(2027, 12, 11))),
+            "groupe inconnu" => (ancienne, new DemandeDeChangement(Guid.NewGuid(), "EnTotalite", new DateOnly(2027, 12, 11))),
+            "le même groupe" => (ancienne, new DemandeDeChangement(ancienGroupe, "EnTotalite", new DateOnly(2027, 12, 11))),
+            "un autre type" => (ancienne, new DemandeDeChangement(etude, null, new DateOnly(2027, 12, 11))),
+            "sans date" => (ancienne, new DemandeDeChangement(autre, "EnTotalite", null)),
+            "date sans séance" => (ancienne, new DemandeDeChangement(autre, "EnTotalite", new DateOnly(2027, 12, 12))),
+            "avant la première séance" => (ancienne, new DemandeDeChangement(autre, "EnTotalite", new DateOnly(2027, 11, 13))),
+            _ => (Guid.NewGuid(), new DemandeDeChangement(autre, "EnTotalite", new DateOnly(2027, 12, 11))),
+        };
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{id}/changement", demande), statut, message);
+    }
+
+    [Fact]
+    public async Task Deux_changements_en_meme_temps()
+    {
+        var ancienne = await RevisionPayeeAsync();
+        var demande = new DemandeDeChangement(await GroupeAsync(AutreRevision), "EnTotalite", new DateOnly(2027, 12, 11));
+        var adresse = $"/api/inscriptions/{ancienne}/changement";
+
+        var reponses = await Task.WhenAll(_client.PostAsJsonAsync(adresse, demande), _client.PostAsJsonAsync(adresse, demande));
+
+        Assert.Equal([HttpStatusCode.Created, HttpStatusCode.Conflict], reponses.Select(r => r.StatusCode).Order());
+        Assert.Equal(new Avis("Cette inscription est déjà arrêtée"),
+            await reponses.Single(r => r.StatusCode == HttpStatusCode.Conflict).Content.ReadFromJsonAsync<Avis>());
+        Assert.Equal(2, (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem}"))!.Count);
+    }
+
+    [Fact]
+    public async Task Les_groupes_possibles_d_un_changement()
+    {
+        var ancienne = await RevisionPayeeAsync();
+        var autre = await GroupeAsync(AutreRevision);
+        await GroupeAsync(Etude);
+
+        var groupes = (await _client.GetFromJsonAsync<List<GroupePossible>>($"/api/inscriptions/groupes-possibles?eleve={_adem}&depuis={ancienne}"))!;
+
+        Assert.Equal([autre], groupes.Select(g => g.Id));
+        await VerifierLeRefusAsync(await _client.GetAsync($"/api/inscriptions/groupes-possibles?eleve={_adem}&depuis={Guid.NewGuid()}"),
+            HttpStatusCode.NotFound, "Inscription introuvable");
+    }
+
     // ----- Outils -----
 
     private async Task AllerAuAsync(DateTimeOffset moment)
