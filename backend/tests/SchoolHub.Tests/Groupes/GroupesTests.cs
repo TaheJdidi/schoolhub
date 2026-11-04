@@ -402,6 +402,67 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal([(1, 40m), (6, 50m)], await PrixEnBaseAsync(groupe.Id));
     }
 
+    // ----- Les professeurs et les niveaux connaissent les groupes -----
+
+    [Fact]
+    public async Task Les_groupes_ouverts_du_professeur_sont_comptes()
+    {
+        await CreerAsync(Exemple);
+        await CreerAsync(Exemple with { Creneaux = [new CreneauSaisi("Dimanche", "08:00", "10:00")] });
+        await ProfesseurAsync(_client, "Leila", "Khelifi");
+
+        var professeurs = (await _client.GetFromJsonAsync<List<ProfesseurDuCentre>>("/api/professeurs"))!;
+
+        Assert.Equal([("Karim", 2), ("Leila", 0)], professeurs.Select(p => (p.Prenom, p.GroupesOuverts)));
+    }
+
+    [Fact]
+    public async Task Modifier_un_professeur_garde_le_compte_de_ses_groupes()
+    {
+        await CreerAsync(Exemple);
+
+        var reponse = await _client.PutAsJsonAsync($"/api/professeurs/{_karim}", new FicheDuProfesseur("Karim", "Ben Salah", "98 401 220", null));
+
+        Assert.Equal(1, (await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>())!.Professeur.GroupesOuverts);
+    }
+
+    [Fact]
+    public async Task Un_professeur_qui_a_des_groupes_ouverts_ne_part_pas()
+    {
+        await CreerAsync(Exemple);
+
+        var reponse = await _client.PostAsync($"/api/professeurs/{_karim}/depart", null);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Fermez d'abord ses groupes");
+        Assert.False((await _client.GetFromJsonAsync<List<ProfesseurDuCentre>>("/api/professeurs"))!.Single().Parti);
+    }
+
+    [Fact]
+    public async Task Un_professeur_qui_a_eu_des_groupes_ne_se_supprime_pas()
+    {
+        await CreerAsync(Exemple);
+
+        var reponse = await _client.DeleteAsync($"/api/professeurs/{_karim}");
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Ce professeur a eu des groupes : marquez-le parti");
+        Assert.Single((await _client.GetFromJsonAsync<List<ProfesseurDuCentre>>("/api/professeurs"))!);
+    }
+
+    [Fact]
+    public async Task Un_niveau_utilise_par_un_groupe_ne_se_retire_pas()
+    {
+        var sonia = await _application.CreerCompteAsync(_jasmins, "Sonia", "Mabrouk", RoleDuCompte.Proprietaire);
+        var proprietaire = await _application.ClientConnecteAsync(sonia);
+        var ajout = await proprietaire.PostAsJsonAsync("/api/niveaux", new NomDuNiveau("Université, 1ʳᵉ année"));
+        var universite = (await ajout.Content.ReadFromJsonAsync<NiveauDuCentre>())!;
+        await CreerAsync(Exemple with { NiveauId = universite.Id });
+
+        var reponse = await proprietaire.DeleteAsync($"/api/niveaux/{universite.Id}");
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Ce niveau est utilisé par un groupe ou un élève");
+        Assert.Contains(await _client.GetFromJsonAsync<List<NiveauDuCentre>>("/api/niveaux") ?? [], n => n.Id == universite.Id);
+    }
+
     // ----- Outils -----
 
     /// <summary>Avance l'horloge des tests, puis reconnecte Amira : sa session a pu expirer entre-temps.</summary>

@@ -37,7 +37,7 @@ public sealed class Professeur : IAppartientAuCentre
 
     /// <summary>
     /// Le professeur a quitté le centre : il sort de la liste des professeurs (GRP-03).
-    /// GRP-04 refusera un professeur parti dans le formulaire d'un nouveau groupe.
+    /// Un professeur parti ne reçoit pas de nouveau groupe (GRP-04).
     /// </summary>
     public bool Parti { get; private set; }
 

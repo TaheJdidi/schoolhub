@@ -19,6 +19,8 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
     private const string TelephonePasValable = "Le téléphone doit avoir 8 chiffres";
     private const string EmailPasValable = "Cet email n'est pas valable";
     private const string Introuvable = "Professeur introuvable";
+    private const string GroupesOuverts = "Fermez d'abord ses groupes";
+    private const string ADesGroupes = "Ce professeur a eu des groupes : marquez-le parti";
 
     /// <summary>Tous les professeurs, partis compris, par prénom puis par nom.</summary>
     public Task<List<Professeur>> ListerAsync() =>
@@ -54,15 +56,26 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
         return IssueSurUnProfesseur.Reussie(professeur, avertissement: avertissement);
     }
 
+    /// <summary>Le nombre de groupes ouverts de chaque professeur qui en a. Tous les groupes sont ouverts jusqu'à GRP-08.</summary>
+    public Task<Dictionary<Guid, int>> GroupesOuvertsAsync() =>
+        contexte.Groupes
+            .GroupBy(g => g.ProfesseurId)
+            .Select(g => new { ProfesseurId = g.Key, Nombre = g.Count() })
+            .ToDictionaryAsync(g => g.ProfesseurId, g => g.Nombre);
+
+    public Task<int> GroupesOuvertsAsync(Guid professeurId) => contexte.Groupes.CountAsync(g => g.ProfesseurId == professeurId);
+
     /// <summary>
-    /// Supprime une erreur de saisie. Les groupes n'existent pas encore : GRP-04 refusera de supprimer un professeur
-    /// qui a eu un groupe (« Ce professeur a eu des groupes : marquez-le parti »), sinon la clé étrangère répondrait 500.
+    /// Supprime une erreur de saisie. Un professeur qui a eu un groupe, même fermé, peut seulement partir : sinon,
+    /// la clé étrangère de ses groupes répondrait 500.
     /// </summary>
     public async Task<IssueSurUnProfesseur> SupprimerAsync(Guid id)
     {
         var (professeur, introuvable) = await TrouverAsync(id);
         if (introuvable is not null)
             return introuvable;
+        if (await contexte.Groupes.AnyAsync(g => g.ProfesseurId == id))
+            return IssueSurUnProfesseur.Refusee(StatusCodes.Status409Conflict, ADesGroupes);
 
         contexte.Professeurs.Remove(professeur!);
         await contexte.SaveChangesAsync();
@@ -70,10 +83,16 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
     }
 
     /// <summary>
-    /// Marque le professeur parti ; s'il l'est déjà, rien ne change. Les groupes n'existent pas encore : GRP-04 refusera
-    /// le départ d'un professeur qui a un groupe ouvert (409 « Fermez d'abord ses groupes »).
+    /// Marque le professeur parti ; s'il l'est déjà, rien ne change. Un professeur qui a un groupe ouvert ne part pas :
+    /// la secrétaire ferme d'abord ses groupes (GRP-08).
     /// </summary>
-    public Task<IssueSurUnProfesseur> PartirAsync(Guid id) => ChangerAsync(id, p => p.Partir());
+    public async Task<IssueSurUnProfesseur> PartirAsync(Guid id)
+    {
+        // Un professeur d'un autre centre n'a aucun groupe ici : ChangerAsync le dira introuvable.
+        if (await contexte.Groupes.AnyAsync(g => g.ProfesseurId == id))
+            return IssueSurUnProfesseur.Refusee(StatusCodes.Status409Conflict, GroupesOuverts);
+        return await ChangerAsync(id, p => p.Partir());
+    }
 
     /// <summary>« Revenir au centre » : le professeur reprend sa place dans la liste ; s'il y est déjà, rien ne change.</summary>
     public Task<IssueSurUnProfesseur> RevenirAsync(Guid id) => ChangerAsync(id, p => p.Revenir());
