@@ -33,9 +33,9 @@ public sealed class EcheancierTests
 
         Assert.Equal(
             [
-                new SommeDue("Mois 3 (3 séances)", 30.000m, 10, seances[9]),
-                new SommeDue("Mois 4", 40m, 13, seances[12]),
-                new SommeDue("Mois 5", 40m, 17, seances[16]),
+                new SommeDue("Mois 3 (3 séances)", 30.000m, 10, seances[9], "Mois 3"),
+                new SommeDue("Mois 4", 40m, 13, seances[12], "Mois 4"),
+                new SommeDue("Mois 5", 40m, 17, seances[16], "Mois 5"),
             ],
             sommes);
     }
@@ -59,7 +59,7 @@ public sealed class EcheancierTests
 
         var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]), ModeDeTarification.ParMois, seances[0]);
 
-        Assert.Equal([new SommeDue("Mois 1", 40m, 1, seances[0]), new SommeDue("Mois 2 (2 séances)", 20m, 5, seances[4])], sommes);
+        Assert.Equal([new SommeDue("Mois 1", 40m, 1, seances[0], "Mois 1"), new SommeDue("Mois 2 (2 séances)", 20m, 5, seances[4], "Mois 2")], sommes);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public sealed class EcheancierTests
 
         var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40.001m)]), ModeDeTarification.ParMois, seances[1]);
 
-        Assert.Equal([new SommeDue("Mois 1 (3 séances)", 30.001m, 2, seances[1])], sommes);
+        Assert.Equal([new SommeDue("Mois 1 (3 séances)", 30.001m, 2, seances[1], "Mois 1")], sommes);
     }
 
     // ----- Révision -----
@@ -82,16 +82,16 @@ public sealed class EcheancierTests
         var revision = Revision(seances, 100m, 10);
 
         Assert.Equal(
-            [new SommeDue("Totalité, séances 4 à 10", 70m, 4, seances[3])],
+            [new SommeDue("Totalité, séances 4 à 10", 70m, 4, seances[3], "Totalité")],
             Echeancier.Calculer(revision, ModeDeTarification.EnTotalite, seances[3]));
         Assert.Equal(
-            [new SommeDue("Totalité", 100m, 1, seances[0])],
+            [new SommeDue("Totalité", 100m, 1, seances[0], "Totalité")],
             Echeancier.Calculer(revision, ModeDeTarification.EnTotalite, seances[0]));
 
         var parSeance = Echeancier.Calculer(revision, ModeDeTarification.ALaSeance, seances[3]);
         Assert.Equal(7, parSeance.Count);
-        Assert.Equal(new SommeDue("Séance 4", 10m, 4, seances[3]), parSeance[0]);
-        Assert.Equal(new SommeDue("Séance 10", 10m, 10, seances[9]), parSeance[^1]);
+        Assert.Equal(new SommeDue("Séance 4", 10m, 4, seances[3], "Séance 4"), parSeance[0]);
+        Assert.Equal(new SommeDue("Séance 10", 10m, 10, seances[9], "Séance 10"), parSeance[^1]);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class EcheancierTests
         var seances = Samedis(3);
 
         Assert.Equal(
-            [new SommeDue("Totalité, séances 2 à 3", 33.333m, 2, seances[1])],
+            [new SommeDue("Totalité, séances 2 à 3", 33.333m, 2, seances[1], "Totalité")],
             Echeancier.Calculer(Revision(seances, 50m, 3), ModeDeTarification.EnTotalite, seances[1]));
     }
 
@@ -111,13 +111,13 @@ public sealed class EcheancierTests
         // GRP-07 : une Révision saisie à la séance 4 sur 10 n'a dans SchoolHub que ses séances 4 à 10.
         var revision = Samedis(7);
         Assert.Equal(
-            [new SommeDue("Totalité, séances 4 à 10", 70m, 4, revision[0])],
+            [new SommeDue("Totalité, séances 4 à 10", 70m, 4, revision[0], "Totalité")],
             Echeancier.Calculer(Revision(revision, 100m, 10, premiereSeance: 4), ModeDeTarification.EnTotalite, revision[0]));
 
         // Une Étude saisie au Mois 5 commence à la séance 17.
         var etude = Samedis(8);
         Assert.Equal(
-            [new SommeDue("Mois 5 (3 séances)", 30m, 18, etude[1]), new SommeDue("Mois 6", 40m, 21, etude[4])],
+            [new SommeDue("Mois 5 (3 séances)", 30m, 18, etude[1], "Mois 5"), new SommeDue("Mois 6", 40m, 21, etude[4], "Mois 6")],
             Echeancier.Calculer(Etude(etude, [new PrixDuGroupe(5, 40m)], premiereSeance: 17), ModeDeTarification.ParMois, etude[1]));
     }
 
@@ -132,13 +132,13 @@ public sealed class EcheancierTests
             [new Tranche(100m, 1), new Tranche(100m, 5), new Tranche(100m, 9)]);
 
         Assert.Equal(
-            [new SommeDue("Formation en une fois", 300m, 6, seances[5])],
+            [new SommeDue("Formation en une fois", 300m, 6, seances[5], "Une fois")],
             Echeancier.Calculer(formation, ModeDeTarification.EnUneFois, seances[5]));
         Assert.Equal(
             [
-                new SommeDue("Tranche 1", 100m, 6, seances[5]),
-                new SommeDue("Tranche 2", 100m, 6, seances[5]),
-                new SommeDue("Tranche 3", 100m, 9, seances[8]),
+                new SommeDue("Tranche 1", 100m, 6, seances[5], "Tranche 1"),
+                new SommeDue("Tranche 2", 100m, 6, seances[5], "Tranche 2"),
+                new SommeDue("Tranche 3", 100m, 9, seances[8], "Tranche 3"),
             ],
             Echeancier.Calculer(formation, ModeDeTarification.EnTranches, seances[5]));
     }
@@ -173,5 +173,124 @@ public sealed class EcheancierTests
         Assert.Equal([ModeDeTarification.ALaSeance, ModeDeTarification.EnTotalite], Echeancier.ModesPossibles(TypeDeGroupe.Revision, false));
         Assert.Equal([ModeDeTarification.EnUneFois], Echeancier.ModesPossibles(TypeDeGroupe.Formation, false));
         Assert.Equal([ModeDeTarification.EnUneFois, ModeDeTarification.EnTranches], Echeancier.ModesPossibles(TypeDeGroupe.Formation, true));
+    }
+
+    // ----- Le prix spécial, les règlements et le reste (ELV-05, ELV-07, ELV-10) -----
+
+    private static Dictionary<string, decimal> Reglees(params (string Cle, decimal Montant)[] reglements) =>
+        reglements.ToDictionary(r => r.Cle, r => r.Montant);
+
+    private static CalendrierAPayer FormationEnTranches(List<DateOnly> seances) =>
+        new(TypeDeGroupe.Formation, 1, seances, [], 300m, 10, [new Tranche(100m, 1), new Tranche(100m, 5), new Tranche(100m, 9)]);
+
+    [Fact]
+    public void Les_cles_des_sommes()
+    {
+        var seances = Samedis(10);
+
+        Assert.Equal("Mois 1", Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]), ModeDeTarification.ParMois, seances[1])[0].Cle);
+        Assert.Equal("Séance 4", Echeancier.Calculer(Revision(seances, 100m, 10), ModeDeTarification.ALaSeance, seances[3])[0].Cle);
+        Assert.Equal("Totalité", Echeancier.Calculer(Revision(seances, 100m, 10), ModeDeTarification.EnTotalite, seances[3])[0].Cle);
+        Assert.Equal("Une fois", Echeancier.Calculer(FormationEnTranches(seances), ModeDeTarification.EnUneFois, seances[0])[0].Cle);
+        Assert.Equal(["Tranche 1", "Tranche 2", "Tranche 3"],
+            Echeancier.Calculer(FormationEnTranches(seances), ModeDeTarification.EnTranches, seances[0]).Select(s => s.Cle));
+    }
+
+    [Fact]
+    public void L_exemple_du_prix_special()
+    {
+        // ELV-05 : Adem a payé les Mois 1 à 3 à 40 TND ; le propriétaire lui accorde 20 TND : les Mois suivants passent à 20 TND.
+        var seances = Samedis(20);
+        var conditions = new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], 20m,
+            Reglees(("Mois 1", 40m), ("Mois 2", 40m), ("Mois 3", 40m)));
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]), conditions);
+
+        Assert.Equal([(40m, true), (40m, true), (40m, true), (20m, false), (20m, false)], sommes.Select(s => (s.Montant, s.Reglee)));
+    }
+
+    [Fact]
+    public void Le_prix_special_ne_change_pas_ce_qui_est_regle()
+    {
+        // Le Mois 3 en cours n'est pas payé : il prend le prix spécial, comme les suivants.
+        var seances = Samedis(12);
+        var conditions = new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0], 20m, Reglees(("Mois 1", 40m), ("Mois 2", 40m)));
+
+        Assert.Equal([40m, 40m, 20m], Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]), conditions).Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Un_prix_special_nul()
+    {
+        var seances = Samedis(8);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 40m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], 0m));
+
+        Assert.Equal([0m, 0m], sommes.Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Le_prix_special_d_une_revision()
+    {
+        // 100 TND en 10 séances, prix spécial 50 TND : 5 TND la séance ; depuis la séance 4, la totalité vaut 35 TND.
+        var seances = Samedis(10);
+        var revision = Revision(seances, 100m, 10);
+
+        Assert.All(Echeancier.Calculer(revision, new ConditionsDeLInscription(ModeDeTarification.ALaSeance, seances[3], 50m)),
+            s => Assert.Equal(5m, s.Montant));
+        Assert.Equal([35m], Echeancier.Calculer(revision, new ConditionsDeLInscription(ModeDeTarification.EnTotalite, seances[3], 50m))
+            .Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Le_prix_special_d_une_formation_en_tranches()
+    {
+        // ELV-05 : 300 TND en 3 × 100 TND avec un prix spécial de 150 TND donnent 3 × 50 TND.
+        var seances = Samedis(10);
+        var formation = FormationEnTranches(seances);
+
+        Assert.Equal([50m, 50m, 50m],
+            Echeancier.Calculer(formation, new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 150m)).Select(s => s.Montant));
+        // La tranche 1 est déjà payée à 100 TND : les deux autres se partagent les 50 TND qui restent.
+        Assert.Equal([(100m, true), (25m, false), (25m, false)],
+            Echeancier.Calculer(formation, new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 150m, Reglees(("Tranche 1", 100m))))
+                .Select(s => (s.Montant, s.Reglee)));
+    }
+
+    [Fact]
+    public void Les_tranches_ne_descendent_pas_sous_zero()
+    {
+        var seances = Samedis(10);
+
+        var sommes = Echeancier.Calculer(FormationEnTranches(seances),
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 150m, Reglees(("Tranche 1", 100m), ("Tranche 2", 100m))));
+
+        Assert.Equal([100m, 100m, 0m], sommes.Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Le_reste_regroupe()
+    {
+        // ELV-10 : 3 tranches de 100 TND, la première payée ; « Payer tout le reste » le jour de la séance 3 : 200 TND ce jour-là.
+        var seances = Samedis(10);
+
+        var sommes = Echeancier.Calculer(FormationEnTranches(seances),
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, Reglees(("Tranche 1", 100m)), seances[2]));
+
+        Assert.Equal(
+            [new SommeDue("Tranche 1", 100m, 1, seances[0], "Tranche 1", true), new SommeDue("Reste de la Formation", 200m, 5, seances[2], "Reste")],
+            sommes);
+    }
+
+    [Fact]
+    public void Le_reste_prend_le_prix_special()
+    {
+        var seances = Samedis(10);
+
+        var sommes = Echeancier.Calculer(FormationEnTranches(seances),
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 150m, Reglees(("Tranche 1", 100m)), seances[2]));
+
+        Assert.Equal([("Tranche 1", 100m), ("Reste", 50m)], sommes.Select(s => (s.Cle, s.Montant)));
     }
 }

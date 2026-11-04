@@ -34,17 +34,36 @@ public sealed record CalendrierAPayer(
     int? NombreDeSeances,
     IReadOnlyList<Tranche> Tranches);
 
-/// <summary>Une somme due par une inscription : « Mois 3 (3 séances) », 30,000 TND, due à la séance 10, le 20/11/2027.</summary>
-public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateOnly Date);
+/// <summary>
+/// Une somme due par une inscription : « Mois 3 (3 séances) », 30,000 TND, due à la séance 10, le 20/11/2027. Sa clé
+/// (« Mois 3 », « Séance 4 », « Totalité », « Une fois », « Tranche 2 », « Reste ») la désigne pour un règlement ; une
+/// somme réglée vaut le montant de son règlement.
+/// </summary>
+public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateOnly Date, string Cle = "", bool Reglee = false);
+
+/// <summary>
+/// Ce que l'inscription ajoute au calendrier du groupe : son mode, sa première séance, son prix spécial (ELV-05), ses
+/// règlements par clé, et la date où la secrétaire a regroupé le reste d'une Formation (ELV-10).
+/// </summary>
+public sealed record ConditionsDeLInscription(
+    ModeDeTarification Mode,
+    DateOnly DebutLe,
+    decimal? PrixSpecial = null,
+    IReadOnlyDictionary<string, decimal>? Reglements = null,
+    DateOnly? ResteRegroupeLe = null);
 
 /// <summary>
 /// ELV-03 : toutes les sommes qu'une inscription doit, depuis la première séance de l'élève, sans base de données.
 /// Un élève arrivé en cours de Mois paie la part des séances qu'il suit : chaque séance vaut le quart du prix du Mois,
 /// la dernière prenant la différence. En cours de Révision, il paie les séances qui restent. Une Formation se paie
 /// en entier ; une tranche dont la séance est passée est due à la première séance de l'élève.
+/// ELV-05 : un prix spécial remplace le prix normal pour chaque somme pas encore réglée ; une somme réglée garde son
+/// montant. ELV-10 : le reste regroupé d'une Formation réunit ses tranches pas réglées à venir en une somme due ce jour-là.
 /// </summary>
 public static class Echeancier
 {
+    public const string CleDuReste = "Reste";
+
     public static IReadOnlyList<ModeDeTarification> ModesPossibles(TypeDeGroupe type, bool aDesTranches) => type switch
     {
         TypeDeGroupe.Etude => [ModeDeTarification.ParMois],
@@ -56,26 +75,42 @@ public static class Echeancier
     public static int? PremiereSeance(CalendrierAPayer groupe, DateOnly debutLe) =>
         Rang(groupe, debutLe) is { } rang ? groupe.PremiereSeance + rang : null;
 
-    /// <summary>Les sommes dues, rangées par séance. Le mode doit convenir au groupe (<see cref="ModesPossibles"/>).</summary>
-    public static IReadOnlyList<SommeDue> Calculer(CalendrierAPayer groupe, ModeDeTarification mode, DateOnly debutLe)
+    /// <summary>Les sommes dues au prix normal, sans règlement : ce que l'élève doit en s'inscrivant.</summary>
+    public static IReadOnlyList<SommeDue> Calculer(CalendrierAPayer groupe, ModeDeTarification mode, DateOnly debutLe) =>
+        Calculer(groupe, new ConditionsDeLInscription(mode, debutLe));
+
+    /// <summary>Les sommes dues, rangées par date. Le mode doit convenir au groupe (<see cref="ModesPossibles"/>).</summary>
+    public static IReadOnlyList<SommeDue> Calculer(CalendrierAPayer groupe, ConditionsDeLInscription conditions)
     {
-        if (!ModesPossibles(groupe.Type, groupe.Tranches.Count > 0).Contains(mode))
-            throw new ArgumentException($"Le mode {mode} ne convient pas à ce groupe.", nameof(mode));
-        if (Rang(groupe, debutLe) is not { } rang)
+        if (!ModesPossibles(groupe.Type, groupe.Tranches.Count > 0).Contains(conditions.Mode))
+            throw new ArgumentException($"Le mode {conditions.Mode} ne convient pas à ce groupe.", nameof(conditions));
+        if (Rang(groupe, conditions.DebutLe) is not { } rang)
             return [];
 
         var suivies = groupe.Seances
             .Skip(rang)
             .Select((date, i) => new SeanceSuivie(groupe.PremiereSeance + rang + i, date))
             .ToList();
-        return mode switch
+        var reglements = conditions.Reglements ?? new Dictionary<string, decimal>();
+        var special = conditions.PrixSpecial;
+        var sommes = conditions.Mode switch
         {
-            ModeDeTarification.ParMois => ParMois(groupe, suivies),
-            ModeDeTarification.ALaSeance => ALaSeance(groupe, suivies),
-            ModeDeTarification.EnTotalite => [EnTotalite(groupe, suivies)],
-            ModeDeTarification.EnUneFois => [new SommeDue("Formation en une fois", groupe.PrixTotal!.Value, suivies[0].Numero, suivies[0].Date)],
-            _ => EnTranches(groupe, suivies),
+            ModeDeTarification.ParMois => ParMois(groupe, suivies, special),
+            ModeDeTarification.ALaSeance => ALaSeance(groupe, suivies, special),
+            ModeDeTarification.EnTotalite => [EnTotalite(groupe, suivies, special)],
+            ModeDeTarification.EnUneFois =>
+                [new SommeDue("Formation en une fois", special ?? groupe.PrixTotal!.Value, suivies[0].Numero, suivies[0].Date, "Une fois")],
+            _ => EnTranches(groupe, suivies, special, reglements),
         };
+
+        // Une somme réglée vaut son règlement : ni un prix spécial ni un nouveau prix ne la change.
+        sommes = sommes
+            .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle, Reglee = true } : somme)
+            .ToList();
+        if (conditions.Mode == ModeDeTarification.EnTranches && conditions.ResteRegroupeLe is { } regroupeLe)
+            sommes = RegrouperLeReste(sommes, regroupeLe, reglements);
+
+        return sommes.OrderBy(s => s.Date).ThenBy(s => s.Seance).ToList();
     }
 
     private sealed record SeanceSuivie(int Numero, DateOnly Date);
@@ -92,49 +127,88 @@ public static class Echeancier
         return null;
     }
 
-    private static List<SommeDue> ParMois(CalendrierAPayer groupe, List<SeanceSuivie> suivies) =>
+    private static List<SommeDue> ParMois(CalendrierAPayer groupe, List<SeanceSuivie> suivies, decimal? special) =>
         suivies
             .GroupBy(s => CalendrierDuGroupe.MoisDeLaSeance(s.Numero))
             .Select(mois =>
             {
-                var parts = CalendrierDuGroupe.PrixDesSeances(CalendrierDuGroupe.PrixDuMois(groupe.PrixDuMois, mois.Key),
-                    CalendrierDuGroupe.SeancesParMois);
+                var prix = special ?? CalendrierDuGroupe.PrixDuMois(groupe.PrixDuMois, mois.Key);
+                var parts = CalendrierDuGroupe.PrixDesSeances(prix, CalendrierDuGroupe.SeancesParMois);
                 var seances = mois.ToList();
                 var libelle = seances.Count == CalendrierDuGroupe.SeancesParMois
                     ? $"Mois {mois.Key}"
                     : $"Mois {mois.Key} ({seances.Count} {(seances.Count == 1 ? "séance" : "séances")})";
                 // La place de la séance dans son Mois donne sa part : la 4ᵉ prend la différence.
                 var montant = seances.Sum(s => parts[(s.Numero - 1) % CalendrierDuGroupe.SeancesParMois]);
-                return new SommeDue(libelle, montant, seances[0].Numero, seances[0].Date);
+                return new SommeDue(libelle, montant, seances[0].Numero, seances[0].Date, $"Mois {mois.Key}");
             })
             .ToList();
 
-    private static List<SommeDue> ALaSeance(CalendrierAPayer groupe, List<SeanceSuivie> suivies)
+    private static List<SommeDue> ALaSeance(CalendrierAPayer groupe, List<SeanceSuivie> suivies, decimal? special)
     {
-        var parts = PartsDeLaRevision(groupe);
-        return suivies.Select(s => new SommeDue($"Séance {s.Numero}", parts[s.Numero - 1], s.Numero, s.Date)).ToList();
+        var parts = PartsDeLaRevision(groupe, special);
+        return suivies.Select(s => new SommeDue($"Séance {s.Numero}", parts[s.Numero - 1], s.Numero, s.Date, $"Séance {s.Numero}")).ToList();
     }
 
-    private static SommeDue EnTotalite(CalendrierAPayer groupe, List<SeanceSuivie> suivies)
+    private static SommeDue EnTotalite(CalendrierAPayer groupe, List<SeanceSuivie> suivies, decimal? special)
     {
-        var parts = PartsDeLaRevision(groupe);
+        var parts = PartsDeLaRevision(groupe, special);
         var (premiere, derniere) = (suivies[0], suivies[^1]);
         var libelle = premiere.Numero == 1 && derniere.Numero == groupe.NombreDeSeances
             ? "Totalité"
             : $"Totalité, séances {premiere.Numero} à {derniere.Numero}";
-        return new SommeDue(libelle, suivies.Sum(s => parts[s.Numero - 1]), premiere.Numero, premiere.Date);
+        return new SommeDue(libelle, suivies.Sum(s => parts[s.Numero - 1]), premiere.Numero, premiere.Date, "Totalité");
     }
 
-    /// <summary>Le prix de chaque séance de la Révision, celles d'avant SchoolHub comprises : le total divisé par leur nombre.</summary>
-    private static IReadOnlyList<decimal> PartsDeLaRevision(CalendrierAPayer groupe) =>
-        CalendrierDuGroupe.PrixDesSeances(groupe.PrixTotal!.Value, groupe.NombreDeSeances!.Value);
+    /// <summary>
+    /// Le prix de chaque séance de la Révision, celles d'avant SchoolHub comprises : le total (ou le prix spécial)
+    /// divisé par leur nombre.
+    /// </summary>
+    private static IReadOnlyList<decimal> PartsDeLaRevision(CalendrierAPayer groupe, decimal? special) =>
+        CalendrierDuGroupe.PrixDesSeances(special ?? groupe.PrixTotal!.Value, groupe.NombreDeSeances!.Value);
 
-    private static List<SommeDue> EnTranches(CalendrierAPayer groupe, List<SeanceSuivie> suivies) =>
-        groupe.Tranches
+    /// <summary>
+    /// Chaque tranche à sa séance, ou à la première de l'élève si elle est passée. Avec un prix spécial, les tranches pas
+    /// réglées se partagent ce qui reste du prix spécial une fois retirés les règlements, sans descendre sous 0.
+    /// </summary>
+    private static List<SommeDue> EnTranches(
+        CalendrierAPayer groupe,
+        List<SeanceSuivie> suivies,
+        decimal? special,
+        IReadOnlyDictionary<string, decimal> reglements)
+    {
+        var tranches = groupe.Tranches
             .OrderBy(t => t.Seance)
-            .Select((tranche, i) => (Libelle: $"Tranche {i + 1}", tranche.Montant,
+            .Select((tranche, i) => (Cle: $"Tranche {i + 1}", tranche.Montant,
                 Seance: suivies.FirstOrDefault(s => s.Numero == Math.Max(tranche.Seance, suivies[0].Numero))))
             .Where(t => t.Seance is not null)
-            .Select(t => new SommeDue(t.Libelle, t.Montant, t.Seance!.Numero, t.Seance.Date))
             .ToList();
+        var montants = tranches.Select(t => t.Montant).ToList();
+        if (special is { } prix)
+        {
+            var aRegler = tranches.Select((t, i) => (t.Cle, Rang: i)).Where(t => !reglements.ContainsKey(t.Cle)).ToList();
+            var reste = Math.Max(0m, prix - tranches.Where(t => reglements.ContainsKey(t.Cle)).Sum(t => reglements[t.Cle]));
+            var parts = aRegler.Count == 0 ? [] : reste == 0 ? Enumerable.Repeat(0m, aRegler.Count).ToList() : CalendrierDuGroupe.PrixDesSeances(reste, aRegler.Count);
+            for (var i = 0; i < aRegler.Count; i++)
+                montants[aRegler[i].Rang] = parts[i];
+        }
+
+        return tranches.Select((t, i) => new SommeDue(t.Cle, montants[i], t.Seance!.Numero, t.Seance.Date, t.Cle)).ToList();
+    }
+
+    /// <summary>
+    /// ELV-10 : les tranches pas réglées dont la date vient après le regroupement deviennent « Reste de la Formation »,
+    /// due ce jour-là. Celles déjà dues restent à part. Pas de réduction.
+    /// </summary>
+    private static List<SommeDue> RegrouperLeReste(List<SommeDue> sommes, DateOnly regroupeLe, IReadOnlyDictionary<string, decimal> reglements)
+    {
+        var aVenir = sommes.Where(s => !s.Reglee && s.Date > regroupeLe).ToList();
+        if (aVenir.Count == 0)
+            return sommes;
+
+        var reste = new SommeDue("Reste de la Formation", aVenir.Sum(s => s.Montant), aVenir.Min(s => s.Seance), regroupeLe, CleDuReste);
+        if (reglements.TryGetValue(CleDuReste, out var regle))
+            reste = reste with { Montant = regle, Reglee = true };
+        return [.. sommes.Except(aVenir), reste];
+    }
 }
