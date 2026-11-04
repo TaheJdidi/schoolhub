@@ -38,6 +38,9 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Le nom proposé d'une Révision ou d'une Formation ? | La même règle que l'Étude : depuis le premier créneau, ou depuis la première date (« Groupe Samedi 10h → 12h »). La secrétaire le change si elle veut. |
 | Le niveau ? | Obligatoire pour une Étude et une Révision ; facultatif pour une Formation. |
 | Une création sans type ? | Elle reste une Étude, comme à l'étape 2 : l'API ne change pas pour l'Étude. |
+| Une Révision ou une Formation entièrement passée, ou datée de l'an 9999 ? | Refusée (relecture) : sans année scolaire pour les borner, une faute de frappe créerait un groupe déjà terminé, impossible à corriger, ou ferait déborder le calendrier. Un groupe déjà en cours peut avoir des séances passées, tant que sa dernière est à venir. |
+| Une tranche illisible dans la page ? | Un seul message pour la ligne : « Écrivez le montant et la séance de chaque tranche, par exemple 100,000 à la séance 1 ». |
+| Le titre de la page de création ? | « Nouveau groupe », avec un sous-titre qui suit le type choisi. |
 | « Anciens groupes » sur la fiche du professeur ? | Une partie repliée sous ses cadres, « Anciens groupes (2) », avec les mêmes cadres et la pastille « Terminé ». Le filtre par jour ne vaut que pour les groupes ouverts. |
 
 ## 1. Les données
@@ -88,6 +91,7 @@ Dans l'ordre du formulaire ; le premier refusé donne la réponse. Les règles d
 | Mois en cours (Étude, facultatif) | de 1 à 20 | « Le Mois en cours va de 1 à 20 » |
 | Dates une à une | chaque date avec ses deux heures ; la fin après le début ; pas deux séances qui se chevauchent le même jour ; autant de dates que de séances à venir | « Une séance doit avoir une date, une heure de début et une heure de fin » ; « Une séance doit finir après son début » ; « Deux séances se chevauchent » ; « Il faut une date pour chacune des 3 séances » |
 | Créneaux (R, F) | les règles de l'Étude, et la date de début obligatoire | celles de l'Étude ; « La date de début est obligatoire » |
+| Dates (R, F) | aucune à plus de 5 ans d'aujourd'hui ; la dernière séance aujourd'hui ou après (sinon le groupe naîtrait terminé, et ne se corrigerait plus) | « Une date est à plus de 5 ans d'ici : vérifiez les dates » ; « Ce groupe serait déjà terminé : vérifiez les dates » |
 | Tranches (F) | montant positif au millime ; séance de 1 au nombre de séances ; une tranche par séance au plus ; somme égale au prix total | « Une tranche doit avoir un montant positif, au millime près » ; « Une tranche est due à une séance de 1 à 10 » ; « Deux tranches tombent sur la même séance » ; « La somme des tranches fait 250,000 TND au lieu de 300,000 TND : il manque 50,000 TND » (ou « il y a 50,000 TND de trop ») |
 
 « Séances à venir » : le nombre de séances, moins celles d'avant la séance en cours (`nombreDeSeances - seanceEnCours + 1`).
@@ -144,7 +148,7 @@ Capacité · Nom                                                     [Annuler] [
 ```
 
 - Le type se choisit en haut (Étude d'office) ; changer de type garde ce qui est commun.
-- Les montants s'écrivent avec une virgule ; un montant illisible ne part pas (« Écrivez le prix total, par exemple 50,000 », « Écrivez le montant de chaque tranche, par exemple 100,000 ») ; un nombre de séances ou une séance illisible non plus (« Écrivez le nombre de séances, par exemple 10 »).
+- Les montants s'écrivent avec une virgule ; un montant illisible ne part pas (« Écrivez le prix total, par exemple 50,000 », « Écrivez le montant et la séance de chaque tranche, par exemple 100,000 à la séance 1 ») ; un nombre de séances illisible non plus (« Écrivez le nombre de séances, par exemple 10 »).
 - Un champ obligatoire vide ne part pas. Étude : le message de l'étape 2. Révision : « Remplissez le professeur, la matière, le niveau, le prix total, le nombre de séances et les dates ». Formation : « Remplissez le professeur, la matière, le prix total, le nombre de séances et les dates ». « Déjà commencé » coché sans Mois ou sans séance en cours : « Indiquez où en est le groupe ».
 - Le nom suit le premier créneau, ou la première date une à une, tant que la secrétaire ne l'a pas écrit.
 

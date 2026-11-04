@@ -339,6 +339,52 @@ public sealed class RevisionsEtFormationsTests(PostgreSqlDeTest postgreSql) : IA
         Assert.Equal(HttpStatusCode.OK, sansPrix.StatusCode);
     }
 
+    // ----- Des dates possibles (relecture) -----
+
+    [Fact]
+    public async Task Une_revision_deja_finie_est_refusee()
+    {
+        // Le 17/05/2025 au lieu du 17/05/2028 : ses trois séances seraient toutes passées.
+        var reponse = await _client.PostAsJsonAsync(Adresse, Revision with { DateDeDebut = new DateOnly(2025, 5, 17) });
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.BadRequest, "Ce groupe serait déjà terminé : vérifiez les dates");
+        Assert.Equal(0, await NombreDeGroupesAsync());
+    }
+
+    [Fact]
+    public async Task Une_formation_deja_en_cours_peut_avoir_des_seances_passees()
+    {
+        // « Séance 4 sur 10 » depuis trois semaines : ses dernières séances sont encore à venir.
+        var aujourdhui = DateOnly.FromDateTime(DateTime.UtcNow);
+        var reponse = await _client.PostAsJsonAsync(Adresse, Formation with { SeanceEnCours = 4, DateDeDebut = aujourdhui.AddDays(-21) });
+
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("creneaux")]
+    [InlineData("dates")]
+    public async Task Une_date_trop_lointaine_est_refusee(string mode)
+    {
+        var creation = mode == "creneaux"
+            ? Revision with { DateDeDebut = new DateOnly(9999, 12, 25) }
+            : Revision with
+            {
+                Creneaux = null,
+                DateDeDebut = null,
+                Dates =
+                [
+                    new SeanceSaisie(new DateOnly(2028, 5, 20), "10:00", "12:00"),
+                    new SeanceSaisie(new DateOnly(2028, 5, 27), "10:00", "12:00"),
+                    new SeanceSaisie(new DateOnly(2040, 5, 26), "10:00", "12:00"),
+                ],
+            };
+
+        var reponse = await _client.PostAsJsonAsync(Adresse, creation);
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.BadRequest, "Une date est à plus de 5 ans d'ici : vérifiez les dates");
+    }
+
     // ----- Outils -----
 
     /// <summary>Avance l'horloge des tests, puis reconnecte Amira : sa session a pu expirer entre-temps.</summary>

@@ -23,6 +23,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     private const string PrixTotalPasValable = "Le prix total doit être positif, au millime près";
     private const string NombreDeSeancesPasValable = "Le nombre de séances va de 1 à 200";
     private const string MoisEnCoursPasValable = "Le Mois en cours va de 1 à 20";
+    private const string DejaTermine = "Ce groupe serait déjà terminé : vérifiez les dates";
+    private const string TropLoin = "Une date est à plus de 5 ans d'ici : vérifiez les dates";
     private const string DateObligatoire = "La date de début est obligatoire";
     private const string SansAnneeScolaire = "Réglez d'abord l'année scolaire dans les paramètres du centre";
     private const string CapacitePasValable = "La capacité doit être d'au moins 1 place";
@@ -278,6 +280,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             return (null, Refus(StatusCodes.Status400BadRequest, $"La séance en cours va de 1 à {nombre}"));
         var premiereSeance = saisie.SeanceEnCours ?? 1;
         var seancesAVenir = nombre - premiereSeance + 1;
+        // Une Révision ou une Formation n'a pas d'année scolaire pour borner ses dates : une faute de frappe (2025 pour
+        // 2028, 9999) ne doit ni créer un groupe déjà terminé, qu'on ne pourrait plus corriger, ni déborder le calendrier.
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var auPlusTard = aujourdhui.AddYears(5);
         List<Creneau> creneaux;
         IReadOnlyList<SeancePrevue> seances;
         string nomPropose;
@@ -286,6 +292,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             var (lues, refusDesDates) = SaisieDuGroupe.LireLesDates(dates, seancesAVenir);
             if (refusDesDates is not null)
                 return (null, Refus(StatusCodes.Status400BadRequest, refusDesDates));
+            if (lues!.Any(s => s.Date > auPlusTard))
+                return (null, Refus(StatusCodes.Status400BadRequest, TropLoin));
             nomPropose = CalendrierDuGroupe.NomPropose(lues![0]);
             seances = lues.OrderBy(s => s.Date).ThenBy(s => s.Debut).ToList();
             // Les créneaux se déduisent des dates, dans l'ordre saisi : le filtre par jour et le nom proposé s'en servent.
@@ -302,10 +310,15 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
                 return (null, Refus(StatusCodes.Status400BadRequest, refusDesCreneaux));
             if (saisie.DateDeDebut is not { } dateDeDebut)
                 return (null, Refus(StatusCodes.Status400BadRequest, DateObligatoire));
+            if (dateDeDebut > auPlusTard)
+                return (null, Refus(StatusCodes.Status400BadRequest, TropLoin));
             creneaux = lus!;
             seances = CalendrierDuGroupe.SeancesEnNombre(creneaux, dateDeDebut, seancesAVenir);
             nomPropose = CalendrierDuGroupe.NomPropose(creneaux[0]);
         }
+
+        if (seances[^1].Date < aujourdhui)
+            return (null, Refus(StatusCodes.Status400BadRequest, DejaTermine));
 
         List<Tranche> tranches = [];
         if (type == TypeDeGroupe.Formation)
