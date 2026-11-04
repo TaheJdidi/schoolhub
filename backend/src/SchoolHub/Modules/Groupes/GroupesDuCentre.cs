@@ -130,8 +130,9 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     }
 
     /// <summary>
-    /// Change le nom, la capacité et le prix, avec les règles de la création. Le nouveau prix vaut à partir du premier
-    /// Mois qui n'a pas commencé ; s'il est le même que celui de ce Mois, rien n'est ajouté.
+    /// Change le nom, la capacité et, pour une Étude, le prix du Mois, avec les règles de la création. Le nouveau prix vaut
+    /// à partir du premier Mois qui n'a pas commencé ; s'il est le même que celui de ce Mois, rien n'est ajouté. Le prix
+    /// d'une Révision ou d'une Formation est fixé à la création : un prix envoyé pour elles est ignoré.
     /// </summary>
     public async Task<IssueSurUnGroupe> ModifierAsync(Guid id, ModificationDUnGroupe saisie)
     {
@@ -144,13 +145,18 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             return Refus(StatusCodes.Status400BadRequest, NomTropLong);
         if (saisie.Capacite is < 1)
             return Refus(StatusCodes.Status400BadRequest, CapacitePasValable);
-        if (!SaisieDuGroupe.MontantValable(saisie.PrixDuMois))
+        var etude = groupe.Type == TypeDeGroupe.Etude;
+        if (etude && !SaisieDuGroupe.MontantValable(saisie.PrixDuMois))
             return Refus(StatusCodes.Status400BadRequest, PrixPasValable);
 
         groupe.Modifier(nom, saisie.Capacite);
-        var premierMoisAVenir = PremierMoisAVenir(groupe, await SeancesAsync(id), DateDeTunis.Aujourdhui(temps));
-        if (CalendrierDuGroupe.PrixDuMois(groupe.Prix, premierMoisAVenir) != saisie.PrixDuMois)
-            groupe.ChangerLePrix(saisie.PrixDuMois!.Value, premierMoisAVenir);
+        if (etude)
+        {
+            var premierMoisAVenir = PremierMoisAVenir(groupe, await SeancesAsync(id), DateDeTunis.Aujourdhui(temps));
+            if (CalendrierDuGroupe.PrixDuMois(groupe.Prix, premierMoisAVenir) != saisie.PrixDuMois)
+                groupe.ChangerLePrix(saisie.PrixDuMois!.Value, premierMoisAVenir);
+        }
+
         await contexte.SaveChangesAsync();
 
         return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);

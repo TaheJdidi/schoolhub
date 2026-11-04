@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Groupes;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
+using SchoolHub.Socle.Dates;
 using SchoolHub.Socle.Donnees;
 
 namespace SchoolHub.Modules.Professeurs;
@@ -9,7 +11,7 @@ namespace SchoolHub.Modules.Professeurs;
 /// GRP-01 et GRP-03 : les professeurs du centre courant. Le filtre automatique ne montre que ceux du centre :
 /// un professeur d'un autre centre est « introuvable ». Un téléphone déjà pris prévient, sans bloquer.
 /// </summary>
-public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
+public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvider temps)
 {
     private const string PrenomObligatoire = "Le prénom est obligatoire";
     private const string PrenomTropLong = "Le prénom fait au plus 100 caractères";
@@ -19,7 +21,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
     private const string TelephonePasValable = "Le téléphone doit avoir 8 chiffres";
     private const string EmailPasValable = "Cet email n'est pas valable";
     private const string Introuvable = "Professeur introuvable";
-    private const string GroupesOuverts = "Fermez d'abord ses groupes";
+    private const string FermerSesGroupes = "Fermez d'abord ses groupes";
     private const string ADesGroupes = "Ce professeur a eu des groupes : marquez-le parti";
 
     /// <summary>Tous les professeurs, partis compris, par prénom puis par nom.</summary>
@@ -56,14 +58,28 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
         return IssueSurUnProfesseur.Reussie(professeur, avertissement: avertissement);
     }
 
-    /// <summary>Le nombre de groupes ouverts de chaque professeur qui en a. Tous les groupes sont ouverts jusqu'à GRP-08.</summary>
+    /// <summary>Le nombre de groupes ouverts de chaque professeur qui en a.</summary>
     public Task<Dictionary<Guid, int>> GroupesOuvertsAsync() =>
-        contexte.Groupes
+        GroupesOuverts()
             .GroupBy(g => g.ProfesseurId)
             .Select(g => new { ProfesseurId = g.Key, Nombre = g.Count() })
             .ToDictionaryAsync(g => g.ProfesseurId, g => g.Nombre);
 
-    public Task<int> GroupesOuvertsAsync(Guid professeurId) => contexte.Groupes.CountAsync(g => g.ProfesseurId == professeurId);
+    public Task<int> GroupesOuvertsAsync(Guid professeurId) => GroupesOuverts().CountAsync(g => g.ProfesseurId == professeurId);
+
+    /// <summary>
+    /// Les groupes qui ne sont pas terminés, la règle de <see cref="CalendrierDuGroupe.EstTermine"/> écrite pour la base :
+    /// une Étude, ou une Révision ou une Formation qui a encore une séance aujourd'hui ou après. Les groupes fermés
+    /// (GRP-08) en sortiront aussi.
+    /// </summary>
+    private IQueryable<Groupe> GroupesOuverts()
+    {
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        return contexte.Groupes.Where(g =>
+            g.Type == TypeDeGroupe.Etude
+            || !contexte.Seances.Any(s => s.GroupeId == g.Id)
+            || contexte.Seances.Any(s => s.GroupeId == g.Id && s.Date >= aujourdhui));
+    }
 
     /// <summary>
     /// Supprime une erreur de saisie. Un professeur qui a eu un groupe, même fermé, peut seulement partir : sinon,
@@ -84,13 +100,13 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte)
 
     /// <summary>
     /// Marque le professeur parti ; s'il l'est déjà, rien ne change. Un professeur qui a un groupe ouvert ne part pas :
-    /// la secrétaire ferme d'abord ses groupes (GRP-08).
+    /// la secrétaire ferme d'abord ses groupes (GRP-08). Ses groupes terminés ne le retiennent pas.
     /// </summary>
     public async Task<IssueSurUnProfesseur> PartirAsync(Guid id)
     {
         // Un professeur d'un autre centre n'a aucun groupe ici : ChangerAsync le dira introuvable.
-        if (await contexte.Groupes.AnyAsync(g => g.ProfesseurId == id))
-            return IssueSurUnProfesseur.Refusee(StatusCodes.Status409Conflict, GroupesOuverts);
+        if (await GroupesOuverts().AnyAsync(g => g.ProfesseurId == id))
+            return IssueSurUnProfesseur.Refusee(StatusCodes.Status409Conflict, FermerSesGroupes);
         return await ChangerAsync(id, p => p.Partir());
     }
 

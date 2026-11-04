@@ -295,7 +295,63 @@ public sealed class RevisionsEtFormationsTests(PostgreSqlDeTest postgreSql) : IA
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, creation), HttpStatusCode.BadRequest, message);
     }
 
+    // ----- Terminé, professeurs, modification -----
+
+    [Fact]
+    public async Task Une_revision_finie_est_terminee()
+    {
+        // Ses séances : les samedis 20/05, 27/05 et 03/06/2028.
+        var revision = await CreerAsync(Revision);
+
+        await AllerAuAsync(new DateTimeOffset(2028, 6, 3, 9, 0, 0, TimeSpan.Zero));
+        Assert.False((await LireAsync(revision.Id)).Termine);
+
+        await AllerAuAsync(new DateTimeOffset(2028, 6, 4, 9, 0, 0, TimeSpan.Zero));
+        Assert.True((await LireAsync(revision.Id)).Termine);
+        Assert.True((await _client.GetFromJsonAsync<List<ResumeDuGroupe>>(Adresse))!.Single().Termine);
+    }
+
+    [Fact]
+    public async Task Un_professeur_dont_les_groupes_sont_termines_peut_partir()
+    {
+        await CreerAsync(Revision);
+        Assert.Equal(1, (await ProfesseursAsync()).Single().GroupesOuverts);
+        Assert.Equal(HttpStatusCode.Conflict, (await _client.PostAsync($"/api/professeurs/{_karim}/depart", null)).StatusCode);
+
+        await AllerAuAsync(new DateTimeOffset(2028, 6, 4, 9, 0, 0, TimeSpan.Zero));
+
+        Assert.Equal(0, (await ProfesseursAsync()).Single().GroupesOuverts);
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsync($"/api/professeurs/{_karim}/depart", null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Modifier_une_revision_ne_touche_pas_a_son_prix()
+    {
+        var revision = await CreerAsync(Revision);
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{revision.Id}", new ModificationDUnGroupe("Révision du bac", 20, 99m));
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        var fiche = (await reponse.Content.ReadFromJsonAsync<FicheDuGroupe>())!;
+        Assert.Equal(("Révision du bac", (int?)20, (decimal?)null, (decimal?)50m), (fiche.Nom, fiche.Capacite, fiche.PrixDuMois, fiche.PrixTotal));
+        Assert.Equal([16.667m, 16.667m, 16.666m], fiche.Seances.Select(s => s.Prix));
+        var sansPrix = await _client.PutAsJsonAsync($"{Adresse}/{revision.Id}", new ModificationDUnGroupe("Révision du bac", null, null));
+        Assert.Equal(HttpStatusCode.OK, sansPrix.StatusCode);
+    }
+
     // ----- Outils -----
+
+    /// <summary>Avance l'horloge des tests, puis reconnecte Amira : sa session a pu expirer entre-temps.</summary>
+    private async Task AllerAuAsync(DateTimeOffset moment)
+    {
+        _application.Horloge.SetUtcNow(moment);
+        _client = await _application.ClientConnecteAsync(_amira);
+    }
+
+    private async Task<FicheDuGroupe> LireAsync(Guid id) => (await _client.GetFromJsonAsync<FicheDuGroupe>($"{Adresse}/{id}"))!;
+
+    private async Task<List<ProfesseurDuCentre>> ProfesseursAsync() =>
+        (await _client.GetFromJsonAsync<List<ProfesseurDuCentre>>("/api/professeurs"))!;
 
     /// <summary>Un centre avec ses niveaux d'office, et le client de sa secrétaire ; son propriétaire règle l'année scolaire.</summary>
     private async Task<(Centre Centre, HttpClient Client, Compte Secretaire)> CentreAsync(string nom, bool avecAnneeScolaire)
