@@ -84,18 +84,24 @@ export class Eleves implements OnInit {
     if (!texte) {
       this.derniere++;
       this.trouves.set(null);
+      this.erreur.set(null);
       return;
     }
     this.minuterie = setTimeout(() => this.chercher(texte), this.delai);
   }
 
+  /** Un filtre en échec vide la liste pour montrer son erreur ; le suivant qui réussit l'oublie. */
   private async chercher(recherche: string): Promise<void> {
     const numero = ++this.derniere;
     try {
       const eleves = await firstValueFrom(this.http.get<EleveTrouve[]>('/api/eleves', { params: { recherche } }));
-      if (numero === this.derniere) this.trouves.set(eleves);
+      if (numero !== this.derniere) return;
+      this.trouves.set(eleves);
+      this.erreur.set(null);
     } catch (erreur) {
-      if (numero === this.derniere) this.erreur.set(messageDErreur(erreur));
+      if (numero !== this.derniere) return;
+      this.trouves.set([]);
+      this.erreur.set(messageDErreur(erreur));
     }
   }
 }

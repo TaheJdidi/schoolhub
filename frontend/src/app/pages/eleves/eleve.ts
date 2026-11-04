@@ -48,7 +48,7 @@ export function nombreDEleves(nombre: number): string {
   return nombre === 1 ? '1 élève' : `${nombre} élèves`;
 }
 
-/** « d'Adem Miled », « de Sami Chaabane » : l'élision devant une voyelle ou un h. */
+/** « d'Adem Miled », « de Sami Chaabane » : l'élision devant une voyelle ou un h, pas devant un y (« de Yassine »). */
 export function de(nom: string): string {
-  return /^[aeiouyhàâéèêëîïôûü]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
+  return /^[aeiouhàâéèêëîïôûü]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
 }

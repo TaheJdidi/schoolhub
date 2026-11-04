@@ -112,12 +112,29 @@ public sealed class ElevesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     {
         var sansContacts = Adem with { TelephoneEleve = null, EmailEleve = null };
 
-        Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync(Adresse, sansContacts with { NiveauId = Niveau("6ᵉ année de base") })).StatusCode);
+        var enSixieme = await AjouterAsync(sansContacts with { NiveauId = Niveau("6ᵉ année de base") });
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, sansContacts with { NiveauId = Niveau("7ᵉ année de base") }),
             HttpStatusCode.BadRequest, "Le téléphone de l'élève est obligatoire à partir de la 7ᵉ année de base");
         var universite = await AjouterUnNiveauAsync("Université, 1ʳᵉ année");
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, sansContacts with { NiveauId = universite }),
             HttpStatusCode.BadRequest, "Le téléphone de l'élève est obligatoire à partir de la 7ᵉ année de base");
+
+        // L'élève de 6ᵉ passe en 7ᵉ à la rentrée : sans son téléphone, la modification est refusée.
+        await VerifierLeRefusAsync(
+            await _client.PutAsJsonAsync($"{Adresse}/{enSixieme.Eleve.Id}", sansContacts with { NiveauId = Niveau("7ᵉ année de base") }),
+            HttpStatusCode.BadRequest, "Le téléphone de l'élève est obligatoire à partir de la 7ᵉ année de base");
+    }
+
+    [Fact]
+    public async Task Un_nom_qui_s_allonge_en_normalisant_est_refuse()
+    {
+        // Chaque syllabe coréenne se décompose en 3 lettres : 100 caractères en deviennent 300 dans le nom de recherche.
+        var syllabes = string.Concat(Enumerable.Repeat("한", Eleve.LongueurMaximaleDuNom));
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, Adem with { Prenom = syllabes }),
+            HttpStatusCode.BadRequest, "Le prénom fait au plus 100 caractères");
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, Adem with { Nom = syllabes }),
+            HttpStatusCode.BadRequest, "Le nom fait au plus 100 caractères");
     }
 
     [Fact]

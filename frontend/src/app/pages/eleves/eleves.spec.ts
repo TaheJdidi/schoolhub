@@ -73,4 +73,21 @@ describe('la page « Élèves »', () => {
     saisir(page, '[aria-label="Filtrer la liste"]', '');
     await vi.waitFor(() => expect(lignes()).toHaveLength(2));
   });
+
+  it("montre l'échec d'un filtre, puis l'oublie quand le filtre suivant réussit", async () => {
+    await ouvrir([AMEL, ADEM]);
+
+    saisir(page, '[aria-label="Filtrer la liste"]', 'adem');
+    (await vi.waitFor(() => http.expectOne((r) => r.params.get('recherche') === 'adem'))).flush(null, {
+      status: 500,
+      statusText: 'Internal Server Error',
+    });
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')).not.toBeNull());
+    expect(lignes()).toHaveLength(0);
+
+    saisir(page, '[aria-label="Filtrer la liste"]', 'zz');
+    (await vi.waitFor(() => http.expectOne((r) => r.params.get('recherche') === 'zz'))).flush([]);
+    await vi.waitFor(() => expect(page.querySelector('.liste')?.textContent).toContain('Aucun élève trouvé.'));
+    expect(page.querySelector('[role="alert"]')).toBeNull();
+  });
 });

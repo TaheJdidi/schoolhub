@@ -59,6 +59,11 @@ export class PageDeLEleve implements OnInit {
     this.erreur.set(null);
     const etat = this.location.getState() as { avertissement?: string | null } | null;
     this.avertissement.set(etat?.avertissement ?? null);
+    // Lu une fois : sans cela, il reviendrait après un rechargement ou un retour en arrière, même corrigé.
+    if (etat?.avertissement !== undefined) {
+      const { avertissement: _lu, ...reste } = etat;
+      this.location.replaceState(this.location.path(), '', reste);
+    }
     try {
       const fiche = await firstValueFrom(this.http.get<FicheDeLEleve>(`/api/eleves/${id}`));
       if (this.route.snapshot.paramMap.get('id') === id) this.fiche.set(fiche);

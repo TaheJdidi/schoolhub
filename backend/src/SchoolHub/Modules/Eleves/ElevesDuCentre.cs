@@ -121,13 +121,14 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     {
         var prenom = saisie.Prenom?.Trim() ?? "";
         var nom = saisie.Nom?.Trim() ?? "";
+        // La forme sans accents peut s'allonger (une syllabe coréenne donne 3 lettres) : elle doit tenir dans sa colonne aussi.
         if (prenom.Length == 0)
             return Refus(PrenomObligatoire);
-        if (prenom.Length > Eleve.LongueurMaximaleDuNom)
+        if (prenom.Length > Eleve.LongueurMaximaleDuNom || Eleve.Normaliser(prenom).Length > Eleve.LongueurMaximaleDuNom)
             return Refus(PrenomTropLong);
         if (nom.Length == 0)
             return Refus(NomObligatoire);
-        if (nom.Length > Eleve.LongueurMaximaleDuNom)
+        if (nom.Length > Eleve.LongueurMaximaleDuNom || Eleve.Normaliser(nom).Length > Eleve.LongueurMaximaleDuNom)
             return Refus(NomTropLong);
 
         if (saisie.NiveauId is not { } niveauId)

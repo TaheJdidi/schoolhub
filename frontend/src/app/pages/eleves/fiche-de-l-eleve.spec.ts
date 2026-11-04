@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -111,6 +112,8 @@ describe('la fiche d’un élève', () => {
     await repondre(ADEM);
 
     await vi.waitFor(() => expect(page.querySelector('.note.warn')?.textContent).toContain('Doublon possible'));
+    // Lu une fois : un rechargement de la page ou un retour en arrière ne le montre plus.
+    expect((TestBed.inject(Location).getState() as { avertissement?: string } | null)?.avertissement).toBeUndefined();
   });
 
   it('supprime la fiche après confirmation', async () => {

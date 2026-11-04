@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,7 @@ public sealed class Eleve : IAppartientAuCentre
     public string NomDeRecherche { get; private set; }
 
     /// <summary>La nouvelle fiche, déjà vérifiée.</summary>
+    [MemberNotNull(nameof(Prenom), nameof(Nom), nameof(NomDeRecherche))]
     public void Modifier(Coordonnees coordonnees)
     {
         Prenom = coordonnees.Prenom;
