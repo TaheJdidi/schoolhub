@@ -13,6 +13,7 @@ import { NouvelEleve } from './pages/eleves/nouvel-eleve';
 import { Invitation } from './pages/invitation/invitation';
 import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
 import { PageDuGroupe } from './pages/groupes/page-du-groupe';
+import { PageDInscription } from './pages/inscriptions/page-d-inscription';
 import { Introuvable } from './pages/introuvable/introuvable';
 import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
@@ -66,9 +67,11 @@ export const routes: Routes = [
       ...MENU.filter((entree) => entree.chemin !== 'aujourdhui').flatMap(adressesDe),
       // Les groupes s'ouvrent sous la page Professeurs : le menu garde « Professeurs » allumé.
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
+      { path: 'professeurs/groupes/:id/inscription', component: PageDInscription, data: { depuis: 'groupe' }, title: titre('Inscription') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
       { path: 'eleves/nouveau', component: NouvelEleve, title: titre('Nouvel élève') },
+      { path: 'eleves/:id/inscription', component: PageDInscription, data: { depuis: 'eleve' }, title: titre('Inscription') },
       { path: 'eleves/:id', component: PageDeLEleve, title: titre('Élève') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },

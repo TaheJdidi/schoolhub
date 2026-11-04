@@ -130,6 +130,28 @@ describe("les adresses de l'application", () => {
     expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('une secrétaire inscrit un élève sur /eleves/e1/inscription, avec « Élèves » allumé', async () => {
+    await ouvrir('/eleves/e1/inscription', AMIRA);
+    http.expectOne('/api/eleves/e1').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
+
+    expect(titre()).toBe('Inscription · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('une secrétaire ajoute un élève à un groupe sur /professeurs/groupes/g1/inscription, avec « Professeurs » allumé', async () => {
+    await ouvrir('/professeurs/groupes/g1/inscription', AMIRA);
+    http.expectOne('/api/groupes/g1').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
+
+    expect(titre()).toBe('Inscription · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
   it('une secrétaire crée un élève sur /eleves/nouveau', async () => {
     await ouvrir('/eleves/nouveau', AMIRA);
     http.expectOne('/api/niveaux').flush([]);

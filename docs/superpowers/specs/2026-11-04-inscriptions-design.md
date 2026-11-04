@@ -93,7 +93,7 @@ Dans cet ordre ; le premier refusé donne la réponse.
 
 ## 4. Les pages
 
-**L'inscription** (`/eleves/{id}/inscription` depuis la fiche, `/groupes/{id}/inscription` depuis le groupe), titre « Inscrire Adem Miled » ou « Ajouter un élève » :
+**L'inscription** (`/eleves/{id}/inscription` depuis la fiche, `/professeurs/groupes/{id}/inscription` depuis le groupe, sous la page Professeurs comme la fiche du groupe), titre « Inscrire Adem Miled » ou « Ajouter un élève » :
 
 - depuis le groupe, la carte « L'élève » : le champ « Chercher un élève » (la recherche de l'étape 1) et les résultats à choisir ; un élève déjà inscrit est marqué « Déjà inscrit » et ne se choisit pas ;
 - depuis l'élève, la carte « Le groupe » : « Groupes de son niveau », puis « Autres groupes » ; chaque groupe montre matière et nom, professeur, type, « 12 élèves sur 15 », et « Complet » s'il l'est ; « Déjà inscrit » ne se choisit pas ; « Aucun groupe ouvert pour l'instant. » sinon ;
@@ -101,11 +101,11 @@ Dans cet ordre ; le premier refusé donne la réponse.
 - la carte « L'inscription » : le mode (Révision : « À la séance » ou « En totalité » ; Formation à tranches : « En une fois » ou « En 3 tranches »), et « Première séance » : la liste des séances du groupe (« samedi 15/11/2026 · 10h »), la séance du jour ou la prochaine choisie d'office (la dernière s'il n'y en a plus à venir) ;
 - « Inscrire », bloqué pendant l'envoi ; « Choisissez l'élève et le groupe » si l'un manque ; le refus du serveur sous la carte.
 
-Après l'enregistrement, la page devient la confirmation : « Adem Miled est inscrit dans Groupe Samedi 10h → 12h. » ; « À payer à sa première séance, le samedi 15/11/2026 » et ses lignes, ou « Rien à payer à sa première séance. » ; l'avertissement en orange ; puis, pour chaque destinataire, le texte du message et « Ouvrir WhatsApp » (« Au parent · 98 401 220 », « À Adem · 22 345 678 »), ou « Aucun téléphone pour envoyer la confirmation. » ; enfin « Voir la fiche de l'élève » et « Voir le groupe ».
+Après l'enregistrement, la page devient la confirmation : « Inscription enregistrée », « Adem Miled · Groupe Samedi 10h → 12h, Mathématiques avec Karim Ben Ali » (sans accord : la fiche ne dit pas si l'élève est un garçon ou une fille) ; « À payer à sa première séance, le samedi 15/11/2026 » et ses lignes, ou « Rien à payer à sa première séance. » ; l'avertissement en orange ; puis, pour chaque destinataire, le texte du message et « Ouvrir WhatsApp » (« Au parent · 98 401 220 », « À Adem · 22 345 678 »), ou « Aucun téléphone pour envoyer la confirmation. » ; enfin « Voir la fiche de l'élève » et « Voir le groupe ».
 
 **La fiche de l'élève** : la carte « Inscriptions » liste ses inscriptions (le groupe, en lien ; « Mathématiques · Karim Ben Ali » ; « Étude, 40,000 TND par Mois », « Révision en totalité, 100,000 TND », « Révision à la séance, 100,000 TND », « Formation en une fois, 300,000 TND », « Formation en 3 tranches, 300,000 TND » ; « Depuis le samedi 15/11/2026 ») et « Inscrire dans un groupe ». Sans inscription : « Aucune inscription : cet élève vient seulement à la bibliothèque. » La carte « Assurance » : « Année 2026-2027 : 20,000 TND, due le 15/11/2026 », ou « Sans objet : aucune inscription en Étude cette année. ». « Supprimer la fiche » n'apparaît plus si l'élève a une inscription.
 
-**Le groupe** : la carte « Les élèves » liste ses élèves (le nom, en lien vers la fiche ; le mode ; « depuis le 15/11/2026 »), avec « Ajouter un élève » tant que le groupe est ouvert et pas terminé ; « Aucun élève pour l'instant. » sinon. Le résumé et les cadres de la page Professeurs comptent les élèves inscrits (« 12 élèves sur 15 »).
+**Le groupe** : la carte « Les élèves » liste ses élèves (le nom, en lien vers la fiche ; le mode ; « depuis le 15/11/2026 »), avec « Ajouter un élève » (`/professeurs/groupes/{id}/inscription`) tant que le groupe est ouvert et pas terminé ; « Aucun élève pour l'instant. » sinon. Le résumé et les cadres de la page Professeurs comptent les élèves inscrits (« 12 élèves sur 15 »).
 
 Sur un téléphone, tout passe en une colonne, sans défilement de côté.
 

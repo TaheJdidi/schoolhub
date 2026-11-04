@@ -1,0 +1,189 @@
+@if (introuvable(); as introuvable) {
+  <div class="pagehead">
+    <div>
+      <h1 class="h1">{{ depuis === 'eleve' ? 'Élève introuvable' : 'Groupe introuvable' }}</h1>
+      <p class="sub">{{ introuvable }}</p>
+    </div>
+  </div>
+} @else {
+  <div class="pagehead">
+    <div>
+      <nav class="fil" aria-label="Fil d'Ariane">
+        @if (depuis === 'eleve') {
+          <a routerLink="/eleves">Élèves</a> ›
+          @if (ficheDeLEleve(); as fiche) {
+            <a [routerLink]="['/eleves', fiche.id]">{{ fiche.prenom }} {{ fiche.nom }}</a> ›
+          }
+        } @else {
+          <a routerLink="/professeurs">Professeurs</a> ›
+          @if (groupe(); as groupe) {
+            <a [routerLink]="['/professeurs/groupes', groupe.id]">{{ groupe.nom }}</a> ›
+          }
+        }
+      </nav>
+      <h1 class="h1">{{ titre() }}</h1>
+      @if (sousTitre()) {
+        <p class="sub">{{ sousTitre() }}</p>
+      }
+    </div>
+  </div>
+
+  @if (confirmation(); as confirmation) {
+    <div class="cartes">
+      <section class="card carte">
+        <h2 class="titre">Inscription enregistrée</h2>
+        <p class="resume">
+          <b>{{ confirmation.inscription.eleve.prenom }} {{ confirmation.inscription.eleve.nom }}</b> ·
+          {{ confirmation.inscription.groupe.nom }}, {{ confirmation.inscription.groupe.matiere }} avec
+          {{ confirmation.inscription.professeur }}
+        </p>
+        @if (confirmation.aPayerALArrivee.length > 0 && confirmation.inscription.premiereSeance; as premiere) {
+          <p class="resume">À payer à sa première séance, le {{ jour(premiere.date) }} :</p>
+          <div class="sommes">
+            @for (somme of confirmation.aPayerALArrivee; track somme.libelle) {
+              <div class="somme">
+                <span>{{ somme.libelle }}</span>
+                <b>{{ montant(somme.montant) }} TND</b>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="vide">Rien à payer à sa première séance.</p>
+        }
+        @if (confirmation.avertissement; as avertissement) {
+          <p class="note warn" role="status">{{ avertissement }}</p>
+        }
+      </section>
+
+      <section class="card carte">
+        <h2 class="titre">Message de confirmation</h2>
+        @if (confirmation.messages.length > 0) {
+          <p class="texte-du-message">{{ confirmation.texte }}</p>
+          @for (message of confirmation.messages; track message.lien) {
+            <div class="destinataire">
+              <span>{{ pourQui(message) }}</span>
+              <a class="btn primary" [href]="message.lien" target="_blank" rel="noopener">Ouvrir WhatsApp</a>
+            </div>
+          }
+        } @else {
+          <p class="vide">Aucun téléphone pour envoyer la confirmation.</p>
+        }
+      </section>
+
+      <div class="actions">
+        <a class="btn" [routerLink]="['/eleves', confirmation.inscription.eleve.id]">Voir la fiche de l'élève</a>
+        <a class="btn" [routerLink]="['/professeurs/groupes', confirmation.inscription.groupe.id]">Voir le groupe</a>
+      </div>
+    </div>
+  } @else {
+    <div class="cartes">
+      @if (depuis === 'groupe') {
+        <section class="card carte">
+          <h2 class="titre">L'élève</h2>
+          <label class="f">
+            Chercher un élève
+            <input class="inp" (input)="chercher($event)" placeholder="Nom, prénom ou téléphone" aria-label="Chercher un élève" autocomplete="off" />
+          </label>
+          <div class="choix">
+            @for (eleve of trouves(); track eleve.id) {
+              <label class="option" [class.choisie]="eleveChoisi()?.id === eleve.id" [class.prise]="dejaInscrits().has(eleve.id)">
+                <input
+                  type="radio"
+                  name="eleve"
+                  [value]="eleve.id"
+                  [checked]="eleveChoisi()?.id === eleve.id"
+                  [disabled]="dejaInscrits().has(eleve.id)"
+                  (change)="choisirLEleve(eleve)"
+                />
+                <span class="deux">
+                  <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                  <small>{{ eleve.niveau }}</small>
+                </span>
+                @if (dejaInscrits().has(eleve.id)) {
+                  <span class="pill muted">Déjà inscrit</span>
+                }
+              </label>
+            } @empty {
+              @if (recherche()) {
+                <p class="vide">Aucun élève trouvé.</p>
+              }
+            }
+          </div>
+        </section>
+      } @else {
+        <section class="card carte liste-de-groupes">
+          <h2 class="titre">Le groupe</h2>
+          @if (possibles(); as possibles) {
+            @for (section of sections(); track section.titre) {
+              <h3 class="tag">{{ section.titre }}</h3>
+              <div class="choix">
+                @for (possible of section.groupes; track possible.id) {
+                  <label class="option" [class.choisie]="groupeChoisi() === possible.id" [class.prise]="possible.dejaInscrit">
+                    <input
+                      type="radio"
+                      name="groupe"
+                      [value]="possible.id"
+                      [checked]="groupeChoisi() === possible.id"
+                      [disabled]="possible.dejaInscrit"
+                      (change)="choisirLeGroupe(possible)"
+                    />
+                    <span class="deux">
+                      <b>{{ possible.matiere }} · {{ possible.nom }}</b>
+                      <small>{{ possible.professeur }} · {{ types[possible.type] }} · {{ nombreDEleves(possible) }}</small>
+                    </span>
+                    @if (possible.dejaInscrit) {
+                      <span class="pill muted">Déjà inscrit</span>
+                    } @else if (estComplet(possible)) {
+                      <span class="pill warn">Complet</span>
+                    }
+                  </label>
+                }
+              </div>
+            } @empty {
+              <p class="vide">Aucun groupe ouvert pour l'instant.</p>
+            }
+          }
+        </section>
+      }
+
+      <section class="card carte">
+        <h2 class="titre">L'inscription</h2>
+        @if (ferme(); as ferme) {
+          <p class="note bad" role="alert">{{ ferme }}</p>
+        } @else {
+          @if (groupe(); as groupe) {
+            @if (complet()) {
+              <p class="note warn" role="status">{{ capaciteAtteinte }}</p>
+            }
+            @if (modes().length > 0) {
+              <fieldset class="modes">
+                <legend>Mode de tarification</legend>
+                @for (choix of modes(); track choix.mode) {
+                  <label class="case">
+                    <input type="radio" name="mode" [value]="choix.mode" [checked]="mode() === choix.mode" (change)="choisirLeMode(choix.mode)" />
+                    {{ choix.libelle }}
+                  </label>
+                }
+              </fieldset>
+            }
+            <label class="f">
+              Première séance
+              <select class="inp" aria-label="Première séance" (change)="choisirLaDate($event)">
+                @for (date of dates(); track date.date) {
+                  <option [value]="date.date" [selected]="date.date === debutLe()">{{ date.libelle }}</option>
+                }
+              </select>
+            </label>
+          }
+          <div class="actions">
+            <button type="button" class="btn primary" [disabled]="envoi()" (click)="inscrire()">Inscrire</button>
+          </div>
+          @if (erreur(); as erreur) {
+            <p class="note bad" role="alert">{{ erreur }}</p>
+          }
+        }
+      </section>
+    </div>
+  }
+}
+
