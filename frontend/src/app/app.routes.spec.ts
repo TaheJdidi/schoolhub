@@ -83,6 +83,7 @@ describe("les adresses de l'application", () => {
   it('une secrétaire voit la page « Professeurs » sur /professeurs', async () => {
     await ouvrir('/professeurs', AMIRA);
     http.expectOne('/api/professeurs').flush([]);
+    http.expectOne('/api/groupes').flush([]);
     await harness.fixture.whenStable();
 
     expect(texte()).toContain('Ajouter un professeur');

@@ -1,10 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { envoyer, saisir } from '../../test/formulaires';
 import { PageDeTest } from '../../test/page-de-test';
+import { ResumeDuGroupe } from '../groupes/groupe';
 import { Professeur } from './professeur';
 import { Professeurs } from './professeurs';
 
@@ -26,7 +27,7 @@ describe('la page « Professeurs »', () => {
   let page: HTMLElement;
   let harness: RouterTestingHarness;
 
-  async function ouvrir(professeurs: Professeur[] | 'erreur'): Promise<void> {
+  async function ouvrir(professeurs: Professeur[] | 'erreur', groupes: ResumeDuGroupe[] | 'erreur' = []): Promise<void> {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -43,6 +44,9 @@ describe('la page « Professeurs »', () => {
     const requete = await vi.waitFor(() => http.expectOne(ADRESSE));
     if (professeurs === 'erreur') requete.flush({ message: 'Erreur du serveur' }, { status: 500, statusText: 'Erreur' });
     else requete.flush(professeurs);
+    const requeteDesGroupes = http.expectOne('/api/groupes');
+    if (groupes === 'erreur') requeteDesGroupes.flush({ message: 'Erreur des groupes' }, { status: 500, statusText: 'Erreur' });
+    else requeteDesGroupes.flush(groupes);
     await vi.waitFor(() => expect(page.querySelector('.liste')?.textContent?.trim()).not.toBe(''));
   }
 
@@ -337,5 +341,93 @@ describe('la page « Professeurs »', () => {
 
     expect(page.querySelector('.liste .note.bad')?.textContent).toContain('Erreur du serveur');
     expect(bouton(page, 'Ajouter un professeur').disabled).toBe(true);
+  });
+
+  // ----- Les groupes du professeur (GRP-02) -----
+
+  const SAMEDI: ResumeDuGroupe = {
+    id: 'g1',
+    nom: 'Groupe Samedi 10h → 12h',
+    type: 'Etude',
+    professeurId: 'k',
+    matiere: 'Mathématiques',
+    niveau: '9ᵉ année de base',
+    creneaux: [{ jour: 'Samedi', debut: '10:00', fin: '12:00' }],
+    capacite: 16,
+    eleves: 0,
+  };
+  const DIMANCHE: ResumeDuGroupe = {
+    ...SAMEDI,
+    id: 'g2',
+    nom: 'Groupe Dimanche 8h → 10h',
+    niveau: null,
+    creneaux: [{ jour: 'Dimanche', debut: '08:00', fin: '10:00' }],
+    capacite: null,
+  };
+  const DE_LEILA: ResumeDuGroupe = { ...SAMEDI, id: 'g3', nom: 'Physique du lundi', professeurId: 'l', creneaux: [{ jour: 'Lundi', debut: '17:00', fin: '19:00' }] };
+  const groupesDuProfesseur = () => page.querySelector('.groupes-du-professeur') as HTMLElement;
+  const cadres = () => [...page.querySelectorAll('.cadre')] as HTMLAnchorElement[];
+
+  it('montre les groupes du professeur dans des cadres', async () => {
+    await ouvrir([KARIM, LEILA], [DIMANCHE, DE_LEILA, SAMEDI]);
+
+    expect(cadres()).toHaveLength(2);
+    expect(cadres()[0].textContent).toContain('Étude');
+    expect(cadres()[0].textContent).toContain('Groupe Samedi 10h → 12h');
+    expect(cadres()[0].textContent).toContain('Mathématiques · 9ᵉ année de base');
+    expect(cadres()[0].textContent).toContain('0 élève sur 16');
+    expect(cadres()[0].getAttribute('href')).toBe('/professeurs/groupes/g1');
+    expect(cadres()[1].textContent).toContain('Groupe Dimanche 8h → 10h');
+    expect(cadres()[1].textContent).not.toContain('·');
+    expect(cadres()[1].textContent?.trim()).toMatch(/0 élève$/);
+
+    await choisir('Leila Khelifi');
+    expect(cadres().map((c) => c.textContent)).toEqual([expect.stringContaining('Physique du lundi')]);
+  });
+
+  it('filtre les groupes par jour', async () => {
+    await ouvrir([KARIM], [SAMEDI, DIMANCHE]);
+
+    await cliquer(groupesDuProfesseur(), 'Sam');
+    expect(bouton(groupesDuProfesseur(), 'Sam').getAttribute('aria-pressed')).toBe('true');
+    expect(cadres().map((c) => c.getAttribute('href'))).toEqual(['/professeurs/groupes/g1']);
+
+    expect(bouton(groupesDuProfesseur(), 'Lun').classList).toContain('off');
+    await cliquer(groupesDuProfesseur(), 'Lun');
+    expect(cadres()).toHaveLength(0);
+    expect(groupesDuProfesseur().textContent).toContain('Pas de groupe le lundi pour Karim Ben Salah.');
+
+    await cliquer(groupesDuProfesseur(), 'Tous');
+    expect(cadres()).toHaveLength(2);
+  });
+
+  it("dit quand le professeur n'a aucun groupe", async () => {
+    await ouvrir([KARIM]);
+
+    expect(groupesDuProfesseur().textContent).toContain('Aucun groupe ouvert');
+    expect(boutons(groupesDuProfesseur())).toEqual(['Nouveau groupe']);
+  });
+
+  it('ouvre la création d’un groupe pour ce professeur', async () => {
+    await ouvrir([KARIM]);
+
+    await cliquer(groupesDuProfesseur(), 'Nouveau groupe');
+
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/professeurs/groupes/nouveau?professeur=k'));
+  });
+
+  it("n'offre pas de nouveau groupe à un professeur parti", async () => {
+    await ouvrir([KARIM, SAMI]);
+
+    await cliquer(page, 'Professeurs partis');
+
+    expect(boutons(groupesDuProfesseur())).not.toContain('Nouveau groupe');
+  });
+
+  it("bloque « Nouveau groupe » si les groupes n'ont pas pu se charger", async () => {
+    await ouvrir([KARIM], 'erreur');
+
+    expect(page.querySelector('.liste .note.bad')?.textContent).toContain('Erreur des groupes');
+    expect(bouton(groupesDuProfesseur(), 'Nouveau groupe').disabled).toBe(true);
   });
 });

@@ -1,8 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
+import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
 
 const ADRESSE = '/api/professeurs';
@@ -16,7 +18,8 @@ type Mode = 'fiche' | 'ajout' | 'modification';
 const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
 
 /**
- * GRP-01, GRP-02 (la liste) et GRP-03 : la liste des professeurs à gauche, la fiche du professeur choisi à droite.
+ * GRP-01, GRP-02 et GRP-03 : la liste des professeurs à gauche, la fiche du professeur choisi à droite, et sous elle
+ * ses groupes dans des cadres, filtrés par jour.
  * La liste se charge une fois ; après une action, elle prend le professeur renvoyé par le serveur.
  * Le formulaire d'ajout ou de modification remplace la fiche ; un téléphone déjà pris donne un avertissement orange.
  * Une seule action à la fois : pendant un envoi, les boutons sont bloqués.
@@ -24,20 +27,29 @@ const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
 export class Professeurs implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   protected readonly groupesOuverts = groupesOuverts;
   protected readonly nomComplet = nomComplet;
+  protected readonly eleves = eleves;
+  protected readonly jours = JOURS;
+  protected readonly types = TYPES;
 
   protected readonly professeurs = signal<Professeur[]>([]);
   /** La liste est arrivée : sans elle, rien ne s'ajoute. */
   protected readonly charge = signal(false);
   protected readonly erreurDeLaListe = signal<string | null>(null);
+  private readonly groupes = signal<ResumeDuGroupe[]>([]);
+  /** Les groupes sont arrivés : sans eux, la fiche ne propose pas de nouveau groupe. */
+  protected readonly groupesCharges = signal(false);
+  /** Le jour du filtre des cadres ; `null` pour « Tous ». */
+  protected readonly jour = signal<Jour | null>(null);
   protected readonly filtre = signal<Filtre>('au-centre');
   private readonly choisiId = signal<string | null>(null);
   /** La suppression du professeur choisi attend « Oui » ou « Non ». */
@@ -65,24 +77,41 @@ export class Professeurs implements OnInit {
     () => this.visibles().find((p) => p.id === this.choisiId()) ?? this.visibles()[0] ?? null,
   );
 
+  /** Les groupes ouverts du professeur choisi, rangés par leur premier créneau. */
+  protected readonly groupesDuChoisi = computed(() =>
+    parCreneau(this.groupes().filter((g) => g.professeurId === this.choisi()?.id)),
+  );
+  protected readonly groupesAffiches = computed(() => {
+    const jour = this.jour();
+    return jour ? this.groupesDuChoisi().filter((g) => g.creneaux.some((c) => c.jour === jour)) : this.groupesDuChoisi();
+  });
+  /** Les jours où le professeur choisi a un groupe : les autres sont grisés dans le filtre. */
+  protected readonly joursAvecGroupe = computed(() => new Set(this.groupesDuChoisi().flatMap((g) => g.creneaux.map((c) => c.jour))));
+
+  /** Les professeurs et les groupes se chargent en même temps. */
   async ngOnInit(): Promise<void> {
-    try {
-      this.professeurs.set(await firstValueFrom(this.http.get<Professeur[]>(ADRESSE)));
-      this.charge.set(true);
-    } catch (erreur) {
-      this.erreurDeLaListe.set(messageDErreur(erreur));
-    }
+    await Promise.all([this.chargerLesProfesseurs(), this.chargerLesGroupes()]);
   }
 
   protected filtrer(filtre: Filtre): void {
     this.filtre.set(filtre);
     this.choisiId.set(null);
+    this.jour.set(null);
     this.revenirALaFiche();
   }
 
   protected choisir(professeur: Professeur): void {
     this.choisiId.set(professeur.id);
+    this.jour.set(null);
     this.revenirALaFiche();
+  }
+
+  protected filtrerParJour(jour: Jour | null): void {
+    this.jour.set(jour);
+  }
+
+  protected nouveauGroupe(professeur: Professeur): void {
+    void this.router.navigate(['/professeurs/groupes/nouveau'], { queryParams: { professeur: professeur.id } });
   }
 
   protected ouvrirLAjout(): void {
@@ -172,6 +201,24 @@ export class Professeurs implements OnInit {
       this.choisiId.set(null);
       return `Fiche de ${nomComplet(professeur)} supprimée`;
     });
+  }
+
+  private async chargerLesProfesseurs(): Promise<void> {
+    try {
+      this.professeurs.set(await firstValueFrom(this.http.get<Professeur[]>(ADRESSE)));
+      this.charge.set(true);
+    } catch (erreur) {
+      this.erreurDeLaListe.set(messageDErreur(erreur));
+    }
+  }
+
+  private async chargerLesGroupes(): Promise<void> {
+    try {
+      this.groupes.set(await firstValueFrom(this.http.get<ResumeDuGroupe[]>('/api/groupes')));
+      this.groupesCharges.set(true);
+    } catch (erreur) {
+      this.erreurDeLaListe.set(messageDErreur(erreur));
+    }
   }
 
   /** Le professeur renvoyé par le serveur prend sa place dans la liste, et sa fiche s'affiche dans le bon filtre. */

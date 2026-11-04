@@ -29,3 +29,14 @@
 /* Les champs du formulaire passent les uns sous les autres sur un téléphone. */
 .champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* Les groupes du professeur, dans des cadres (GRP-02) */
+.entete-groupes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.jours { margin-bottom: 0; }
+.filtre.off { color: var(--ink-3); border-style: dashed; }
+.cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.cadre { display: grid; gap: 6px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
+.cadre:hover { border-color: var(--line-2); background: var(--sunk); }
+.cadre b { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.cadre small { color: var(--ink-2); font-size: 12.5px; }
+.tag { justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 500; }
