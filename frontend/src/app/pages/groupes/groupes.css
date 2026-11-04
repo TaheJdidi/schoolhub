@@ -1,0 +1,15 @@
+/* La création et la fiche d'un groupe : une colonne sur un téléphone, sans défilement de côté. */
+.fil { font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+.fil a { color: var(--accent); text-decoration: none; }
+.fil a:hover { text-decoration: underline; }
+
+.carte { display: grid; gap: 14px; padding: 16px; }
+.titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+.groupe { display: grid; gap: 10px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.groupe legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.creneau { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.creneau .inp { width: auto; flex: 0 1 140px; min-width: 0; }
+.creneau span { color: var(--ink-2); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.note { margin: 0; }

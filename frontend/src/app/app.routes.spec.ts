@@ -91,6 +91,19 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Professeurs · SchoolHub');
   });
 
+  it('une secrétaire crée un groupe sur /professeurs/groupes/nouveau, avec « Professeurs » allumé', async () => {
+    await ouvrir('/professeurs/groupes/nouveau', AMIRA);
+    http.expectOne('/api/professeurs').flush([]);
+    http.expectOne('/api/niveaux').flush([]);
+    http.expectOne('/api/matieres').flush([]);
+    await harness.fixture.whenStable();
+
+    expect(texte()).toContain("Nouveau groupe d'Étude");
+    expect(titre()).toBe('Nouveau groupe · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
   it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
     await ouvrir('/parametres', AMIRA);
 

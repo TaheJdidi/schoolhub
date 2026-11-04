@@ -1,0 +1,90 @@
+<div class="pagehead">
+  <div>
+    <nav class="fil" aria-label="Fil d'Ariane"><a routerLink="/professeurs">Professeurs</a> ›</nav>
+    <h1 class="h1">Nouveau groupe d'Étude</h1>
+    <p class="sub">Ses séances se créent jusqu'à la fin de l'année scolaire, rangées en Mois de 4.</p>
+  </div>
+</div>
+
+<form class="card carte" [formGroup]="formulaire" (ngSubmit)="creer()" novalidate>
+  <div class="champs">
+    <label class="f">
+      Professeur
+      <select class="inp" formControlName="professeurId">
+        <option value="">Choisissez le professeur</option>
+        @for (professeur of professeurs(); track professeur.id) {
+          <option [value]="professeur.id">{{ nomComplet(professeur) }}</option>
+        }
+      </select>
+    </label>
+    <label class="f">
+      Matière
+      <input formControlName="matiere" list="matieres-du-centre" autocomplete="off" />
+      <datalist id="matieres-du-centre">
+        @for (matiere of matieres(); track matiere.id) {
+          <option [value]="matiere.nom"></option>
+        }
+      </datalist>
+    </label>
+    <label class="f">
+      Niveau
+      <select class="inp" formControlName="niveauId">
+        <option value="">Choisissez le niveau</option>
+        @for (niveau of niveaux(); track niveau.id) {
+          <option [value]="niveau.id">{{ niveau.nom }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <fieldset class="groupe" formArrayName="creneaux">
+    <legend>Créneaux de la semaine</legend>
+    @for (creneau of creneaux.controls; track creneau; let rang = $index) {
+      <div class="creneau" [formGroupName]="rang">
+        <select class="inp" formControlName="jour" aria-label="Jour">
+          @for (j of jours; track j.jour) {
+            <option [value]="j.jour">{{ j.jour }}</option>
+          }
+        </select>
+        <span>de</span>
+        <input class="inp" type="time" formControlName="debut" aria-label="Heure de début" />
+        <span>à</span>
+        <input class="inp" type="time" formControlName="fin" aria-label="Heure de fin" />
+        @if (creneaux.length > 1) {
+          <button type="button" class="btn" (click)="retirerLeCreneau(rang)">Retirer</button>
+        }
+      </div>
+    }
+    <div>
+      <button type="button" class="btn ghost" (click)="ajouterUnCreneau()">Ajouter un créneau</button>
+    </div>
+  </fieldset>
+
+  <div class="champs">
+    <label class="f">
+      Prix du Mois (TND)
+      <input formControlName="prix" inputmode="decimal" autocomplete="off" placeholder="60,000" />
+    </label>
+    <label class="f">
+      Date de début
+      <input type="date" formControlName="dateDeDebut" />
+    </label>
+    <label class="f">
+      Capacité (facultatif)
+      <input formControlName="capacite" inputmode="numeric" autocomplete="off" placeholder="16" />
+    </label>
+  </div>
+  <label class="f">
+    Nom du groupe
+    <input formControlName="nom" autocomplete="off" (input)="nomSaisi()" />
+  </label>
+
+  <div class="actions">
+    <a class="btn" routerLink="/professeurs">Annuler</a>
+    <button type="submit" class="btn primary" [disabled]="!charge() || envoi()">Créer le groupe</button>
+  </div>
+
+  @if (erreur(); as erreur) {
+    <p class="note bad" role="alert">{{ erreur }}</p>
+  }
+</form>

@@ -8,6 +8,7 @@ import { Bientot } from './pages/bientot/bientot';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Invitation } from './pages/invitation/invitation';
+import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
 import { Introuvable } from './pages/introuvable/introuvable';
 import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
@@ -58,6 +59,8 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'aujourdhui' },
       { path: 'aujourdhui', component: Aujourdhui, title: titre("Aujourd'hui") },
       ...MENU.filter((entree) => entree.chemin !== 'aujourdhui').flatMap(adressesDe),
+      // Les groupes s'ouvrent sous la page Professeurs : le menu garde « Professeurs » allumé.
+      { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },
