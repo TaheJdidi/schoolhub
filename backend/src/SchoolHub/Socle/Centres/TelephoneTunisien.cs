@@ -4,12 +4,12 @@ namespace SchoolHub.Socle.Centres;
 public static class TelephoneTunisien
 {
     /// <summary>
-    /// Les 8 chiffres d'une saisie, sans les espaces, tirets et points qui les séparent, ni l'indicatif « +216 »
-    /// ou « 00216 » devant ; ou <c>null</c> si ce n'est pas un numéro tunisien.
+    /// Les 8 chiffres d'une saisie, sans les espaces (insécables compris), tirets et points qui les séparent,
+    /// ni l'indicatif « +216 » ou « 00216 » devant ; ou <c>null</c> si ce n'est pas un numéro tunisien.
     /// </summary>
     public static string? Normaliser(string saisie)
     {
-        var chiffres = new string(saisie.Where(c => c is not (' ' or '-' or '.')).ToArray());
+        var chiffres = new string(saisie.Where(c => !char.IsWhiteSpace(c) && c is not ('-' or '.')).ToArray());
         if (chiffres.StartsWith("+216", StringComparison.Ordinal))
             chiffres = chiffres[4..];
         else if (chiffres.StartsWith("00216", StringComparison.Ordinal))

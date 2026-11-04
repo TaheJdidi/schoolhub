@@ -80,6 +80,18 @@ public sealed class ParametresDuCentreTests(PostgreSqlDeTest postgreSql) : IAsyn
         Assert.Equal("71234567", (await CentreEnBaseAsync(_jasmins)).Telephone);
     }
 
+    // Un numéro copié depuis WhatsApp ou un tableur sépare souvent ses chiffres par des espaces insécables.
+    [Theory]
+    [InlineData("71 234 567")]
+    [InlineData("+216 71 234 567")]
+    public async Task Le_telephone_accepte_les_espaces_insecables(string saisie)
+    {
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides with { Telephone = saisie });
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("71234567", (await CentreEnBaseAsync(_jasmins)).Telephone);
+    }
+
     [Theory]
     [InlineData("nom", "  ", "Le nom du centre est obligatoire")]
     [InlineData("telephone", "1234", "Le téléphone doit avoir 8 chiffres")]
