@@ -111,7 +111,7 @@ describe('le cadre', () => {
   });
 
   it("allume l'onglet « Plus » pour les autres pages du menu", async () => {
-    const page = await ouvrir('/professeurs', AMIRA);
+    const page = await ouvrir('/bibliotheque', AMIRA);
 
     expect(page.querySelector('.tabbar a[href="/plus"]')?.getAttribute('aria-current')).toBe('page');
     expect(page.querySelector('.tabbar a[href="/caisse"]')?.getAttribute('aria-current')).toBeNull();

@@ -1,0 +1,29 @@
+/* La liste à gauche, la fiche à droite, comme la maquette ; sur un téléphone, la fiche passe sous la liste. */
+.filtres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.filtre { padding: 5px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.filtre[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 500; }
+
+.colonnes { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) {
+  .colonnes { grid-template-columns: minmax(0, 1fr); }
+}
+
+.liste { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.choix { display: grid; text-align: left; padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; background: none; color: var(--ink); font: inherit; line-height: 1.3; cursor: pointer; min-width: 0; }
+.choix:hover { background: var(--sunk); }
+.choix[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent-soft); }
+.choix[aria-pressed='true'] .nom { color: var(--accent-ink); }
+.choix .nom { font-weight: 600; overflow-wrap: anywhere; }
+.choix small { color: var(--ink-2); font-size: 12.5px; }
+.vide { margin: 0; padding: 9px 12px; color: var(--ink-2); }
+.note { margin: 0; }
+
+.cote { display: grid; gap: 12px; min-width: 0; }
+.carte { display: grid; gap: 14px; padding: 16px; }
+.entete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.titre { font-family: var(--font-display); font-size: 19px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.coordonnees { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
+.sous-titre { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+.groupes { margin: 0; color: var(--ink-2); }
+.question { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }

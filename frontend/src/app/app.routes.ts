@@ -12,6 +12,7 @@ import { Introuvable } from './pages/introuvable/introuvable';
 import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
 import { Parametres } from './pages/parametres/parametres';
+import { Professeurs } from './pages/professeurs/professeurs';
 import { EntreeDuMenu, MENU } from './socle/menu';
 import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
 
@@ -19,6 +20,7 @@ const titre = (page: string) => `${page} · SchoolHub`;
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
+  professeurs: Professeurs,
   comptes: Comptes,
   parametres: Parametres,
 };

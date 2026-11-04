@@ -80,6 +80,16 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe('Paramètres du centre · SchoolHub');
   });
 
+  it('une secrétaire voit la page « Professeurs » sur /professeurs', async () => {
+    await ouvrir('/professeurs', AMIRA);
+    http.expectOne('/api/professeurs').flush([]);
+    await harness.fixture.whenStable();
+
+    expect(texte()).toContain('Ajouter un professeur');
+    expect(texte()).not.toContain('Cette page arrive bientôt');
+    expect(titre()).toBe('Professeurs · SchoolHub');
+  });
+
   it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
     await ouvrir('/parametres', AMIRA);
 
