@@ -12,9 +12,22 @@ public static class GroupesEndpoints
             (await groupes.MatieresAsync()).Select(m => new MatiereDuCentre(m.Id, m.Nom)).ToList());
 
         var groupe = api.MapGroup("/groupes");
+        groupe.MapGet("", async (GroupesDuCentre groupes) => await groupes.ListerAsync());
         groupe.MapPost("", CreerAsync);
         groupe.MapGet("/{id:guid}", LireAsync);
+        groupe.MapPut("/{id:guid}", ModifierAsync);
         return api;
+    }
+
+    private static async Task<Results<Ok<FicheDuGroupe>, JsonHttpResult<Avis>>> ModifierAsync(
+        Guid id,
+        ModificationDUnGroupe saisie,
+        GroupesDuCentre groupes)
+    {
+        var issue = await groupes.ModifierAsync(id, saisie);
+        return issue.Fiche is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Ok(issue.Fiche);
     }
 
     private static async Task<Results<Created<FicheDuGroupe>, JsonHttpResult<Avis>>> CreerAsync(
@@ -54,6 +67,24 @@ public sealed record CreationDUnGroupe(
     DateOnly? DateDeDebut,
     int? Capacite,
     string? Nom);
+
+/// <summary>Ce que la page envoie pour modifier un groupe : tout ensemble. Un nom vide reprend le nom proposé.</summary>
+public sealed record ModificationDUnGroupe(string? Nom, int? Capacite, decimal? PrixDuMois);
+
+/// <summary>
+/// Un groupe dans la liste des groupes du centre, pour les cadres de la page Professeurs. <see cref="Niveau"/> est
+/// le nom du niveau ; <see cref="Eleves"/> vaut 0 jusqu'aux inscriptions (ELV).
+/// </summary>
+public sealed record ResumeDuGroupe(
+    Guid Id,
+    string Nom,
+    string Type,
+    Guid ProfesseurId,
+    string Matiere,
+    string? Niveau,
+    List<CreneauDuGroupe> Creneaux,
+    int? Capacite,
+    int Eleves);
 
 /// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm ».</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)

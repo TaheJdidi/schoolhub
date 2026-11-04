@@ -26,6 +26,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     private ApplicationDeTest _application = null!;
     private Centre _jasmins = null!;
     private HttpClient _client = null!;
+    private Compte _amira = null!;
     private Guid _karim;
     private Guid _neuviemeAnnee;
 
@@ -33,7 +34,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     {
         _application = new ApplicationDeTest(postgreSql, NomDeLaBase);
         await _application.InitialiserLaBaseAsync();
-        (_jasmins, _client) = await CentreAsync("Centre Les Jasmins", avecAnneeScolaire: true);
+        (_jasmins, _client, _amira) = await CentreAsync("Centre Les Jasmins", avecAnneeScolaire: true);
         _karim = await ProfesseurAsync(_client, "Karim", "Ben Salah");
         _neuviemeAnnee = await NiveauAsync(_client, NeufiemeAnnee);
     }
@@ -195,7 +196,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     [Fact]
     public async Task Sans_annee_scolaire_la_creation_est_refusee()
     {
-        var (_, clientDesOliviers) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: false);
+        var (_, clientDesOliviers, _) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: false);
         var creation = Exemple with
         {
             ProfesseurId = await ProfesseurAsync(clientDesOliviers, "Leila", "Khelifi"),
@@ -240,7 +241,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     [Fact]
     public async Task Un_professeur_ou_un_niveau_d_un_autre_centre_est_introuvable()
     {
-        var (_, clientDesOliviers) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: true);
+        var (_, clientDesOliviers, _) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: true);
         var leila = await ProfesseurAsync(clientDesOliviers, "Leila", "Khelifi");
         var niveauDesOliviers = await NiveauAsync(clientDesOliviers, NeufiemeAnnee);
 
@@ -255,7 +256,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     [Fact]
     public async Task Un_groupe_inconnu_ou_d_un_autre_centre_est_introuvable()
     {
-        var (_, clientDesOliviers) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: true);
+        var (_, clientDesOliviers, _) = await CentreAsync("Centre Les Oliviers", avecAnneeScolaire: true);
         var groupeDesOliviers = await CreerAsync(Exemple with
         {
             ProfesseurId = await ProfesseurAsync(clientDesOliviers, "Leila", "Khelifi"),
@@ -264,7 +265,10 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
 
         await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}/{groupeDesOliviers.Id}"), HttpStatusCode.NotFound, "Groupe introuvable");
         await VerifierLeRefusAsync(await _client.GetAsync($"{Adresse}/{Guid.NewGuid()}"), HttpStatusCode.NotFound, "Groupe introuvable");
+        await VerifierLeRefusAsync(await _client.PutAsJsonAsync($"{Adresse}/{groupeDesOliviers.Id}", new ModificationDUnGroupe("A", null, 45m)),
+            HttpStatusCode.NotFound, "Groupe introuvable");
         Assert.Empty((await _client.GetFromJsonAsync<List<MatiereDuCentre>>("/api/matieres"))!);
+        Assert.Empty((await _client.GetFromJsonAsync<List<ResumeDuGroupe>>(Adresse))!);
     }
 
     [Fact]
@@ -277,10 +281,156 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonyme.GetAsync($"{Adresse}/{Guid.NewGuid()}")).StatusCode);
     }
 
+    // ----- La liste -----
+
+    [Fact]
+    public async Task La_liste_des_groupes()
+    {
+        var samedi = await CreerAsync(Exemple);
+        var dimanche = await CreerAsync(Exemple with
+        {
+            Matiere = "Physique",
+            Capacite = null,
+            Creneaux = [new CreneauSaisi("Dimanche", "08:00", "10:00")],
+        });
+
+        var liste = (await _client.GetFromJsonAsync<List<ResumeDuGroupe>>(Adresse))!;
+
+        Assert.Equal(2, liste.Count);
+        var resume = liste.Single(g => g.Id == samedi.Id);
+        Assert.Equal(("Groupe Samedi 10h → 12h", "Etude", _karim, "Mathématiques", NeufiemeAnnee, (int?)16, 0),
+            (resume.Nom, resume.Type, resume.ProfesseurId, resume.Matiere, resume.Niveau, resume.Capacite, resume.Eleves));
+        Assert.Equal([new CreneauDuGroupe("Samedi", "10:00", "12:00")], resume.Creneaux);
+        var autre = liste.Single(g => g.Id == dimanche.Id);
+        Assert.Equal(("Physique", (int?)null), (autre.Matiere, autre.Capacite));
+    }
+
+    // ----- Modifier -----
+
+    [Fact]
+    public async Task Modifier_le_nom_et_la_capacite()
+    {
+        var groupe = await CreerAsync(Exemple);
+
+        var fiche = await ModifierAsync(groupe.Id, new ModificationDUnGroupe("  Maths 9ᵉ ", 20, 60m));
+
+        Assert.Equal(("Maths 9ᵉ", (int?)20), (fiche.Nom, fiche.Capacite));
+        var sansNom = await ModifierAsync(groupe.Id, new ModificationDUnGroupe("", null, 60m));
+        Assert.Equal(("Groupe Samedi 10h → 12h", (int?)null), (sansNom.Nom, sansNom.Capacite));
+    }
+
+    [Theory]
+    [InlineData("nom long", "Le nom du groupe fait au plus 100 caractères")]
+    [InlineData("capacite nulle", "La capacité doit être d'au moins 1 place")]
+    [InlineData("prix nul", "Le prix du Mois doit être positif, au millime près")]
+    [InlineData("sans prix", "Le prix du Mois doit être positif, au millime près")]
+    public async Task Une_modification_incomplete_est_refusee(string cas, string message)
+    {
+        var groupe = await CreerAsync(Exemple);
+        var modification = cas switch
+        {
+            "nom long" => new ModificationDUnGroupe(new string('a', 101), 16, 60m),
+            "capacite nulle" => new ModificationDUnGroupe("Maths", 0, 60m),
+            "prix nul" => new ModificationDUnGroupe("Maths", 16, 0m),
+            _ => new ModificationDUnGroupe("Maths", 16, null),
+        };
+
+        await VerifierLeRefusAsync(await _client.PutAsJsonAsync($"{Adresse}/{groupe.Id}", modification), HttpStatusCode.BadRequest, message);
+        Assert.Equal("Groupe Samedi 10h → 12h", (await LireAsync(groupe.Id)).Nom);
+    }
+
+    [Fact]
+    public async Task Le_nouveau_prix_vaut_pour_les_mois_pas_encore_commences()
+    {
+        // L'exemple de la story : dans ce calendrier, le Mois 5 commence le 08/01/2028 et le Mois 6 le 05/02/2028.
+        var groupe = await CreerAsync(Exemple with { PrixDuMois = 40m });
+        await AllerAuAsync(new DateTimeOffset(2028, 2, 1, 9, 0, 0, TimeSpan.Zero));
+
+        var fiche = await ModifierAsync(groupe.Id, new ModificationDUnGroupe(groupe.Nom, 16, 45m));
+
+        Assert.Equal(new DateOnly(2028, 1, 8), fiche.Mois[4].Seances[0].Date);
+        Assert.Equal([40m, 40m, 40m, 40m, 40m, 45m, 45m, 45m, 45m, 45m, 45m], fiche.Mois.Select(m => m.Prix));
+        Assert.Equal([true, true, true, true, true, false], fiche.Mois.Take(6).Select(m => m.Commence));
+        Assert.Equal(45m, fiche.PrixDuMois);
+    }
+
+    [Fact]
+    public async Task Avant_tout_mois_commence_le_prix_remplace_celui_du_mois_1()
+    {
+        var groupe = await CreerAsync(Exemple with { PrixDuMois = 40m });
+        await AllerAuAsync(new DateTimeOffset(2027, 9, 1, 9, 0, 0, TimeSpan.Zero));
+
+        var fiche = await ModifierAsync(groupe.Id, new ModificationDUnGroupe(groupe.Nom, 16, 45m));
+
+        Assert.All(fiche.Mois, m => Assert.Equal(45m, m.Prix));
+        Assert.Equal([(1, 45m)], await PrixEnBaseAsync(groupe.Id));
+    }
+
+    [Fact]
+    public async Task Un_mois_dont_la_seance_1_est_aujourd_hui_a_commence()
+    {
+        // Le Mois 2 commence le samedi 16/10/2027 ; il est 10h à Tunis.
+        var groupe = await CreerAsync(Exemple with { PrixDuMois = 40m });
+        await AllerAuAsync(new DateTimeOffset(2027, 10, 16, 9, 0, 0, TimeSpan.Zero));
+
+        var fiche = await ModifierAsync(groupe.Id, new ModificationDUnGroupe(groupe.Nom, 16, 45m));
+
+        Assert.True(fiche.Mois[1].Commence);
+        Assert.Equal([40m, 40m, 45m], fiche.Mois.Take(3).Select(m => m.Prix));
+    }
+
+    [Fact]
+    public async Task Un_prix_inchange_n_ajoute_rien()
+    {
+        var groupe = await CreerAsync(Exemple with { PrixDuMois = 40m });
+        await AllerAuAsync(new DateTimeOffset(2028, 2, 1, 9, 0, 0, TimeSpan.Zero));
+
+        await ModifierAsync(groupe.Id, new ModificationDUnGroupe("Maths", 16, 40m));
+
+        Assert.Equal([(1, 40m)], await PrixEnBaseAsync(groupe.Id));
+    }
+
+    [Fact]
+    public async Task Un_second_changement_de_prix_remplace_le_premier_pour_les_memes_mois()
+    {
+        var groupe = await CreerAsync(Exemple with { PrixDuMois = 40m });
+        await AllerAuAsync(new DateTimeOffset(2028, 2, 1, 9, 0, 0, TimeSpan.Zero));
+
+        await ModifierAsync(groupe.Id, new ModificationDUnGroupe(groupe.Nom, 16, 45m));
+        await ModifierAsync(groupe.Id, new ModificationDUnGroupe(groupe.Nom, 16, 50m));
+
+        Assert.Equal([(1, 40m), (6, 50m)], await PrixEnBaseAsync(groupe.Id));
+    }
+
     // ----- Outils -----
 
+    /// <summary>Avance l'horloge des tests, puis reconnecte Amira : sa session a pu expirer entre-temps.</summary>
+    private async Task AllerAuAsync(DateTimeOffset moment)
+    {
+        _application.Horloge.SetUtcNow(moment);
+        _client = await _application.ClientConnecteAsync(_amira);
+    }
+
+    private async Task<FicheDuGroupe> ModifierAsync(Guid id, ModificationDUnGroupe modification)
+    {
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{id}", modification);
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        return (await reponse.Content.ReadFromJsonAsync<FicheDuGroupe>())!;
+    }
+
+    private async Task<FicheDuGroupe> LireAsync(Guid id) => (await _client.GetFromJsonAsync<FicheDuGroupe>($"{Adresse}/{id}"))!;
+
+    private Task<List<(int, decimal)>> PrixEnBaseAsync(Guid groupeId) =>
+        _application.DansUnScopeAsync(async services =>
+        {
+            services.GetRequiredService<CentreCourant>().Definir(_jasmins.Id);
+            var groupe = await services.GetRequiredService<SchoolHubDbContext>().Groupes.SingleAsync(g => g.Id == groupeId);
+            return groupe.Prix.OrderBy(p => p.APartirDuMois).Select(p => (p.APartirDuMois, p.Montant)).ToList();
+        });
+
+
     /// <summary>Un centre avec ses niveaux d'office, et le client de sa secrétaire ; son propriétaire règle l'année scolaire.</summary>
-    private async Task<(Centre Centre, HttpClient Secretaire)> CentreAsync(string nom, bool avecAnneeScolaire)
+    private async Task<(Centre Centre, HttpClient Client, Compte Secretaire)> CentreAsync(string nom, bool avecAnneeScolaire)
     {
         var centre = await _application.CreerCentreAsync(nom);
         await _application.RecopierLesNiveauxDOfficeAsync(centre);
@@ -294,7 +444,7 @@ public sealed class GroupesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         }
 
         var secretaire = await _application.CreerCompteAsync(centre, "Amira", "Jlassi");
-        return (centre, await _application.ClientConnecteAsync(secretaire));
+        return (centre, await _application.ClientConnecteAsync(secretaire), secretaire);
     }
 
     private static async Task<Guid> ProfesseurAsync(HttpClient client, string prenom, string nom)

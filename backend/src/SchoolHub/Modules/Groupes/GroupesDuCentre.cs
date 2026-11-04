@@ -102,6 +102,56 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         return new IssueSurUnGroupe((await LireAsync(groupe.Id))!, StatusCodes.Status201Created, null);
     }
 
+    /// <summary>Tous les groupes du centre, par nom, pour les cadres de la page Professeurs.</summary>
+    public async Task<List<ResumeDuGroupe>> ListerAsync()
+    {
+        var groupes = await contexte.Groupes.OrderBy(g => g.Nom).ThenBy(g => g.Id).ToListAsync();
+        var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
+
+        return groupes
+            .Select(g => new ResumeDuGroupe(
+                g.Id,
+                g.Nom,
+                g.Type.ToString(),
+                g.ProfesseurId,
+                matieres[g.MatiereId],
+                g.NiveauId is { } niveauId ? niveaux[niveauId] : null,
+                g.Creneaux.Select(CreneauDuGroupe.De).ToList(),
+                g.Capacite,
+                Eleves: 0))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Change le nom, la capacité et le prix, avec les règles de la création. Le nouveau prix vaut à partir du premier
+    /// Mois qui n'a pas commencé ; s'il est le même que celui de ce Mois, rien n'est ajouté.
+    /// </summary>
+    public async Task<IssueSurUnGroupe> ModifierAsync(Guid id, ModificationDUnGroupe saisie)
+    {
+        var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == id);
+        if (groupe is null)
+            return GroupeIntrouvable;
+
+        var nom = NomDuGroupe(saisie.Nom, groupe.Creneaux[0]);
+        if (nom.Length > Groupe.LongueurMaximaleDuNom)
+            return Refus(StatusCodes.Status400BadRequest, NomTropLong);
+        if (saisie.Capacite is < 1)
+            return Refus(StatusCodes.Status400BadRequest, CapacitePasValable);
+        if (!PrixValable(saisie.PrixDuMois))
+            return Refus(StatusCodes.Status400BadRequest, PrixPasValable);
+
+        groupe.Modifier(nom, saisie.Capacite);
+        var premierMoisAVenir = CalendrierDuGroupe.PremierMoisNonCommence(
+            CalendrierDuGroupe.EnMois(await SeancesAsync(id)).Select(mois => mois[0].Date).ToList(),
+            DateDeTunis.Aujourdhui(temps));
+        if (CalendrierDuGroupe.PrixDuMois(groupe.Prix, premierMoisAVenir) != saisie.PrixDuMois)
+            groupe.ChangerLePrix(saisie.PrixDuMois!.Value, premierMoisAVenir);
+        await contexte.SaveChangesAsync();
+
+        return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);
+    }
+
     /// <summary>La fiche du groupe, avec ses Mois ; <c>null</c> s'il n'est pas dans ce centre.</summary>
     public async Task<FicheDuGroupe?> LireAsync(Guid id)
     {
@@ -112,10 +162,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         var professeur = await contexte.Professeurs.SingleAsync(p => p.Id == groupe.ProfesseurId);
         var matiere = await contexte.Matieres.SingleAsync(m => m.Id == groupe.MatiereId);
         var niveau = groupe.NiveauId is { } niveauId ? await contexte.Niveaux.SingleAsync(n => n.Id == niveauId) : null;
-        var seances = await contexte.Seances
-            .Where(s => s.GroupeId == id)
-            .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
-            .ToListAsync();
+        var seances = await SeancesAsync(id);
 
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
         var mois = CalendrierDuGroupe.EnMois(seances)
@@ -141,6 +188,13 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             CalendrierDuGroupe.PrixDuMois(groupe.Prix, premierMoisAVenir),
             mois);
     }
+
+    /// <summary>Les séances du groupe, rangées comme les Mois les comptent : par date, puis par heure de début.</summary>
+    private Task<List<Seance>> SeancesAsync(Guid groupeId) =>
+        contexte.Seances
+            .Where(s => s.GroupeId == groupeId)
+            .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
+            .ToListAsync();
 
     /// <summary>Le nom saisi, sans les espaces autour ; vide, le nom proposé depuis le premier créneau.</summary>
     private static string NomDuGroupe(string? saisie, Creneau premier) =>

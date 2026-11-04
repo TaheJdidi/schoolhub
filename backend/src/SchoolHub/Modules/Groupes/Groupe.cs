@@ -95,6 +95,23 @@ public sealed class Groupe : IAppartientAuCentre
         groupe._prix.Add(new PrixDuGroupe(1, prixDuMois));
         return groupe;
     }
+
+    /// <summary>Le nouveau nom et la nouvelle capacité, déjà vérifiés.</summary>
+    public void Modifier(string nom, int? capacite)
+    {
+        Nom = nom;
+        Capacite = capacite;
+    }
+
+    /// <summary>
+    /// Le nouveau prix vaut à partir du Mois N, le premier qui n'a pas commencé : il remplace les prix prévus
+    /// pour ce Mois et les suivants. Les Mois d'avant gardent le leur.
+    /// </summary>
+    public void ChangerLePrix(decimal montant, int aPartirDuMois)
+    {
+        _prix.RemoveAll(p => p.APartirDuMois >= aPartirDuMois);
+        _prix.Add(new PrixDuGroupe(aPartirDuMois, montant));
+    }
 }
 
 /// <summary>Un jour de la semaine, écrit en français : c'est ainsi qu'il s'enregistre et qu'il circule en JSON.</summary>
