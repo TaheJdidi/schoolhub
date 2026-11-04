@@ -43,6 +43,12 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Où s'ouvrent la création et la fiche d'un groupe ? | Sous la page Professeurs : `/professeurs/groupes/nouveau?professeur=…` et `/professeurs/groupes/{id}`. Le menu garde « Professeurs » allumé, comme dans la maquette. |
 | Qui crée les groupes ? | Toute personne connectée du centre : la secrétaire et le propriétaire. |
 | Le journal ? | Ni la création ni la modification d'un groupe n'y vont : la liste des [exigences communes](../../user-stories/00-exigences-communes.md#journal) cite seulement la fermeture (GRP-08). |
+| Et si le serveur ne connaît pas le fuseau « Africa/Tunis » ? | Il essaie le nom Windows (« W. Central Africa Standard Time »), puis prend UTC+1 : la Tunisie n'a plus d'heure d'été depuis 2009. Une image Linux réduite ou un ancien Windows ne mettent donc pas les fiches de groupe en erreur. |
+| Les heures dans le JSON ? | Toujours « 10:00 », quelle que soit la langue du serveur (culture invariante). |
+| Le nombre de groupes de chaque professeur ? | Chaque réponse qui renvoie un professeur (liste, ajout, modification, départ, retour) porte son vrai nombre : la page remplace la ligne par le professeur renvoyé. |
+| Où vont les cadres sur la page Professeurs ? | Dans une carte à part, « Ses groupes », sous la fiche du professeur et ses messages ; la fiche garde la ligne « 2 groupes ouverts ». |
+| Une capacité illisible (« 16 places ») ? | La page la refuse : « Écrivez la capacité en nombre de places, par exemple 16 ». |
+| Le jour du premier créneau ? | Samedi d'office (le jour le plus chargé de la maquette) ; un créneau ajouté reprend le jour du précédent. |
 
 ## 1. Les données
 
@@ -237,12 +243,12 @@ backend/src/SchoolHub/Modules/Groupes/
 ├── Matiere.cs                     la matière et sa configuration
 ├── Groupe.cs                      le groupe, ses créneaux, ses prix, sa configuration
 ├── Seance.cs                      la séance et sa configuration
-├── CalendrierDuGroupe.cs          les séances depuis les créneaux, les Mois, le nom proposé
+├── CalendrierDuGroupe.cs          les séances depuis les créneaux, les Mois, le nom proposé, le prix d'un Mois
 ├── GroupesDuCentre.cs             créer, lire, modifier ; les règles de saisie
 └── GroupesEndpoints.cs            les adresses des groupes et des matières, et les formes JSON
 
 frontend/src/app/pages/professeurs/   + les cadres des groupes et le filtre par jour
-frontend/src/app/pages/groupes/       la création et la fiche d'un groupe
+frontend/src/app/pages/groupes/       groupe.ts (formes de l'API), la création (nouveau-groupe) et la fiche (page-du-groupe)
 ```
 
 ## 8. Les tests

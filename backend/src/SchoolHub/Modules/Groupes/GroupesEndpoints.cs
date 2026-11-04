@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using SchoolHub.Socle.Comptes;
 
@@ -86,11 +87,11 @@ public sealed record ResumeDuGroupe(
     int? Capacite,
     int Eleves);
 
-/// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm ».</summary>
+/// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm », quelle que soit la langue du serveur.</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)
 {
     public static CreneauDuGroupe De(Creneau creneau) =>
-        new(creneau.Jour.ToString(), creneau.Debut.ToString("HH:mm"), creneau.Fin.ToString("HH:mm"));
+        new(creneau.Jour.ToString(), creneau.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), creneau.Fin.ToString("HH:mm", CultureInfo.InvariantCulture));
 }
 
 public sealed record ProfesseurDuGroupe(Guid Id, string Prenom, string Nom);
@@ -100,7 +101,7 @@ public sealed record NiveauDuGroupe(Guid Id, string Nom);
 public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string Fin)
 {
     public static SeanceDuGroupe De(Seance seance) =>
-        new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm"), seance.Fin.ToString("HH:mm"));
+        new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture));
 }
 
 /// <summary>Un Mois du groupe : son numéro, son prix, s'il a commencé (sa séance 1 a eu lieu), et ses séances.</summary>

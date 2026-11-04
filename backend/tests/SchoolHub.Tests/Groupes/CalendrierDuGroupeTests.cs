@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Time.Testing;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Socle.Dates;
@@ -140,5 +141,40 @@ public sealed class CalendrierDuGroupeTests
         var horloge = new FakeTimeProvider(new DateTimeOffset(2027, 12, 31, 23, 30, 0, TimeSpan.Zero));
 
         Assert.Equal(new DateOnly(2028, 1, 1), DateDeTunis.Aujourdhui(horloge));
+    }
+
+    // Un serveur sans la base des fuseaux (image Linux réduite, ancien Windows) ne connaît pas « Africa/Tunis ».
+    [Fact]
+    public void Sans_fuseau_connu_la_date_de_Tunis_se_calcule_a_UTC_plus_1()
+    {
+        var cherches = new List<string>();
+
+        var fuseau = DateDeTunis.TrouverLeFuseau(nom =>
+        {
+            cherches.Add(nom);
+            return null;
+        });
+
+        Assert.Equal(["Africa/Tunis", "W. Central Africa Standard Time"], cherches);
+        Assert.Equal(TimeSpan.FromHours(1), fuseau.BaseUtcOffset);
+        var horloge = new FakeTimeProvider(new DateTimeOffset(2027, 12, 31, 23, 30, 0, TimeSpan.Zero));
+        Assert.Equal(new DateOnly(2028, 1, 1), DateDeTunis.Aujourdhui(horloge, fuseau));
+    }
+
+    // L'API écrit les heures « 10:00 » ; en finnois, le séparateur des heures de la culture est le point.
+    [Fact]
+    public void Les_heures_s_ecrivent_avec_deux_points_quelle_que_soit_la_langue_du_serveur()
+    {
+        var avant = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("fi-FI");
+
+            Assert.Equal(new CreneauDuGroupe("Samedi", "10:00", "12:00"), CreneauDuGroupe.De(Samedi10h));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = avant;
+        }
     }
 }
