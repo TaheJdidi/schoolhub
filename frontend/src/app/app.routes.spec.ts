@@ -98,7 +98,8 @@ describe("les adresses de l'application", () => {
     http.expectOne('/api/matieres').flush([]);
     await harness.fixture.whenStable();
 
-    expect(texte()).toContain("Nouveau groupe d'Étude");
+    expect(texte()).toContain('Nouveau groupe');
+    expect(texte()).toContain('Créer le groupe');
     expect(titre()).toBe('Nouveau groupe · SchoolHub');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');

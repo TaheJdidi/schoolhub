@@ -1,9 +1,29 @@
 <div class="pagehead">
   <div>
     <nav class="fil" aria-label="Fil d'Ariane"><a routerLink="/professeurs">Professeurs</a> ›</nav>
-    <h1 class="h1">Nouveau groupe d'Étude</h1>
-    <p class="sub">Ses séances se créent jusqu'à la fin de l'année scolaire, rangées en Mois de 4.</p>
+    <h1 class="h1">Nouveau groupe</h1>
+    <p class="sub">
+      @switch (type()) {
+        @case ('Etude') {
+          Ses séances se créent jusqu'à la fin de l'année scolaire, rangées en Mois de 4.
+        }
+        @case ('Revision') {
+          Quelques séances, au prix total ou à la séance.
+        }
+        @case ('Formation') {
+          Un prix total, en une fois ou en tranches.
+        }
+      }
+    </p>
   </div>
+</div>
+
+<div class="types" role="group" aria-label="Type du groupe">
+  @for (t of types; track t.type) {
+    <button type="button" class="filtre" [attr.aria-pressed]="type() === t.type" [disabled]="envoi()" (click)="choisirLeType(t.type)">
+      {{ t.libelle }}
+    </button>
+  }
 </div>
 
 <form class="card carte" [formGroup]="formulaire" (ngSubmit)="creer()" novalidate>
@@ -27,7 +47,7 @@
       </datalist>
     </label>
     <label class="f">
-      Niveau
+      {{ type() === 'Formation' ? 'Niveau (facultatif)' : 'Niveau' }}
       <select class="inp" formControlName="niveauId">
         <option value="">Choisissez le niveau</option>
         @for (niveau of niveaux(); track niveau.id) {
@@ -37,43 +57,127 @@
     </label>
   </div>
 
-  <fieldset class="groupe" formArrayName="creneaux">
-    <legend>Créneaux de la semaine</legend>
-    @for (creneau of creneaux.controls; track creneau; let rang = $index) {
-      <div class="creneau" [formGroupName]="rang">
-        <select class="inp" formControlName="jour" aria-label="Jour">
-          @for (j of jours; track j.jour) {
-            <option [value]="j.jour">{{ j.jour }}</option>
-          }
-        </select>
-        <span>de</span>
-        <input class="inp" type="time" formControlName="debut" aria-label="Heure de début" />
-        <span>à</span>
-        <input class="inp" type="time" formControlName="fin" aria-label="Heure de fin" />
-        @if (creneaux.length > 1) {
-          <button type="button" class="btn" (click)="retirerLeCreneau(rang)">Retirer</button>
-        }
-      </div>
-    }
-    <div>
-      <button type="button" class="btn ghost" (click)="ajouterUnCreneau()">Ajouter un créneau</button>
+  @if (type() !== 'Etude') {
+    <div class="champs">
+      <label class="f">
+        Prix total (TND)
+        <input formControlName="prixTotal" inputmode="decimal" autocomplete="off" placeholder="50,000" />
+      </label>
+      <label class="f">
+        Nombre de séances
+        <input formControlName="nombreDeSeances" inputmode="numeric" autocomplete="off" placeholder="10" />
+      </label>
     </div>
-  </fieldset>
+    <div class="types" role="group" aria-label="D'où viennent les dates">
+      <button type="button" class="filtre" [attr.aria-pressed]="modeDesDates() === 'creneaux'" (click)="choisirLeModeDesDates('creneaux')">
+        Créneaux par semaine
+      </button>
+      <button type="button" class="filtre" [attr.aria-pressed]="modeDesDates() === 'dates'" (click)="choisirLeModeDesDates('dates')">
+        Dates une à une
+      </button>
+    </div>
+  }
+
+  @if (type() === 'Etude' || modeDesDates() === 'creneaux') {
+    <fieldset class="groupe" formArrayName="creneaux">
+      <legend>Créneaux de la semaine</legend>
+      @for (creneau of creneaux.controls; track creneau; let rang = $index) {
+        <div class="creneau" [formGroupName]="rang">
+          <select class="inp" formControlName="jour" aria-label="Jour">
+            @for (j of jours; track j.jour) {
+              <option [value]="j.jour">{{ j.jour }}</option>
+            }
+          </select>
+          <span>de</span>
+          <input class="inp" type="time" formControlName="debut" aria-label="Heure de début" />
+          <span>à</span>
+          <input class="inp" type="time" formControlName="fin" aria-label="Heure de fin" />
+          @if (creneaux.length > 1) {
+            <button type="button" class="btn" (click)="retirerLeCreneau(rang)">Retirer</button>
+          }
+        </div>
+      }
+      <div>
+        <button type="button" class="btn ghost" (click)="ajouterUnCreneau()">Ajouter un créneau</button>
+      </div>
+    </fieldset>
+  } @else {
+    <fieldset class="groupe" formArrayName="dates">
+      <legend>Les dates, une par séance</legend>
+      @for (date of dates.controls; track date; let rang = $index) {
+        <div class="creneau date-saisie" [formGroupName]="rang">
+          <input class="inp" type="date" formControlName="date" aria-label="Date" />
+          <span>de</span>
+          <input class="inp" type="time" formControlName="debutDeLaDate" aria-label="Heure de début" />
+          <span>à</span>
+          <input class="inp" type="time" formControlName="finDeLaDate" aria-label="Heure de fin" />
+          @if (dates.length > 1) {
+            <button type="button" class="btn" (click)="retirerLaDate(rang)">Retirer</button>
+          }
+        </div>
+      }
+      <div>
+        <button type="button" class="btn ghost" (click)="ajouterUneDate()">Ajouter une date</button>
+      </div>
+    </fieldset>
+  }
 
   <div class="champs">
-    <label class="f">
-      Prix du Mois (TND)
-      <input formControlName="prix" inputmode="decimal" autocomplete="off" placeholder="60,000" />
-    </label>
-    <label class="f">
-      Date de début
-      <input type="date" formControlName="dateDeDebut" />
-    </label>
+    @if (type() === 'Etude') {
+      <label class="f">
+        Prix du Mois (TND)
+        <input formControlName="prix" inputmode="decimal" autocomplete="off" placeholder="60,000" />
+      </label>
+    }
+    @if (type() === 'Etude' || modeDesDates() === 'creneaux') {
+      <label class="f">
+        {{ dejaCommence() ? (type() === 'Etude' ? 'Première séance dans SchoolHub' : 'Date de cette séance') : 'Date de début' }}
+        <input type="date" formControlName="dateDeDebut" />
+      </label>
+    }
     <label class="f">
       Capacité (facultatif)
       <input formControlName="capacite" inputmode="numeric" autocomplete="off" placeholder="16" />
     </label>
   </div>
+
+  @if (type() === 'Formation') {
+    <fieldset class="groupe" formArrayName="tranches">
+      <legend>Tranches (facultatif : sans tranche, la Formation se paie en une fois)</legend>
+      @for (tranche of tranches.controls; track tranche; let rang = $index) {
+        <div class="creneau tranche" [formGroupName]="rang">
+          <input class="inp" formControlName="montant" inputmode="decimal" aria-label="Montant de la tranche" placeholder="100,000" />
+          <span>TND, due à la séance</span>
+          <input class="inp" formControlName="seance" inputmode="numeric" aria-label="Séance de la tranche" placeholder="1" />
+          <button type="button" class="btn" (click)="retirerLaTranche(rang)">Retirer</button>
+        </div>
+      }
+      <div>
+        <button type="button" class="btn ghost" (click)="ajouterUneTranche()">Ajouter une tranche</button>
+      </div>
+    </fieldset>
+  }
+
+  <div class="deja-commence">
+    <label class="case">
+      <input type="checkbox" [checked]="dejaCommence()" (change)="basculerDejaCommence($event)" />
+      Ce groupe a déjà commencé
+    </label>
+    @if (dejaCommence()) {
+      @if (type() === 'Etude') {
+        <label class="f">
+          Mois en cours
+          <input formControlName="moisEnCours" inputmode="numeric" autocomplete="off" placeholder="5" />
+        </label>
+      } @else {
+        <label class="f">
+          Séance en cours (sur {{ formulaire.controls.nombreDeSeances.value || '…' }})
+          <input formControlName="seanceEnCours" inputmode="numeric" autocomplete="off" placeholder="4" />
+        </label>
+      }
+    }
+  </div>
+
   <label class="f">
     Nom du groupe
     <input formControlName="nom" autocomplete="off" (input)="nomSaisi()" />

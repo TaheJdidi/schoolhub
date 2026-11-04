@@ -131,6 +131,7 @@ describe('la page « Nouveau groupe »', () => {
     envoyer(page);
     const requete = http.expectOne({ method: 'POST', url: '/api/groupes' });
     expect(requete.request.body).toEqual({
+      type: 'Etude',
       professeurId: 'k',
       matiere: 'Mathématiques',
       niveauId: 'n9',
@@ -195,5 +196,206 @@ describe('la page « Nouveau groupe »', () => {
 
     await attendre('Erreur du serveur');
     expect(bouton('Créer le groupe').disabled).toBe(true);
+  });
+
+  // ----- Révision, Formation, groupe déjà en cours (GRP-05 à GRP-07) -----
+
+  const champs = (nom: string) => [...page.querySelectorAll(`[formcontrolname="${nom}"]`)] as HTMLInputElement[];
+  const libelles = () => [...page.querySelectorAll('label')].map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+
+  async function choisirLeType(libelle: string): Promise<void> {
+    await cliquer(libelle);
+    expect(bouton(libelle).getAttribute('aria-pressed')).toBe('true');
+  }
+
+  async function remplirUneRevision(): Promise<void> {
+    saisir(page, '[formcontrolname="matiere"]', 'Mathématiques');
+    await choisirOption('niveauId', 'n9');
+    saisir(page, '[formcontrolname="prixTotal"]', '50');
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '3');
+    await harness.fixture.whenStable();
+  }
+
+  async function cocherDejaCommence(): Promise<void> {
+    (page.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    await harness.fixture.whenStable();
+  }
+
+  it("montre les champs d'une Révision", async () => {
+    await ouvrir();
+
+    await choisirLeType('Révision');
+
+    expect(champ('prixTotal')).not.toBeUndefined();
+    expect(champ('nombreDeSeances')).not.toBeUndefined();
+    expect(champ('prix')).toBeUndefined();
+    expect(boutons()).toContain('Créneaux par semaine');
+    expect(boutons()).toContain('Dates une à une');
+  });
+
+  it('envoie une Révision par créneaux', async () => {
+    await ouvrir();
+    await choisirLeType('Révision');
+    await remplirUneRevision();
+    await taper('debut', '10:00');
+    await taper('fin', '12:00');
+    saisir(page, '[formcontrolname="dateDeDebut"]', '2028-05-20');
+
+    envoyer(page);
+
+    const requete = http.expectOne({ method: 'POST', url: '/api/groupes' });
+    expect(requete.request.body).toEqual({
+      type: 'Revision',
+      professeurId: 'k',
+      matiere: 'Mathématiques',
+      niveauId: 'n9',
+      prixTotal: 50,
+      nombreDeSeances: 3,
+      creneaux: [{ jour: 'Samedi', debut: '10:00', fin: '12:00' }],
+      dateDeDebut: '2028-05-20',
+      capacite: null,
+      nom: 'Groupe Samedi 10h → 12h',
+    });
+    requete.flush({ id: 'g1' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('envoie une Révision avec des dates une à une', async () => {
+    await ouvrir();
+    await choisirLeType('Révision');
+    await remplirUneRevision();
+    await cliquer('Dates une à une');
+
+    expect(page.querySelectorAll('.date-saisie')).toHaveLength(1);
+    await taper('date', '2028-05-24');
+    await taper('debutDeLaDate', '17:00');
+    await taper('finDeLaDate', '19:00');
+    expect(champ('nom').value).toBe('Groupe Mercredi 17h → 19h');
+    await cliquer('Ajouter une date');
+    await cliquer('Ajouter une date');
+    expect(page.querySelectorAll('.date-saisie')).toHaveLength(3);
+    await taper('date', '2028-05-20', 1);
+    await taper('debutDeLaDate', '10:00', 1);
+    await taper('finDeLaDate', '12:00', 1);
+    [...page.querySelectorAll('.date-saisie')][2].querySelector('button')?.click();
+    await harness.fixture.whenStable();
+    expect(page.querySelectorAll('.date-saisie')).toHaveLength(2);
+
+    envoyer(page);
+
+    const requete = http.expectOne('/api/groupes');
+    expect(requete.request.body.dates).toEqual([
+      { date: '2028-05-24', debut: '17:00', fin: '19:00' },
+      { date: '2028-05-20', debut: '10:00', fin: '12:00' },
+    ]);
+    expect(requete.request.body.creneaux).toBeUndefined();
+    expect(requete.request.body.dateDeDebut).toBeUndefined();
+    requete.flush({ id: 'g1' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('envoie une Formation avec ses tranches, sans niveau', async () => {
+    await ouvrir();
+    await choisirLeType('Formation');
+    expect(libelles().some((l) => l?.startsWith('Niveau (facultatif)'))).toBe(true);
+    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    saisir(page, '[formcontrolname="prixTotal"]', '300');
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '10');
+    await taper('debut', '10:00');
+    await taper('fin', '12:00');
+    saisir(page, '[formcontrolname="dateDeDebut"]', '2027-10-02');
+    await cliquer('Ajouter une tranche');
+    await cliquer('Ajouter une tranche');
+    await taper('montant', '100');
+    await taper('seance', '1');
+    await taper('montant', '200,000', 1);
+    await taper('seance', '5', 1);
+
+    envoyer(page);
+
+    const requete = http.expectOne('/api/groupes');
+    expect(requete.request.body.type).toBe('Formation');
+    expect(requete.request.body.niveauId).toBeNull();
+    expect(requete.request.body.tranches).toEqual([
+      { montant: 100, seance: 1 },
+      { montant: 200, seance: 5 },
+    ]);
+    requete.flush({ id: 'g1' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('crée une Étude déjà commencée, à partir de son Mois en cours', async () => {
+    await ouvrir();
+    await remplir();
+
+    await cocherDejaCommence();
+    expect(libelles().some((l) => l?.startsWith('Première séance dans SchoolHub'))).toBe(true);
+    envoyer(page);
+    await attendre('Indiquez où en est le groupe');
+
+    saisir(page, '[formcontrolname="moisEnCours"]', '5');
+    envoyer(page);
+
+    const requete = http.expectOne('/api/groupes');
+    expect(requete.request.body.moisEnCours).toBe(5);
+    requete.flush({ id: 'g1' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('crée une Révision déjà commencée, à partir de sa séance en cours', async () => {
+    await ouvrir();
+    await choisirLeType('Révision');
+    await remplirUneRevision();
+    await taper('debut', '10:00');
+    await taper('fin', '12:00');
+    saisir(page, '[formcontrolname="dateDeDebut"]', '2028-01-15');
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '10');
+
+    await cocherDejaCommence();
+    expect(libelles().some((l) => l?.startsWith('Date de cette séance'))).toBe(true);
+    saisir(page, '[formcontrolname="seanceEnCours"]', '4');
+    envoyer(page);
+
+    const requete = http.expectOne('/api/groupes');
+    expect(requete.request.body.seanceEnCours).toBe(4);
+    expect(requete.request.body.nombreDeSeances).toBe(10);
+    requete.flush({ id: 'g1' }, { status: 201, statusText: 'Created' });
+  });
+
+  it("refuse une Révision incomplète ou des montants illisibles", async () => {
+    await ouvrir();
+    await choisirLeType('Révision');
+    await remplirUneRevision();
+    await taper('debut', '10:00');
+    await taper('fin', '12:00');
+    saisir(page, '[formcontrolname="dateDeDebut"]', '2028-05-20');
+
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '');
+    envoyer(page);
+    await attendre('Remplissez le professeur, la matière, le niveau, le prix total, le nombre de séances et les dates');
+
+    saisir(page, '[formcontrolname="nombreDeSeances"]', 'dix');
+    envoyer(page);
+    await attendre('Écrivez le nombre de séances, par exemple 10');
+
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '3');
+    saisir(page, '[formcontrolname="prixTotal"]', '50 TND');
+    envoyer(page);
+    await attendre('Écrivez le prix total, par exemple 50,000');
+  });
+
+  it('refuse une tranche illisible', async () => {
+    await ouvrir();
+    await choisirLeType('Formation');
+    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    saisir(page, '[formcontrolname="prixTotal"]', '300');
+    saisir(page, '[formcontrolname="nombreDeSeances"]', '10');
+    await taper('debut', '10:00');
+    await taper('fin', '12:00');
+    saisir(page, '[formcontrolname="dateDeDebut"]', '2027-10-02');
+    await cliquer('Ajouter une tranche');
+    await taper('montant', 'cent');
+    await taper('seance', '1');
+
+    envoyer(page);
+
+    await attendre('Écrivez le montant et la séance de chaque tranche, par exemple 100,000 à la séance 1');
+    expect(champs('montant')).toHaveLength(1);
   });
 });

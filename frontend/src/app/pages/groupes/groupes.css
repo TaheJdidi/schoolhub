@@ -24,3 +24,12 @@
 .prix { color: var(--ink-2); }
 .seances { display: flex; flex-wrap: wrap; gap: 6px; }
 .seance { padding: 3px 9px; border: 1px solid var(--line-2); border-radius: 8px; font-size: 13px; color: var(--ink-2); }
+
+/* La création à trois types */
+.types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.carte .types { margin-bottom: 0; }
+.filtre { padding: 5px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.filtre[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 500; }
+.tranche .inp { flex: 0 1 120px; }
+.deja-commence { display: grid; gap: 10px; }
+.case { display: flex; align-items: center; gap: 8px; cursor: pointer; }

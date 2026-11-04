@@ -79,6 +79,13 @@ export function heure(texte: string): string {
   return `${Number(heures)}h${minutes === '00' ? '' : minutes}`;
 }
 
+/** Le jour de la semaine d'une date « 2028-05-20 » (lue comme une date locale, sans fuseau). */
+export function jourDeLaDate(date: string): Jour {
+  const [annee, mois, jour] = date.split('-').map(Number);
+  const rang = new Date(annee, mois - 1, jour).getDay();
+  return JOURS[(rang + 6) % 7].jour;
+}
+
 /** « Groupe Samedi 10h → 12h » : le nom proposé depuis le premier créneau, comme le serveur le fait. */
 export function nomPropose(creneau: CreneauDuGroupe): string {
   return `Groupe ${creneau.jour} ${heure(creneau.debut)} → ${heure(creneau.fin)}`;
