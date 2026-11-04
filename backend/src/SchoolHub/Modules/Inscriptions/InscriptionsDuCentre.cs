@@ -38,6 +38,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private const string SeuleUneFormationEnTranches = "Seule une Formation payée en tranches regroupe son reste";
     private const string ResteDejaRegroupe = "Le reste est déjà regroupé";
     private const string AucuneTrancheAVenir = "Il ne reste aucune tranche à venir";
+    private const string DejaArretee = "Cette inscription est déjà arrêtée";
+    private const string ChoisirLaDateDeLArret = "Choisissez la date de l'arrêt";
 
     public const string ChoisirLEleve = "Choisissez l'élève";
     public const string EleveIntrouvable = "Élève introuvable";
@@ -81,7 +83,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var seances = await SeancesAsync(groupeId);
         if (CalendrierDuGroupe.EstTermine(groupe.Type, seances.LastOrDefault()?.Date, DateDeTunis.Aujourdhui(temps)))
             return Refus(StatusCodes.Status409Conflict, GroupeTermine);
-        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupeId))
+        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupeId && i.ArreteLe == null))
             return Refus(StatusCodes.Status409Conflict, DejaInscrit);
 
         var modes = Echeancier.ModesPossibles(groupe.Type, groupe.Tranches.Count > 0);
@@ -103,7 +105,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         if (seances.All(s => s.Date != debutLe))
             return Refus(StatusCodes.Status400BadRequest, PasDeSeanceCeJourLa);
 
-        var avertissement = groupe.Capacite is { } capacite && await contexte.Inscriptions.CountAsync(i => i.GroupeId == groupeId) >= capacite
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var avertissement = groupe.Capacite is { } capacite
+            && await contexte.Inscriptions.CountAsync(i => i.GroupeId == groupeId && (i.ArreteLe == null || i.ArreteLe >= aujourdhui)) >= capacite
             ? CapaciteAtteinte
             : null;
         var inscription = new Inscription(eleveId, groupeId, mode, debutLe, temps.GetUtcNow());
@@ -169,11 +173,14 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
+        var aujourdhuiPourLesInscrits = DateDeTunis.Aujourdhui(temps);
         var inscrits = await contexte.Inscriptions
+            .Where(i => i.ArreteLe == null || i.ArreteLe >= aujourdhuiPourLesInscrits)
             .GroupBy(i => i.GroupeId)
             .Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Nombre);
-        var dejaInscrit = (await contexte.Inscriptions.Where(i => i.EleveId == eleveId).Select(i => i.GroupeId).ToListAsync()).ToHashSet();
+        var dejaInscrit = (await contexte.Inscriptions.Where(i => i.EleveId == eleveId && i.ArreteLe == null).Select(i => i.GroupeId).ToListAsync())
+            .ToHashSet();
         var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
         var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
         var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
@@ -411,6 +418,30 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private static bool ATrancheAVenir(Echeance echeance, DateOnly aujourdhui) =>
         Echeancier.PeutRegrouperLeReste(echeance.Calendrier, echeance.Conditions, aujourdhui);
 
+    /// <summary>
+    /// ELV-08 : arrête l'inscription à une date, son dernier jour compté : rien n'est dû après, ce qui était dû avant reste
+    /// dû, et ce qui est payé le reste, sans remboursement. Une date avant sa première séance la rend sans effet. L'arrêt
+    /// va au journal.
+    /// </summary>
+    public async Task<IssueSurUneInscription> ArreterAsync(Compte auteur, Guid id, DateSaisie saisie)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var inscription = await InscriptionVerrouilleeAsync(id);
+        if (inscription is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (inscription.ArreteLe is not null)
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, DejaArretee);
+        if (saisie.Date is not { } date)
+            return RefusSurUneInscription(StatusCodes.Status400BadRequest, ChoisirLaDateDeLArret);
+
+        journal.Noter(auteur, ActionDuJournal.InscriptionArretee, Couper(await QuiEtOuAsync(inscription)),
+            $"Depuis le {SaisieDuGroupe.EcrireUneDate(inscription.DebutLe)}", $"Arrêtée le {SaisieDuGroupe.EcrireUneDate(date)}");
+        inscription.Arreter(date);
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
+    }
+
     private const string EtatAPayer = "APayer";
     private const string EtatPayeeAvantSchoolHub = "PayeeAvantSchoolHub";
     private const string EtatDispensee = "Dispensee";
@@ -550,7 +581,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             var groupe = groupes[i.GroupeId];
             var duGroupe = seances.GetValueOrDefault(i.GroupeId) ?? [];
             var regles = reglements[i.Id].ToList();
-            var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe);
+            var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe,
+                i.ArreteLe, i.Report);
             var calendrier = Calendrier(groupe, duGroupe);
             return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(calendrier, conditions),
                 regles.ToDictionary(r => r.Cle, r => r.Origine), calendrier, conditions);
@@ -593,7 +625,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 i.RaisonDuPrixSpecial,
                 e.Sommes.Where(s => s.Reglee).Select(s => new SommeReglee(s.Libelle, s.Montant, e.Origines[s.Cle].ToString())).ToList(),
                 e.Sommes.Where(s => PayableAvantSchoolHub(e, s)).Select(s => new SommePayable(s.Cle, s.Libelle, s.Montant)).ToList(),
-                ATrancheAVenir(e, aujourdhui));
+                ATrancheAVenir(e, aujourdhui),
+                i.ArreteLe,
+                i.Report);
         }).ToList();
     }
 

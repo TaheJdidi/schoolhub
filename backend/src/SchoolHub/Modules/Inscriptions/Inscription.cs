@@ -13,13 +13,14 @@ namespace SchoolHub.Modules.Inscriptions;
 /// </summary>
 public sealed class Inscription : IAppartientAuCentre
 {
-    internal Inscription(Guid eleveId, Guid groupeId, ModeDeTarification mode, DateOnly debutLe, DateTimeOffset inscritLe)
+    internal Inscription(Guid eleveId, Guid groupeId, ModeDeTarification mode, DateOnly debutLe, DateTimeOffset inscritLe, decimal report = 0m)
     {
         EleveId = eleveId;
         GroupeId = groupeId;
         Mode = mode;
         DebutLe = debutLe;
         InscritLe = inscritLe;
+        Report = report;
     }
 
     public Guid Id { get; private set; } = Guid.CreateVersion7();
@@ -59,6 +60,14 @@ public sealed class Inscription : IAppartientAuCentre
     }
 
     public void RegrouperLeReste(DateOnly aujourdhui) => ResteRegroupeLe = aujourdhui;
+
+    /// <summary>ELV-08 : le dernier jour compté ; rien n'est dû après, ce qui est payé le reste.</summary>
+    public DateOnly? ArreteLe { get; private set; }
+
+    /// <summary>ELV-09 : la valeur des séances payées et pas suivies dans l'ancien groupe, déduite des sommes dues ici.</summary>
+    public decimal Report { get; private set; }
+
+    public void Arreter(DateOnly le) => ArreteLe = le;
 }
 
 /// <summary>
@@ -111,11 +120,12 @@ internal sealed class InscriptionConfiguration : IEntityTypeConfiguration<Inscri
         inscription.ToTable("inscriptions");
         inscription.Property(i => i.Mode).HasConversion<string>().HasMaxLength(20);
         inscription.Property(i => i.PrixSpecial).HasPrecision(12, 3);
+        inscription.Property(i => i.Report).HasPrecision(12, 3);
         inscription.Property(i => i.RaisonDuPrixSpecial).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
         inscription.HasOne<Eleve>().WithMany().HasForeignKey(i => i.EleveId).OnDelete(DeleteBehavior.Restrict);
         inscription.HasOne<Groupe>().WithMany().HasForeignKey(i => i.GroupeId).OnDelete(DeleteBehavior.Restrict);
-        // Un élève n'est inscrit qu'une fois dans un groupe ; l'arrêt (ELV-08) rendra la réinscription possible.
-        inscription.HasIndex(i => new { i.EleveId, i.GroupeId }).IsUnique();
+        // Un élève n'a qu'une inscription pas arrêtée par groupe : arrêté (ELV-08), il peut s'y réinscrire.
+        inscription.HasIndex(i => new { i.EleveId, i.GroupeId }).IsUnique().HasFilter("arrete_le IS NULL");
         inscription.HasIndex(i => i.GroupeId);
     }
 }

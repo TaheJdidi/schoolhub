@@ -166,7 +166,7 @@ public static class Echeancier
     /// </summary>
     public static bool PeutRegrouperLeReste(CalendrierAPayer groupe, ConditionsDeLInscription conditions, DateOnly aujourdhui)
     {
-        if (conditions.Mode != ModeDeTarification.EnTranches || conditions.ResteRegroupeLe is not null
+        if (conditions.Mode != ModeDeTarification.EnTranches || conditions.ResteRegroupeLe is not null || conditions.ArreteLe is not null
             || PremiereSeance(groupe, conditions.DebutLe) is not { } premiere)
             return false;
         return Calculer(groupe, conditions).Any(s => Regroupable(s, aujourdhui, premiere) && s.Montant > 0);

@@ -15,7 +15,7 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Que veut dire « arrêté le 25/01 » ? | Le 25/01 est le dernier jour compté : une somme due ce jour-là ou avant reste due, une somme due après ne l'est plus. Une somme déjà payée reste payée, même après l'arrêt : pas de remboursement. L'exemple d'ELV-08 tient : le Mois 5, dû le 15/01, reste dû en entier. |
 | Quelle date ? | Aujourd'hui par défaut ; une autre date est permise. Avant la première séance de l'élève, plus rien n'est dû : c'est ainsi qu'on défait une inscription faite par erreur. |
 | Réinscrire un élève arrêté ? | Oui (ELV-08) : une nouvelle inscription, au prorata. Un élève n'a qu'une inscription **pas arrêtée** par groupe (l'index unique ne compte plus que celles-là). |
-| Qui compte comme inscrit ? | Pour le nombre d'élèves, la capacité et « Déjà inscrit » : une inscription pas arrêtée, ou arrêtée à une date qui n'est pas encore passée. |
+| Qui compte comme inscrit ? | Pour le nombre d'élèves et la capacité : une inscription pas arrêtée, ou arrêtée à une date qui n'est pas encore passée. Pour « Déjà inscrit » : une inscription pas arrêtée, comme l'index unique. |
 | Le changement de groupe : à quelle date ? | À la première séance de l'élève dans le nouveau groupe, choisie comme pour une inscription. L'ancienne inscription s'arrête la veille. |
 | Le même type ? | Le nouveau groupe est du même type que l'ancien (ELV-09), ouvert, pas terminé, et l'élève n'y est pas déjà inscrit. Le mode se choisit comme pour une inscription. |
 | La valeur des séances payées et pas suivies ? | Pour chaque somme réglée de l'ancienne inscription, la part de ses séances qui tombent à la date du changement ou après : son montant réglé × ces séances ÷ ses séances, au millime. Une Formation (en une fois, en tranches, ou son reste) compte ensemble tout ce qui est réglé, sur toutes les séances de l'élève. L'exemple d'ELV-09 tient : le Mois 5 payé 40 TND, le changement après la séance 1 : 30 TND. |
@@ -58,7 +58,7 @@ L'inscription, en JSON, gagne `arreteLe` et `report`. `groupes-possibles` gagne 
 
 | Action | Détail | Avant → après |
 |---|---|---|
-| `InscriptionArretee` | « Adem Miled · Groupe Samedi 10h → 12h (Mathématiques) » | « Inscrit depuis le 20/11/2027 » → « Arrêté le 25/01/2028 » |
+| `InscriptionArretee` | « Adem Miled · Groupe Samedi 10h → 12h (Mathématiques) » | « Depuis le 20/11/2027 » → « Arrêtée le 25/01/2028 » (l'inscription : sans accord sur l'élève) |
 | `ChangementDeGroupe` | « Adem Miled · Groupe Samedi 10h → 12h (Mathématiques) → Groupe Mardi 17h → 19h (Mathématiques) · report de 30,000 TND » | « Groupe Samedi 10h → 12h » → « Groupe Mardi 17h → 19h, depuis le 18/01/2028 » (coupés à 100 caractères) |
 
 ## 4. Les pages

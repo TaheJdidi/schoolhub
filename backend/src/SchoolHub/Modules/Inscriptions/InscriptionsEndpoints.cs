@@ -22,6 +22,8 @@ public static class InscriptionsEndpoints
         api.MapPost("/eleves/{id:guid}/assurance/dispense", DispenserAsync).RequireAuthorization(Politiques.Proprietaire);
         // ELV-07 et ELV-10 : toute personne connectée du centre.
         groupe.MapPost("/{id:guid}/paye-avant-schoolhub", PayeAvantSchoolHubAsync);
+        groupe.MapPost("/{id:guid}/arret", async (Guid id, DateSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
+            InscriptionsDuCentre inscriptions) => Repondre(await inscriptions.ArreterAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
         groupe.MapPost("/{id:guid}/reste", async (Guid id, InscriptionsDuCentre inscriptions) => Repondre(await inscriptions.RegrouperLeResteAsync(id)));
         api.MapPost("/eleves/{id:guid}/assurance/payee-avant-schoolhub", AssurancePayeeAvantSchoolHubAsync);
         return api;
@@ -159,7 +161,9 @@ public sealed record InscriptionDeLEleve(
     string? RaisonDuPrixSpecial,
     List<SommeReglee> Reglees,
     List<SommePayable> PayablesAvantSchoolHub,
-    bool PeutRegrouperLeReste);
+    bool PeutRegrouperLeReste,
+    DateOnly? ArreteLe,
+    decimal Report);
 
 /// <summary>Une somme due à la première séance de l'élève : « Mois 3 (3 séances) », 30,000 TND.</summary>
 public sealed record SommeALArrivee(string Libelle, decimal Montant);
@@ -197,6 +201,9 @@ public sealed record PrixSpecialSaisi(decimal? Montant, string? Raison);
 
 /// <summary>Une raison, pour une dispense d'assurance.</summary>
 public sealed record RaisonSaisie(string? Raison);
+
+/// <summary>Une date, pour l'arrêt d'une inscription (ELV-08).</summary>
+public sealed record DateSaisie(DateOnly? Date);
 
 /// <summary>La clé d'une somme d'une inscription : « Totalité », « Tranche 1 »…</summary>
 public sealed record CleSaisie(string? Cle);

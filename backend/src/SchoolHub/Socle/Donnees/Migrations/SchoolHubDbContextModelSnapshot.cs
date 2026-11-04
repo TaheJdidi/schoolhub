@@ -397,6 +397,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateOnly?>("ArreteLe")
+                        .HasColumnType("date")
+                        .HasColumnName("arrete_le");
+
                     b.Property<Guid>("CentreId")
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
@@ -433,6 +437,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("raison_du_prix_special");
 
+                    b.Property<decimal>("Report")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("report");
+
                     b.Property<DateOnly?>("ResteRegroupeLe")
                         .HasColumnType("date")
                         .HasColumnName("reste_regroupe_le");
@@ -448,7 +457,8 @@ namespace SchoolHub.Socle.Donnees.Migrations
 
                     b.HasIndex("EleveId", "GroupeId")
                         .IsUnique()
-                        .HasDatabaseName("ix_inscriptions_eleve_id_groupe_id");
+                        .HasDatabaseName("ix_inscriptions_eleve_id_groupe_id")
+                        .HasFilter("arrete_le IS NULL");
 
                     b.ToTable("inscriptions", (string)null);
                 });

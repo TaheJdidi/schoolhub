@@ -125,7 +125,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
+        var aujourdhuiPourLesInscrits = DateDeTunis.Aujourdhui(temps);
+        // Un élève arrêté ne compte plus une fois le dernier jour de son inscription passé (ELV-08).
         var inscrits = await contexte.Inscriptions
+            .Where(i => i.ArreteLe == null || i.ArreteLe >= aujourdhuiPourLesInscrits)
             .GroupBy(i => i.GroupeId)
             .Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Nombre);
@@ -274,7 +277,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             niveau is null ? null : new NiveauDuGroupe(niveau.Id, niveau.Nom),
             groupe.Creneaux.Select(CreneauDuGroupe.De).ToList(),
             groupe.Capacite,
-            Eleves: await contexte.Inscriptions.CountAsync(i => i.GroupeId == id),
+            Eleves: await contexte.Inscriptions.CountAsync(i => i.GroupeId == id && (i.ArreteLe == null || i.ArreteLe >= aujourdhui)),
             groupe.DateDeDebut,
             prixDuMois,
             mois,

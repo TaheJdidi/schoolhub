@@ -336,6 +336,9 @@ public sealed class EcheancierTests
             new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], 100m, Reglees(("Tranche 1", 100m))), seances[2]));
         Assert.False(Echeancier.PeutRegrouperLeReste(formation,
             new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, null, seances[1]), seances[2]));
+        // Une inscription arrêtée ne regroupe plus rien.
+        Assert.False(Echeancier.PeutRegrouperLeReste(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], ArreteLe: seances[6]), seances[2]));
     }
 
     // ----- L'arrêt et le report (ELV-08, ELV-09) -----
