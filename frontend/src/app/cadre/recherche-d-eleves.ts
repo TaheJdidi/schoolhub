@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, InjectionToken, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, InjectionToken, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter, firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../socle/erreurs';
 import { Icone } from '../socle/icone';
 
@@ -21,13 +22,15 @@ const RESULTATS_AU_PLUS = 8;
 
 /**
  * ELV-01 : la recherche d'un élève, en haut de chaque écran. Dès 2 caractères, après une courte pause, les élèves
- * s'affichent pendant la frappe ; un clic ouvre la fiche et vide le champ ; Échap ferme la liste. Une réponse arrivée
- * après une recherche plus récente est ignorée.
+ * s'affichent pendant la frappe ; un clic ouvre la fiche et vide le champ. Échap, une touche ailleurs (sur un téléphone,
+ * il n'y a pas d'Échap) ou un changement d'écran ferment la liste, et annulent la recherche qui attendait la fin de la
+ * pause. Une réponse arrivée après une recherche plus récente est ignorée.
  */
 @Component({
   selector: 'sh-recherche-d-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, Icone],
+  host: { '(document:pointerdown)': 'toucher($event)' },
   template: `
     <div class="recherche" (keydown.escape)="fermer()">
       <sh-icone nom="search" />
@@ -70,6 +73,7 @@ const RESULTATS_AU_PLUS = 8;
 export class RechercheDEleves {
   private readonly http = inject(HttpClient);
   private readonly delai = inject(DELAI_DE_RECHERCHE);
+  private readonly hote: HTMLElement = inject(ElementRef).nativeElement;
 
   protected readonly texte = signal('');
   protected readonly resultats = signal<EleveTrouve[]>([]);
@@ -80,7 +84,19 @@ export class RechercheDEleves {
   private derniere = 0;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.minuterie));
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => clearTimeout(this.minuterie));
+    inject(Router)
+      .events.pipe(
+        filter((evenement) => evenement instanceof NavigationEnd),
+        takeUntilDestroyed(destroyRef),
+      )
+      .subscribe(() => this.fermer());
+  }
+
+  /** Une touche hors de la recherche ferme la liste ; sur un résultat, le lien s'ouvre comme d'habitude. */
+  protected toucher(evenement: Event): void {
+    if (!this.hote.contains(evenement.target as Node)) this.fermer();
   }
 
   protected taper(evenement: Event): void {
@@ -101,6 +117,7 @@ export class RechercheDEleves {
   }
 
   protected fermer(): void {
+    clearTimeout(this.minuterie);
     this.derniere++;
     this.ouverte.set(false);
   }

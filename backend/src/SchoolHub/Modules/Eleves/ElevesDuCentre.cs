@@ -35,7 +35,7 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
 
     /// <summary>
     /// ELV-01 : les élèves du centre, par nom puis prénom, avec le nom de leur niveau. Avec une recherche (100 résultats
-    /// au plus) : une saisie faite de chiffres cherche dans les deux téléphones (« 22 345 ») ; sinon chaque mot, sans
+    /// au plus) : une saisie faite de chiffres cherche dans les deux téléphones (« 22 345 », « +216 98-401-220 ») ; sinon chaque mot, sans
     /// accents ni majuscules, doit se trouver dans le prénom ou le nom (« miled adem », « hedi »).
     /// </summary>
     public async Task<List<EleveTrouve>> ListerAsync(string? recherche)
@@ -43,11 +43,11 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
         var requete = contexte.Eleves.AsQueryable();
         if (!string.IsNullOrWhiteSpace(recherche))
         {
-            var sansEspaces = new string(recherche.Where(c => !char.IsWhiteSpace(c)).ToArray());
-            if (sansEspaces.All(char.IsAsciiDigit))
+            // Un numéro collé tel quel (« +216 98-401-220 », ou copié de WhatsApp) se nettoie comme à l'enregistrement.
+            if (TelephoneTunisien.Chiffres(recherche) is { } chiffres)
             {
-                requete = requete.Where(e => (e.TelephoneParent != null && e.TelephoneParent.Contains(sansEspaces))
-                    || (e.TelephoneEleve != null && e.TelephoneEleve.Contains(sansEspaces)));
+                requete = requete.Where(e => (e.TelephoneParent != null && e.TelephoneParent.Contains(chiffres))
+                    || (e.TelephoneEleve != null && e.TelephoneEleve.Contains(chiffres)));
             }
             else
             {

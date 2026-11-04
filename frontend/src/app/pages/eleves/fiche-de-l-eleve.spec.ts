@@ -134,4 +134,18 @@ describe('la fiche d’un élève', () => {
     expect(page.textContent).toContain("Cet élève n'existe pas.");
     expect(page.querySelector('a[href="/eleves"]')).not.toBeNull();
   });
+
+  it("suit l'adresse quand on passe d'un élève à un autre, et supprime celui qui est affiché", async () => {
+    await ouvrir();
+
+    await harness.navigateByUrl('/eleves/e2');
+    (await vi.waitFor(() => http.expectOne('/api/eleves/e2'))).flush({ ...ADEM, id: 'e2', prenom: 'Hédi', nom: 'Ben Salah' });
+    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('Hédi Ben Salah'));
+
+    await cliquer('Supprimer la fiche');
+    expect(page.textContent).toContain("Supprimer la fiche d'Hédi Ben Salah ?");
+    await cliquer('Oui');
+    http.expectOne({ method: 'DELETE', url: '/api/eleves/e2' }).flush(null, { status: 204, statusText: 'No Content' });
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves'));
+  });
 });

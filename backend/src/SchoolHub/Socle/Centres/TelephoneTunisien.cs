@@ -9,7 +9,13 @@ public static class TelephoneTunisien
     /// Les caractères invisibles de mise en forme (les marques de direction que WhatsApp ajoute à un numéro copié)
     /// sont ignorés aussi.
     /// </summary>
-    public static string? Normaliser(string saisie)
+    public static string? Normaliser(string saisie) => Chiffres(saisie) is { Length: 8 } chiffres ? chiffres : null;
+
+    /// <summary>
+    /// Les chiffres d'un numéro, entier ou en partie (« 98 401 », « +216 98-401-220 »), nettoyé comme par
+    /// <see cref="Normaliser"/> ; ou <c>null</c> s'il reste autre chose que des chiffres, ou rien.
+    /// </summary>
+    public static string? Chiffres(string saisie)
     {
         var chiffres = new string(saisie
             .Where(c => !char.IsWhiteSpace(c)
@@ -21,7 +27,7 @@ public static class TelephoneTunisien
         else if (chiffres.StartsWith("00216", StringComparison.Ordinal))
             chiffres = chiffres[5..];
 
-        return chiffres.Length == 8 && chiffres.All(char.IsAsciiDigit) ? chiffres : null;
+        return chiffres.Length > 0 && chiffres.All(char.IsAsciiDigit) ? chiffres : null;
     }
 
     /// <summary>Les 8 chiffres, groupés comme on les lit : « 71 234 567 ».</summary>

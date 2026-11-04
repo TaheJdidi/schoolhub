@@ -270,6 +270,13 @@ public sealed class ElevesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     [Theory]
     [InlineData("22 345")]
     [InlineData("98401")]
+    // Un numéro collé tel quel : l'indicatif, les tirets et les points, les marques invisibles d'un copier de WhatsApp.
+    [InlineData("+216 98 401 220")]
+    [InlineData("00216 98401220")]
+    [InlineData("98-401-220")]
+    [InlineData("22.345")]
+    [InlineData("‪+216 98 401 220‬")]
+    [InlineData("‎98 401 220")]
     public async Task La_recherche_trouve_les_telephones_de_l_eleve_et_du_parent(string recherche)
     {
         await AjouterAsync(Adem);

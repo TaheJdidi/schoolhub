@@ -104,4 +104,38 @@ describe("la recherche d'un élève, en haut de chaque écran", () => {
 
     expect(element.querySelector('.resultats')).toBeNull();
   });
+
+  it('ne rouvre pas la liste quand on appuie sur Échap pendant la pause', async () => {
+    taper('adem');
+    champ().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    http.expectNone((requete) => requete.url === '/api/eleves');
+    expect(element.querySelector('.resultats')).toBeNull();
+  });
+
+  it('se ferme quand on touche ailleurs, mais pas quand on touche un résultat', async () => {
+    taper('adem');
+    (await attendreLaRequete('adem')).flush([ADEM]);
+    await vi.waitFor(() => expect(resultats()).toHaveLength(1));
+
+    resultats()[0].dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    await fixture.whenStable();
+    expect(resultats()).toHaveLength(1);
+
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    await fixture.whenStable();
+    expect(element.querySelector('.resultats')).toBeNull();
+  });
+
+  it("se ferme quand on change d'écran (un onglet du bas, sur un téléphone)", async () => {
+    taper('adem');
+    (await attendreLaRequete('adem')).flush([ADEM]);
+    await vi.waitFor(() => expect(resultats()).toHaveLength(1));
+
+    await TestBed.inject(Router).navigateByUrl('/groupes');
+    await fixture.whenStable();
+
+    expect(element.querySelector('.resultats')).toBeNull();
+  });
 });
