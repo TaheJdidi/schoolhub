@@ -250,6 +250,55 @@ public sealed class ElevesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonyme.PostAsJsonAsync(Adresse, Adem)).StatusCode);
     }
 
+    // ----- La recherche (ELV-01) -----
+
+    [Theory]
+    [InlineData("hedi")]
+    [InlineData("HÉDI")]
+    [InlineData("  ben   salah ")]
+    [InlineData("salah hedi")]
+    public async Task La_recherche_ignore_accents_et_majuscules(string recherche)
+    {
+        await AjouterAsync(new FicheSaisieDeLEleve("Hédi", "Ben Salah", Niveau("6ᵉ année de base"), false, "98 000 001", null, null, null, null));
+        await AjouterAsync(Adem);
+
+        var trouves = await ChercherAsync(recherche);
+
+        Assert.Equal(["Hédi Ben Salah"], trouves.Select(e => $"{e.Prenom} {e.Nom}"));
+    }
+
+    [Theory]
+    [InlineData("22 345")]
+    [InlineData("98401")]
+    public async Task La_recherche_trouve_les_telephones_de_l_eleve_et_du_parent(string recherche)
+    {
+        await AjouterAsync(Adem);
+        await AjouterAsync(new FicheSaisieDeLEleve("Hédi", "Ben Salah", Niveau("6ᵉ année de base"), false, "55 000 001", null, null, null, null));
+
+        Assert.Equal(["Adem Miled"], (await ChercherAsync(recherche)).Select(e => $"{e.Prenom} {e.Nom}"));
+    }
+
+    [Fact]
+    public async Task Une_recherche_sans_resultat()
+    {
+        await AjouterAsync(Adem);
+
+        Assert.Empty(await ChercherAsync("zz"));
+    }
+
+    [Fact]
+    public async Task La_recherche_rend_100_eleves_au_plus()
+    {
+        var sixieme = Niveau("6ᵉ année de base");
+        for (var i = 0; i < 105; i++)
+            await AjouterAsync(new FicheSaisieDeLEleve($"Adem{i:000}", "Miled", sixieme, false, "98 000 000", null, null, null, null));
+
+        Assert.Equal(100, (await ChercherAsync("adem")).Count);
+    }
+
+    private async Task<List<EleveTrouve>> ChercherAsync(string recherche) =>
+        (await _client.GetFromJsonAsync<List<EleveTrouve>>($"{Adresse}?recherche={Uri.EscapeDataString(recherche)}"))!;
+
     // ----- Outils -----
 
     private async Task<EnregistrementDeLEleve> AjouterAsync(FicheSaisieDeLEleve fiche)

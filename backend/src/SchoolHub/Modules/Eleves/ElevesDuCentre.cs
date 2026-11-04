@@ -30,11 +30,36 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     private const string EtablissementTropLong = "L'établissement fait au plus 200 caractères";
     private const string Introuvable = "Élève introuvable";
 
-    /// <summary>Les élèves du centre, par nom puis prénom, avec le nom de leur niveau.</summary>
-    public async Task<List<EleveTrouve>> ListerAsync()
+    /// <summary>Le nombre de résultats d'une recherche : assez pour une page, jamais toute une base.</summary>
+    public const int ResultatsAuPlus = 100;
+
+    /// <summary>
+    /// ELV-01 : les élèves du centre, par nom puis prénom, avec le nom de leur niveau. Avec une recherche (100 résultats
+    /// au plus) : une saisie faite de chiffres cherche dans les deux téléphones (« 22 345 ») ; sinon chaque mot, sans
+    /// accents ni majuscules, doit se trouver dans le prénom ou le nom (« miled adem », « hedi »).
+    /// </summary>
+    public async Task<List<EleveTrouve>> ListerAsync(string? recherche)
     {
+        var requete = contexte.Eleves.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(recherche))
+        {
+            var sansEspaces = new string(recherche.Where(c => !char.IsWhiteSpace(c)).ToArray());
+            if (sansEspaces.All(char.IsAsciiDigit))
+            {
+                requete = requete.Where(e => (e.TelephoneParent != null && e.TelephoneParent.Contains(sansEspaces))
+                    || (e.TelephoneEleve != null && e.TelephoneEleve.Contains(sansEspaces)));
+            }
+            else
+            {
+                foreach (var mot in Eleve.Normaliser(recherche).Split(' '))
+                    requete = requete.Where(e => e.NomDeRecherche.Contains(mot));
+            }
+        }
+
         var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
-        var eleves = await contexte.Eleves.OrderBy(e => e.Nom).ThenBy(e => e.Prenom).ThenBy(e => e.Id).ToListAsync();
+        var eleves = await requete.OrderBy(e => e.Nom).ThenBy(e => e.Prenom).ThenBy(e => e.Id)
+            .Take(string.IsNullOrWhiteSpace(recherche) ? int.MaxValue : ResultatsAuPlus)
+            .ToListAsync();
         return eleves.Select(e => new EleveTrouve(e.Id, e.Prenom, e.Nom, niveaux[e.NiveauId])).ToList();
     }
 

@@ -10,7 +10,7 @@ public static class ElevesEndpoints
     public static IEndpointRouteBuilder MapEleves(this IEndpointRouteBuilder api)
     {
         var groupe = api.MapGroup("/eleves");
-        groupe.MapGet("", (ElevesDuCentre eleves) => eleves.ListerAsync());
+        groupe.MapGet("", (string? recherche, ElevesDuCentre eleves) => eleves.ListerAsync(recherche));
         groupe.MapPost("", AjouterAsync);
         groupe.MapGet("/{id:guid}", LireAsync);
         groupe.MapPut("/{id:guid}", ModifierAsync);
