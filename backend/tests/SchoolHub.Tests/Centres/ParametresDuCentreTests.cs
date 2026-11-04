@@ -92,6 +92,19 @@ public sealed class ParametresDuCentreTests(PostgreSqlDeTest postgreSql) : IAsyn
         Assert.Equal("71234567", (await CentreEnBaseAsync(_jasmins)).Telephone);
     }
 
+    // WhatsApp entoure souvent un numéro copié de marques invisibles de direction, surtout sur un téléphone en arabe.
+    [Theory]
+    [InlineData("‪+216 71 234 567‬")]
+    [InlineData("‎71 234 567‏")]
+    [InlineData("⁦+216 71234567⁩")]
+    public async Task Le_telephone_accepte_les_marques_de_direction(string saisie)
+    {
+        var reponse = await _client.PutAsJsonAsync(Adresse, Valides with { Telephone = saisie });
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("71234567", (await CentreEnBaseAsync(_jasmins)).Telephone);
+    }
+
     [Theory]
     [InlineData("nom", "  ", "Le nom du centre est obligatoire")]
     [InlineData("telephone", "1234", "Le téléphone doit avoir 8 chiffres")]

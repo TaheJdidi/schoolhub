@@ -12,6 +12,9 @@ type Filtre = 'au-centre' | 'partis';
 /** Ce que montre la colonne de droite : la fiche du professeur choisi, ou le formulaire. */
 type Mode = 'fiche' | 'ajout' | 'modification';
 
+/** Le deuxième clic (ou plus) d'un double-clic : le navigateur le compte dans `detail`. */
+const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
+
 /**
  * GRP-01, GRP-02 (la liste) et GRP-03 : la liste des professeurs à gauche, la fiche du professeur choisi à droite.
  * La liste se charge une fois ; après une action, elle prend le professeur renvoyé par le serveur.
@@ -128,7 +131,12 @@ export class Professeurs implements OnInit {
     });
   }
 
-  protected partir(professeur: Professeur): Promise<void> {
+  /**
+   * « Revenir au centre » prend la place de « Marquer parti » (et l'inverse) dès la réponse du serveur :
+   * le second clic d'un double-clic tomberait dessus et déferait l'action. Il ne compte pas.
+   */
+  protected partir(professeur: Professeur, clic?: MouseEvent): Promise<void> {
+    if (secondClic(clic)) return Promise.resolve();
     return this.agir(async () => {
       const aJour = await firstValueFrom(this.http.post<Professeur>(`${ADRESSE}/${professeur.id}/depart`, null));
       this.montrer(aJour);
@@ -136,7 +144,8 @@ export class Professeurs implements OnInit {
     });
   }
 
-  protected revenir(professeur: Professeur): Promise<void> {
+  protected revenir(professeur: Professeur, clic?: MouseEvent): Promise<void> {
+    if (secondClic(clic)) return Promise.resolve();
     return this.agir(async () => {
       const aJour = await firstValueFrom(this.http.post<Professeur>(`${ADRESSE}/${professeur.id}/retour`, null));
       this.montrer(aJour);

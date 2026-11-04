@@ -35,7 +35,10 @@ public sealed class Professeur : IAppartientAuCentre
 
     public string? Email { get; private set; }
 
-    /// <summary>Le professeur a quitté le centre : il sort de la liste des professeurs (GRP-03).</summary>
+    /// <summary>
+    /// Le professeur a quitté le centre : il sort de la liste des professeurs (GRP-03).
+    /// GRP-04 refusera un professeur parti dans le formulaire d'un nouveau groupe.
+    /// </summary>
     public bool Parti { get; private set; }
 
     /// <summary>La nouvelle fiche, déjà vérifiée.</summary>

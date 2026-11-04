@@ -149,6 +149,26 @@ describe('la page « Professeurs »', () => {
     expect(noms()).toEqual(['Leila Khelifi']);
   });
 
+  it("ignore le second clic d'un double-clic, qui tombe sur le bouton inverse", async () => {
+    await ouvrir([KARIM]);
+    const secondClic = async (libelle: string) => {
+      bouton(fiche(), libelle).dispatchEvent(new MouseEvent('click', { detail: 2, bubbles: true }));
+      await harness.fixture.whenStable();
+    };
+
+    await cliquer(fiche(), 'Marquer parti');
+    http.expectOne(`${ADRESSE}/k/depart`).flush({ ...KARIM, parti: true });
+    await attendre('Karim Ben Salah a quitté le centre');
+    await secondClic('Revenir au centre');
+    http.expectNone(`${ADRESSE}/k/retour`);
+
+    await cliquer(fiche(), 'Revenir au centre');
+    http.expectOne(`${ADRESSE}/k/retour`).flush(KARIM);
+    await attendre('Karim Ben Salah est de retour au centre');
+    await secondClic('Marquer parti');
+    http.expectNone(`${ADRESSE}/k/depart`);
+  });
+
   it('fait revenir un professeur au centre', async () => {
     await ouvrir([KARIM, SAMI]);
     await cliquer(page, 'Professeurs partis');

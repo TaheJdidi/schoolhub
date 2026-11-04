@@ -96,9 +96,9 @@
           <div class="actions">
             <button type="button" class="btn" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
             @if (professeur.parti) {
-              <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur)">Revenir au centre</button>
+              <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
             } @else {
-              <button type="button" class="btn" [disabled]="envoi()" (click)="partir(professeur)">Marquer parti</button>
+              <button type="button" class="btn" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
             }
             <button type="button" class="btn" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
           </div>

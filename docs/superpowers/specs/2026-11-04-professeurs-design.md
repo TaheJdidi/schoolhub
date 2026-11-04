@@ -26,7 +26,7 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 
 | Question | Décision |
 |---|---|
-| Où vit le code ? | Dans un module `Professeurs` (`backend/src/SchoolHub/Professeurs/`), l'un des modules de l'[ADR 0003](../../adr/0003-un-seul-deploiement-decoupe-en-modules.md). Le professeur appartient au centre (`IAppartientAuCentre`). |
+| Où vit le code ? | Dans un module `Professeurs` (`backend/src/SchoolHub/Modules/Professeurs/`, comme le prévoit le README du backend), l'un des modules de l'[ADR 0003](../../adr/0003-un-seul-deploiement-decoupe-en-modules.md). Le professeur appartient au centre (`IAppartientAuCentre`). |
 | Comment prévenir d'un téléphone en double sans bloquer ? | Le professeur s'enregistre, et la réponse porte un `avertissement` : « Ce téléphone est aussi celui de Karim Ben Salah ». La page l'affiche sous la fiche. Une seule requête, pas de confirmation. |
 | Quels professeurs comptent pour le doublon ? | Tous les autres professeurs du centre, partis compris : un professeur parti qui revient doit se retrouver plutôt que se recréer. Le professeur lui-même ne compte pas. |
 | Le doublon prévient-il à chaque modification ? | Oui, tant que le doublon existe. C'est plus simple et toujours vrai. |
@@ -36,8 +36,10 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Le nombre de groupes ouverts ? | Le champ `groupesOuverts` existe déjà dans l'API et vaut toujours 0. GRP-04 le comptera. |
 | Le journal ? | Les professeurs n'y vont pas : la liste des [exigences communes](../../user-stories/00-exigences-communes.md#journal) ne les cite pas. |
 | Qui y a accès ? | Toute personne connectée du centre : la secrétaire et le propriétaire. |
-| Un téléphone collé avec des espaces insécables (WhatsApp) ? | Accepté : `TelephoneTunisien.Normaliser` ignore désormais tout espace (`char.IsWhiteSpace`). C'était la remarque n° 4 reportée des paramètres ; elle touche directement la fiche du professeur. |
+| Un téléphone collé depuis WhatsApp ? | Accepté : `TelephoneTunisien.Normaliser` ignore désormais tout espace (`char.IsWhiteSpace`, les insécables compris) et les caractères invisibles de mise en forme (les marques de direction que WhatsApp ajoute autour d'un numéro copié). Les espaces insécables étaient la remarque n° 4 reportée des paramètres ; elle touche directement la fiche du professeur. |
 | L'ordre de la liste ? | Par prénom, puis par nom : au centre, on dit « Karim » ou « Mme Leila ». |
+| Les messages de départ et de retour ? | Sans genre, car la fiche ne dit pas si c'est un professeur ou une professeure : « Karim Ben Salah a quitté le centre », « Karim Ben Salah est de retour au centre », « Fiche de Karim Ben Salah supprimée ». Les étiquettes « Parti » et « Professeurs partis » restent celles de la story. |
+| Un double-clic sur « Marquer parti » ? | Le second clic ne compte pas : « Revenir au centre » prend la place du bouton dès la réponse, et le second clic déferait le départ. De même dans l'autre sens. |
 
 ## 1. Les données
 
@@ -134,7 +136,8 @@ Professeurs                                              [ + Ajouter un professe
 - Le nom en titre, le téléphone groupé et l'email s'il existe. « Ses groupes » : « Aucun groupe ouvert » (les cadres viendront avec GRP-04).
 - Au centre : « Modifier », « Marquer parti », « Supprimer ». Parti : une pastille « Parti », « Modifier », « Revenir au centre », « Supprimer ».
 - « Supprimer » demande confirmation dans la fiche : « Supprimer Karim Ben Salah ? Seulement en cas d'erreur de saisie. Oui · Non ».
-- « Marquer parti » range le professeur dans « Professeurs partis » ; la page reste sur sa fiche (dans le filtre des partis) avec « Karim Ben Salah est parti ». « Revenir au centre » fait l'inverse : « Karim Ben Salah est revenu au centre ».
+- « Marquer parti » range le professeur dans « Professeurs partis » ; la page reste sur sa fiche (dans le filtre des partis) avec « Karim Ben Salah a quitté le centre ». « Revenir au centre » fait l'inverse : « Karim Ben Salah est de retour au centre ». Le second clic d'un double-clic sur l'un de ces boutons ne compte pas.
+- Après une suppression : « Fiche de Karim Ben Salah supprimée », et le premier professeur de la liste est choisi.
 
 **Le formulaire** (ajouter, ou modifier)
 
@@ -142,7 +145,7 @@ Professeurs                                              [ + Ajouter un professe
 - Les champs vides obligatoires ne partent pas : « Remplissez le prénom, le nom et le téléphone ».
 - Après l'enregistrement, la fiche du professeur s'affiche, avec « Professeur ajouté » ou « Fiche enregistrée », et l'avertissement du doublon s'il y en a un, dans une note orange. Le professeur ajouté entre dans la liste à sa place, sans recharger la liste.
 
-**Partout** : les boutons se bloquent pendant un envoi ; les messages s'affichent sous la carte qui les concerne (la fiche ou le formulaire) ; un refus du serveur s'affiche en rouge.
+**Partout** : les boutons se bloquent pendant un envoi ; les messages s'affichent sous la carte qui les concerne (la fiche ou le formulaire), dans la colonne de droite, même quand la fiche a disparu (dernier professeur supprimé) ; un refus du serveur s'affiche en rouge.
 
 ## 4. Ce que GRP-04 devra ajouter ici
 
@@ -153,17 +156,17 @@ Quand un groupe pointera vers un professeur :
 3. **refuser « Supprimer »** d'un professeur qui a eu un groupe, même fermé : 409 « Ce professeur a eu des groupes : marquez-le parti » ; sans ce refus, la clé étrangère donnerait une erreur 500 ;
 4. **refuser un professeur parti** dans le formulaire d'un nouveau groupe.
 
-Chaque point a son commentaire dans `ProfesseursDuCentre`, et ces quatre points sont rappelés dans la story GRP-04.
+Le point 1 est commenté dans `ProfesseurDuCentre.De`, les points 2 et 3 dans `ProfesseursDuCentre`, le point 4 sur `Professeur.Parti` ; les quatre sont rappelés dans la story GRP-04.
 
 ## 5. L'organisation du code
 
 ```
-backend/src/SchoolHub/Professeurs/
+backend/src/SchoolHub/Modules/Professeurs/
 ├── Professeur.cs                   le professeur et sa configuration
 ├── ProfesseursDuCentre.cs          lister, ajouter, modifier, supprimer, départ, retour ; les règles de saisie
 └── ProfesseursEndpoints.cs         les 6 adresses, et les formes JSON
 
-backend/src/SchoolHub/Socle/Centres/TelephoneTunisien.cs   + tout espace est ignoré
+backend/src/SchoolHub/Socle/Centres/TelephoneTunisien.cs   + tout espace et toute marque de direction sont ignorés
 
 frontend/src/app/pages/professeurs/ la page, la fiche, le formulaire, et leurs tests
 ```
@@ -180,7 +183,7 @@ frontend/src/app/pages/professeurs/ la page, la fiche, le formulaire, et leurs t
 | Départ, retour | Parti puis revenu ; un second départ ne change rien. La liste garde les partis avec `parti: true`. |
 | Liste | L'ordre par prénom puis nom ; `groupesOuverts` vaut 0. |
 | Droits | La secrétaire peut tout faire ; une personne non connectée reçoit 401. Un centre ne voit, ne modifie, ne supprime ni ne fait partir les professeurs d'un autre (404). |
-| Téléphone | Les espaces insécables (U+00A0, U+202F) sont ignorés. |
+| Téléphone | Les espaces insécables (U+00A0, U+202F) et les marques de direction (U+202A à U+202C, U+200E, U+200F, U+2066 à U+2069) sont ignorés. |
 
 ### Côté Angular (`npm test`, Vitest)
 
