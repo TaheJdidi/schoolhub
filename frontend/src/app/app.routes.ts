@@ -74,6 +74,12 @@ export const routes: Routes = [
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
       { path: 'eleves/nouveau', component: NouvelEleve, title: titre('Nouvel élève') },
       { path: 'eleves/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'eleve' }, title: titre('Inscription') },
+      {
+        path: 'eleves/:id/changement/:inscription',
+        loadComponent: pageDInscription,
+        data: { depuis: 'changement' },
+        title: titre('Changement de groupe'),
+      },
       { path: 'eleves/:id', loadComponent: pageDeLEleve, title: titre('Élève') },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },

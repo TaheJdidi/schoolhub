@@ -93,9 +93,15 @@
           @if (inscription.premiereSeance; as premiere) {
             <small>Depuis le {{ jour(premiere.date) }}</small>
           }
+          @if (inscription.report > 0) {
+            <small>Report de {{ montant(inscription.report) }} TND depuis l'ancien groupe</small>
+          }
           @for (reglee of inscription.reglees; track reglee.libelle) {
             <small>{{ reglee.libelle }} · {{ montant(reglee.montant) }} TND · payé avant SchoolHub</small>
           }
+          @if (inscription.arreteLe; as arreteLe) {
+            <small class="special">Inscription arrêtée le {{ date(arreteLe) }}</small>
+          } @else {
           @for (payable of inscription.payablesAvantSchoolHub; track payable.cle) {
             <div class="sous-action">
               <small>{{ payable.libelle }} · {{ montant(payable.montant) }} TND</small>
@@ -172,6 +178,25 @@
                 }
               </div>
             }
+          }
+          @if (arretOuvertPour(inscription.id)) {
+            <label class="f">
+              Date de l'arrêt
+              <input #dateDeLArret type="date" class="inp" aria-label="Date de l'arrêt" [value]="aujourdhui" />
+            </label>
+            <p class="aide">Rien ne sera dû après cette date ; ce qui était dû avant reste dû. Pas de remboursement.</p>
+            <div class="actions">
+              <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Annuler</button>
+              <button type="button" class="btn primary" [disabled]="agit()" (click)="arreter(inscription.id, dateDeLArret.value)">
+                Arrêter l'inscription
+              </button>
+            </div>
+          } @else {
+            <div class="actions">
+              <button type="button" class="btn" (click)="ouvrir({ genre: 'arret', inscription: inscription.id })">Arrêter l'inscription</button>
+              <a class="btn" [routerLink]="['/eleves', fiche.id, 'changement', inscription.id]">Changer de groupe</a>
+            </div>
+          }
           }
         </div>
       } @empty {

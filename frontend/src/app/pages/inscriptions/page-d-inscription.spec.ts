@@ -119,6 +119,8 @@ describe("la page d'inscription", () => {
     reglees: [],
     payablesAvantSchoolHub: [],
     peutRegrouperLeReste: false,
+    arreteLe: null,
+    report: 0,
   };
 
   const ENREGISTREMENT: EnregistrementDeLInscription = {
@@ -148,6 +150,7 @@ describe("la page d'inscription", () => {
         provideRouter([
           { path: 'eleves/:id/inscription', component: PageDInscription, data: { depuis: 'eleve' } },
           { path: 'professeurs/groupes/:id/inscription', component: PageDInscription, data: { depuis: 'groupe' } },
+          { path: 'eleves/:id/changement/:inscription', component: PageDInscription, data: { depuis: 'changement' } },
           { path: '**', component: PageDeTest },
         ]),
         provideHttpClient(),
@@ -371,5 +374,26 @@ describe("la page d'inscription", () => {
 
     expect(texte()).toContain("Ce groupe est fermé : on n'y inscrit plus");
     expect(bouton('Inscrire')).toBeUndefined();
+  });
+
+  // ----- Changer de groupe (ELV-09) -----
+
+  it("change l'élève de groupe, et montre le report", async () => {
+    harness = await RouterTestingHarness.create('/eleves/e1/changement/i1');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/eleves/e1'))).flush(ADEM);
+    http.expectOne((r) => r.url === '/api/inscriptions' && r.params.get('eleve') === 'e1').flush([{ ...INSCRIPTION, id: 'i1', groupe: { ...INSCRIPTION.groupe, id: 'g9' } }]);
+    http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles' && r.params.get('eleve') === 'e1' && r.params.get('depuis') === 'i1').flush([MATHS]);
+    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('Changer Adem Miled de groupe'));
+    expect(page.querySelector('.sub')?.textContent).toContain('Depuis Groupe Samedi 10h → 12h · Mathématiques');
+
+    await choisirLeGroupe('g1', FICHE_MATHS);
+    bouton('Changer de groupe')!.click();
+    const requete = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/inscriptions/i1/changement' }));
+    expect(requete.request.body).toEqual({ groupeId: 'g1', mode: null, debutLe: '2027-11-20' });
+    requete.flush({ ...ENREGISTREMENT, inscription: { ...INSCRIPTION, report: 30 } });
+
+    await vi.waitFor(() => expect(texte()).toContain('Changement enregistré'));
+    expect(texte()).toContain("Report de 30,000 TND depuis l'ancien groupe");
   });
 });

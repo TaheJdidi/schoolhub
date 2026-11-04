@@ -1,7 +1,7 @@
 @if (introuvable(); as introuvable) {
   <div class="pagehead">
     <div>
-      <h1 class="h1">{{ depuis === 'eleve' ? 'Élève introuvable' : 'Groupe introuvable' }}</h1>
+      <h1 class="h1">{{ depuis === 'groupe' ? 'Groupe introuvable' : 'Élève introuvable' }}</h1>
       <p class="sub">{{ introuvable }}</p>
     </div>
   </div>
@@ -9,7 +9,7 @@
   <div class="pagehead">
     <div>
       <nav class="fil" aria-label="Fil d'Ariane">
-        @if (depuis === 'eleve') {
+        @if (depuis !== 'groupe') {
           <a routerLink="/eleves">Élèves</a> ›
           @if (ficheDeLEleve(); as fiche) {
             <a [routerLink]="['/eleves', fiche.id]">{{ fiche.prenom }} {{ fiche.nom }}</a> ›
@@ -31,12 +31,15 @@
   @if (confirmation(); as confirmation) {
     <div class="cartes">
       <section class="card carte">
-        <h2 class="titre">Inscription enregistrée</h2>
+        <h2 class="titre">{{ depuis === 'changement' ? 'Changement enregistré' : 'Inscription enregistrée' }}</h2>
         <p class="resume">
           <b>{{ confirmation.inscription.eleve.prenom }} {{ confirmation.inscription.eleve.nom }}</b> ·
           {{ confirmation.inscription.groupe.nom }}, {{ confirmation.inscription.groupe.matiere }} avec
           {{ confirmation.inscription.professeur }}
         </p>
+        @if (confirmation.inscription.report > 0) {
+          <p class="resume">Report de {{ montant(confirmation.inscription.report) }} TND depuis l'ancien groupe</p>
+        }
         @if (confirmation.aPayerALArrivee.length > 0 && confirmation.inscription.premiereSeance; as premiere) {
           <p class="resume">À payer à sa première séance, le {{ jour(premiere.date) }} :</p>
           <div class="sommes">
@@ -176,7 +179,9 @@
             </label>
           }
           <div class="actions">
-            <button type="button" class="btn primary" [disabled]="envoi()" (click)="inscrire()">Inscrire</button>
+            <button type="button" class="btn primary" [disabled]="envoi()" (click)="inscrire()">
+              {{ depuis === 'changement' ? 'Changer de groupe' : 'Inscrire' }}
+            </button>
           </div>
           @if (erreur(); as erreur) {
             <p class="note bad" role="alert">{{ erreur }}</p>

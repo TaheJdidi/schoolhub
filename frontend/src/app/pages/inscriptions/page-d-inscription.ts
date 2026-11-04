@@ -50,9 +50,16 @@ export class PageDInscription implements OnInit {
   protected readonly nombreDEleves = eleves;
   protected readonly estComplet = estComplet;
 
-  /** D'où vient la secrétaire : la fiche de l'élève (`eleve`) ou celle du groupe (`groupe`). */
-  protected readonly depuis: 'eleve' | 'groupe' = this.route.snapshot.data['depuis'] === 'groupe' ? 'groupe' : 'eleve';
+  /**
+   * D'où vient la secrétaire : la fiche de l'élève (`eleve`), celle du groupe (`groupe`), ou une inscription de l'élève
+   * qu'elle change de groupe (`changement`, ELV-09).
+   */
+  protected readonly depuis: 'eleve' | 'groupe' | 'changement' =
+    this.route.snapshot.data['depuis'] === 'groupe' ? 'groupe' : this.route.snapshot.data['depuis'] === 'changement' ? 'changement' : 'eleve';
   private readonly id = this.route.snapshot.paramMap.get('id') ?? '';
+  private readonly inscriptionDeDepart = this.route.snapshot.paramMap.get('inscription') ?? '';
+  /** L'inscription qu'on change de groupe. */
+  protected readonly ancienne = signal<InscriptionDeLEleve | null>(null);
 
   protected readonly ficheDeLEleve = signal<FicheDeLEleve | null>(null);
   protected readonly possibles = signal<GroupePossible[] | null>(null);
@@ -88,11 +95,14 @@ export class PageDInscription implements OnInit {
   protected readonly titre = computed(() => {
     if (this.depuis === 'groupe') return 'Ajouter un élève';
     const fiche = this.ficheDeLEleve();
+    if (this.depuis === 'changement') return fiche ? `Changer ${fiche.prenom} ${fiche.nom} de groupe` : 'Changer de groupe';
     return fiche ? `Inscrire ${fiche.prenom} ${fiche.nom}` : 'Inscrire un élève';
   });
 
   protected readonly sousTitre = computed(() => {
     const groupe = this.groupe();
+    const ancienne = this.ancienne();
+    if (this.depuis === 'changement') return ancienne ? `Depuis ${ancienne.groupe.nom} · ${ancienne.groupe.matiere}` : '';
     return this.depuis === 'groupe' && groupe ? `${groupe.nom} · ${groupe.matiere}` : '';
   });
 
@@ -146,11 +156,18 @@ export class PageDInscription implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      if (this.depuis === 'eleve') {
-        const [fiche, possibles] = await Promise.all([
+      if (this.depuis !== 'groupe') {
+        const changement = this.depuis === 'changement';
+        // Un changement ne propose que les groupes du même type, sans celui de départ.
+        const params: Record<string, string> = changement ? { eleve: this.id, depuis: this.inscriptionDeDepart } : { eleve: this.id };
+        const [fiche, possibles, inscriptions] = await Promise.all([
           firstValueFrom(this.http.get<FicheDeLEleve>(`/api/eleves/${this.id}`)),
-          firstValueFrom(this.http.get<GroupePossible[]>('/api/inscriptions/groupes-possibles', { params: { eleve: this.id } })),
+          firstValueFrom(this.http.get<GroupePossible[]>('/api/inscriptions/groupes-possibles', { params })),
+          changement
+            ? firstValueFrom(this.http.get<InscriptionDeLEleve[]>('/api/inscriptions', { params: { eleve: this.id } }))
+            : Promise.resolve([] as InscriptionDeLEleve[]),
         ]);
+        this.ancienne.set(inscriptions.find((inscription) => inscription.id === this.inscriptionDeDepart) ?? null);
         this.ficheDeLEleve.set(fiche);
         this.eleveChoisi.set({ id: fiche.id, prenom: fiche.prenom, nom: fiche.nom });
         this.possibles.set(possibles);
@@ -165,7 +182,7 @@ export class PageDInscription implements OnInit {
       }
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) {
-        this.introuvable.set(this.depuis === 'eleve' ? "Cet élève n'existe pas." : "Ce groupe n'existe pas.");
+        this.introuvable.set(this.depuis === 'groupe' ? "Ce groupe n'existe pas." : "Cet élève n'existe pas.");
       } else {
         this.erreur.set(messageDErreur(erreur));
       }
@@ -255,8 +272,20 @@ export class PageDInscription implements OnInit {
     this.envoi.set(true);
     this.erreur.set(null);
     try {
-      const demande = { eleveId: eleve.id, groupeId: groupe.id, mode: this.mode(), debutLe: this.debutLe() };
-      this.confirmation.set(await firstValueFrom(this.http.post<EnregistrementDeLInscription>('/api/inscriptions', demande)));
+      const confirmation =
+        this.depuis === 'changement'
+          ? this.http.post<EnregistrementDeLInscription>(`/api/inscriptions/${this.inscriptionDeDepart}/changement`, {
+              groupeId: groupe.id,
+              mode: this.mode(),
+              debutLe: this.debutLe(),
+            })
+          : this.http.post<EnregistrementDeLInscription>('/api/inscriptions', {
+              eleveId: eleve.id,
+              groupeId: groupe.id,
+              mode: this.mode(),
+              debutLe: this.debutLe(),
+            });
+      this.confirmation.set(await firstValueFrom(confirmation));
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     } finally {

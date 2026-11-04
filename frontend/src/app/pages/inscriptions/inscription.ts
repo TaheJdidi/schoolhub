@@ -25,6 +25,10 @@ export interface InscriptionDeLEleve {
   payablesAvantSchoolHub: { cle: string; libelle: string; montant: number }[];
   /** ELV-10 : une Formation en tranches qui a encore une tranche à venir. */
   peutRegrouperLeReste: boolean;
+  /** ELV-08 : le dernier jour compté, « 2028-01-25 » ; `null` tant qu'elle n'est pas arrêtée. */
+  arreteLe: string | null;
+  /** ELV-09 : la valeur des séances payées et pas suivies dans l'ancien groupe, déduite ici. */
+  report: number;
 }
 
 /** Une somme due à la première séance de l'élève. */

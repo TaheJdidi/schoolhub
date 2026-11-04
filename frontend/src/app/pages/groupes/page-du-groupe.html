@@ -94,7 +94,10 @@
         <div class="eleve-inscrit">
           <a [routerLink]="['/eleves', inscription.eleve.id]">{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</a>
           <small>
-            {{ modeCourt(inscription) }}@if (inscription.premiereSeance; as premiere) { · depuis le {{ date(premiere.date) }}}
+            {{ modeCourt(inscription) }}@if (inscription.premiereSeance; as premiere) { · depuis le {{ date(premiere.date) }}}@if (
+              inscription.arreteLe;
+              as arreteLe
+            ) { · inscription arrêtée le {{ date(arreteLe) }}}
           </small>
         </div>
       } @empty {

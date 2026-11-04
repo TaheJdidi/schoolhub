@@ -85,7 +85,9 @@ src/SchoolHub/
     │                      les destinataires d'un message (l'élève, son parent, ou les deux)
     ├── Inscriptions/      les inscriptions : le mode de tarification, la première séance,
     │                      l'assurance de l'année, l'échéancier (ce que l'élève doit, séance par
-    │                      séance, même arrivé en cours de route), le message de confirmation
+    │                      séance, même arrivé en cours de route), le message de confirmation ;
+    │                      « À payer », les règlements (payé avant SchoolHub), le prix spécial,
+    │                      la dispense, le reste d'une Formation, l'arrêt et le changement de groupe
     └── Groupes/           les groupes d'Étude, de Révision et de Formation (tranches), déjà en
                            cours ou non ; leurs créneaux, séances et prix ; les matières ; le
                            calendrier (Mois, numéros et prix des séances, « terminé » se calculent)

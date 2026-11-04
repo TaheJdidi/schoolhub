@@ -61,6 +61,8 @@ describe('la fiche d’un groupe', () => {
     reglees: [],
     payablesAvantSchoolHub: [],
     peutRegrouperLeReste: false,
+    arreteLe: null,
+    report: 0,
   };
 
   /** La fiche du groupe et ses élèves, demandés ensemble. */
@@ -204,6 +206,12 @@ describe('la fiche d’un groupe', () => {
     expect(eleves.querySelector('a[href="/eleves/e1"]')?.textContent).toContain('Adem Miled');
     expect(eleves.textContent).toContain('En totalité · depuis le 25/09/2027');
     expect(eleves.querySelector('a[href="/professeurs/groupes/g1/inscription"]')?.textContent).toContain('Ajouter un élève');
+  });
+
+  it('montre une inscription arrêtée', async () => {
+    await ouvrir(FICHE, [{ ...INSCRIPTION, arreteLe: '2027-12-04' }]);
+
+    expect(page.querySelector('.les-eleves')?.textContent).toContain('inscription arrêtée le 04/12/2027');
   });
 
   it("dit quand le groupe n'a pas encore d'élève", async () => {

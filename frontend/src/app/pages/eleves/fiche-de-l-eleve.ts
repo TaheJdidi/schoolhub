@@ -8,6 +8,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { Session } from '../../socle/session/session';
+import { dateDuJourLocale } from '../groupes/groupe';
 import { APayer, AssuranceDeLEleve, InscriptionDeLEleve, libelleDuMode } from '../inscriptions/inscription';
 import { de, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 import { FormulaireDeLEleve } from './formulaire-de-l-eleve';
@@ -17,6 +18,7 @@ type Action =
   | { genre: 'prix'; inscription: string }
   | { genre: 'payeAvant'; inscription: string; cle: string }
   | { genre: 'reste'; inscription: string }
+  | { genre: 'arret'; inscription: string }
   | { genre: 'assurancePayee' }
   | { genre: 'dispense' };
 
@@ -46,6 +48,8 @@ export class PageDeLEleve implements OnInit {
   protected readonly de = de;
   protected readonly libelleDuMode = libelleDuMode;
   protected readonly montant = ecrireUnMontant;
+  /** La date d'arrêt proposée : aujourd'hui (ELV-08). */
+  protected readonly aujourdhui = dateDuJourLocale();
   protected readonly fiche = signal<FicheDeLEleve | null>(null);
   protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
   /** L'assurance de l'année ; `null` quand elle est sans objet. */
@@ -158,6 +162,16 @@ export class PageDeLEleve implements OnInit {
   protected payeAvantOuvertPour(inscription: string, cle: string): boolean {
     const action = this.action();
     return action?.genre === 'payeAvant' && action.inscription === inscription && action.cle === cle;
+  }
+
+  protected arretOuvertPour(inscription: string): boolean {
+    const action = this.action();
+    return action?.genre === 'arret' && action.inscription === inscription;
+  }
+
+  /** ELV-08 : arrête l'inscription à cette date ; une date vide part vide, et le serveur répond « Choisissez la date de l'arrêt ». */
+  protected arreter(inscription: string, date: string): void {
+    void this.agir('inscriptions', () => this.http.post(`/api/inscriptions/${inscription}/arret`, { date: date || null }));
   }
 
   protected resteOuvertPour(inscription: string): boolean {

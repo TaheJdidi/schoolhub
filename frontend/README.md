@@ -56,7 +56,8 @@ src/app/
 ├── pages/              une page par dossier : connexion, invitation, mots de passe,
 │                       aujourd'hui, professeurs, groupes (création et fiche), élèves
 │                       (liste, création, fiche avec « À payer », prix spécial, dispense,
-│                       payé avant SchoolHub et reste d'une Formation), inscriptions (depuis l'élève ou le
+│                       payé avant SchoolHub, reste d'une Formation, arrêt), inscriptions et
+│                       changements de groupe (depuis l'élève ou le
 │                       groupe, et la confirmation WhatsApp), comptes,
 │                       paramètres du centre, bientôt, accès réservé, introuvable
 └── test/               les outils des tests

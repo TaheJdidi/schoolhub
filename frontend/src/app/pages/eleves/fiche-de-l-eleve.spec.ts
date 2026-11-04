@@ -9,6 +9,7 @@ import { PageDeTest } from '../../test/page-de-test';
 import { Session } from '../../socle/session/session';
 import { Moi } from '../../socle/session/moi';
 import { AMIRA, HEDI } from '../../test/personnes';
+import { dateDuJourLocale } from '../groupes/groupe';
 import { APayer, AssuranceDeLEleve, InscriptionDeLEleve } from '../inscriptions/inscription';
 import { FicheDeLEleve } from './eleve';
 import { PageDeLEleve } from './fiche-de-l-eleve';
@@ -61,6 +62,8 @@ describe('la fiche d’un élève', () => {
     reglees: [],
     payablesAvantSchoolHub: [],
     peutRegrouperLeReste: false,
+    arreteLe: null,
+    report: 0,
   };
 
   const RIEN: APayer = { lignes: [], total: 0 };
@@ -416,5 +419,40 @@ describe('la fiche d’un élève', () => {
     http.expectOne('/api/inscriptions/i1/prix-special').flush({ message: 'Écrivez la raison du prix spécial' }, { status: 400, statusText: 'Bad Request' });
 
     await vi.waitFor(() => expect(carte('inscriptions').querySelector('[role="alert"]')?.textContent).toContain('Écrivez la raison du prix spécial'));
+  });
+
+  // ----- Arrêter et changer de groupe (ELV-08, ELV-09) -----
+
+  it("arrête une inscription, à la date choisie", async () => {
+    await ouvrir(ADEM, [INSCRIPTION]);
+
+    await cliquer("Arrêter l'inscription");
+    const date = page.querySelector('[aria-label="Date de l\'arrêt"]') as HTMLInputElement;
+    expect(date.value).toBe(dateDuJourLocale());
+    expect(carte('inscription').textContent).toContain("Rien ne sera dû après cette date ; ce qui était dû avant reste dû. Pas de remboursement.");
+    saisir(page, '[aria-label="Date de l\'arrêt"]', '2027-12-04');
+    await cliquer("Arrêter l'inscription");
+    const requete = http.expectOne({ method: 'POST', url: '/api/inscriptions/i1/arret' });
+    expect(requete.request.body).toEqual({ date: '2027-12-04' });
+    requete.flush({ ...INSCRIPTION, arreteLe: '2027-12-04' });
+    await rafraichir([{ ...INSCRIPTION, arreteLe: '2027-12-04' }], null);
+
+    await vi.waitFor(() => expect(carte('inscription').textContent).toContain('Inscription arrêtée le 04/12/2027'));
+  });
+
+  it("une inscription arrêtée n'a plus d'action", async () => {
+    await ouvrir(ADEM, [{ ...INSCRIPTION, arreteLe: '2027-12-04' }], null, RIEN, HEDI);
+
+    expect(carte('inscription').textContent).toContain('Inscription arrêtée le 04/12/2027');
+    expect(bouton("Arrêter l'inscription")).toBeUndefined();
+    expect(bouton('Prix spécial')).toBeUndefined();
+    expect(carte('inscription').querySelector('a[href="/eleves/e1/changement/i1"]')).toBeNull();
+  });
+
+  it('montre le report et mène au changement de groupe', async () => {
+    await ouvrir(ADEM, [{ ...INSCRIPTION, report: 30 }]);
+
+    expect(carte('inscription').textContent).toContain("Report de 30,000 TND depuis l'ancien groupe");
+    expect(carte('inscription').querySelector('a[href="/eleves/e1/changement/i1"]')?.textContent).toContain('Changer de groupe');
   });
 });
