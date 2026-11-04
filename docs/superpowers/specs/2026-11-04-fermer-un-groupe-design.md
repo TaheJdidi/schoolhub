@@ -29,6 +29,8 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Un groupe fermé peut-il changer ? | Non : il ne se modifie plus et ne se ferme pas deux fois (409). Pas de réouverture : la story n'en parle pas. |
 | Le journal ? | Une ligne « GroupeFerme » : le détail donne le groupe, son professeur et le motif ; avant « Ouvert », après « Fermé le 15/03/2028 ». |
 | Qui ferme ? | Toute personne connectée du centre : la story est celle de la secrétaire. |
+| Deux fermetures en même temps (deux onglets) ? | La ligne du groupe est verrouillée (`FOR NO KEY UPDATE`) le temps de la fermeture ou d'une modification : la seconde voit le groupe fermé et répond 409. Le journal n'a qu'une ligne (relecture). |
+| Combien de séances supprimées, dans la page ? | « Les 3 séances prévues après le … seront supprimées. », « La séance prévue après le … sera supprimée. » ou « Aucune séance prévue après le … ». |
 
 ## 1. Les données et l'adresse
 

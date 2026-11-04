@@ -160,6 +160,20 @@ public sealed class FermetureTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await _client.PostAsync($"/api/professeurs/{_karim}/depart", null)).StatusCode);
     }
 
+    [Fact]
+    public async Task Deux_fermetures_en_meme_temps_n_en_font_qu_une()
+    {
+        // Deux onglets (ou deux secrétaires) ferment le même groupe au même moment.
+        var groupe = await CreerAsync(Etude);
+
+        var reponses = await Task.WhenAll(Enumerable.Range(0, 8).Select(i =>
+            _client.PostAsJsonAsync($"{Adresse}/{groupe.Id}/fermeture", new FermetureDUnGroupe(Aujourdhui, $"Motif {i}"))));
+
+        Assert.Single(reponses, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.All(reponses.Where(r => r.StatusCode != HttpStatusCode.OK), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        Assert.Single(await _application.JournalAsync(_jasmins));
+    }
+
     // ----- Outils -----
 
     /// <summary>Un centre avec ses niveaux d'office, et le client de sa secrétaire ; son propriétaire règle l'année scolaire.</summary>

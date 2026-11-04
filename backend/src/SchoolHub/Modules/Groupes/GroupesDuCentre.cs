@@ -150,6 +150,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     /// </summary>
     public async Task<IssueSurUnGroupe> ModifierAsync(Guid id, ModificationDUnGroupe saisie)
     {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        await VerrouillerAsync(id);
         var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == id);
         if (groupe is null)
             return GroupeIntrouvable;
@@ -174,6 +176,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         }
 
         await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);
     }
@@ -184,6 +187,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     /// </summary>
     public async Task<IssueSurUnGroupe> FermerAsync(Compte auteur, Guid id, FermetureDUnGroupe saisie)
     {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        await VerrouillerAsync(id);
         var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == id);
         if (groupe is null)
             return GroupeIntrouvable;
@@ -212,6 +217,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         groupe.Fermer(date, motif);
         contexte.Seances.RemoveRange(await contexte.Seances.Where(s => s.GroupeId == id && s.Date > date).ToListAsync());
         await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new IssueSurUnGroupe((await LireAsync(id))!, StatusCodes.Status200OK, null);
     }
@@ -397,6 +403,15 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     private static int PremierMoisAVenir(Groupe groupe, IReadOnlyList<Seance> seances, DateOnly aujourdhui) =>
         CalendrierDuGroupe.MoisDeLaSeance(groupe.PremiereSeance) - 1
         + CalendrierDuGroupe.PremierMoisNonCommence(CalendrierDuGroupe.EnMois(seances).Select(m => m[0].Date).ToList(), aujourdhui);
+
+    /// <summary>
+    /// Verrouille la ligne du groupe jusqu'à la fin de la transaction : deux fermetures (ou une fermeture et une
+    /// modification) du même groupe, venues de deux onglets, passent l'une après l'autre. La seconde voit le groupe déjà
+    /// fermé et le refuse, au lieu d'écrire une seconde ligne au journal ou de répondre 500. « NO KEY » suffit : les
+    /// séances qui pointent vers le groupe restent libres.
+    /// </summary>
+    private Task VerrouillerAsync(Guid id) =>
+        contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM groupes WHERE id = {id} FOR NO KEY UPDATE");
 
     /// <summary>Les séances du groupe, rangées comme on les compte : par date, puis par heure de début.</summary>
     private Task<List<Seance>> SeancesAsync(Guid groupeId) =>
