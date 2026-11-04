@@ -32,6 +32,12 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private const string AssuranceDejaPayee = "L'assurance est déjà payée";
     private const string AssuranceDejaDispensee = "L'assurance est déjà dispensée";
     private const string RaisonDeLaDispenseObligatoire = "Écrivez la raison de la dispense";
+    private const string SommeIntrouvable = "Somme introuvable";
+    private const string SommeDejaPayee = "Cette somme est déjà payée";
+    private const string SommeDApres = "Cette somme ne date pas d'avant SchoolHub";
+    private const string SeuleUneFormationEnTranches = "Seule une Formation payée en tranches regroupe son reste";
+    private const string ResteDejaRegroupe = "Le reste est déjà regroupé";
+    private const string AucuneTrancheAVenir = "Il ne reste aucune tranche à venir";
 
     public const string ChoisirLEleve = "Choisissez l'élève";
     public const string EleveIntrouvable = "Élève introuvable";
@@ -307,6 +313,96 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         return new IssueSurUneAssurance((await AssuranceEnCoursAsync(eleveId))!.Value.Decrite, StatusCodes.Status200OK, null);
     }
 
+    /// <summary>
+    /// ELV-07 : une somme d'une Révision ou d'une Formation déjà en cours, due à la première séance du groupe dans
+    /// SchoolHub, a été payée avant : elle devient réglée, sans reçu, hors de la caisse. L'action va au journal.
+    /// </summary>
+    public async Task<IssueSurUneInscription> PayeAvantSchoolHubAsync(Compte auteur, Guid id, CleSaisie saisie)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var inscription = await InscriptionVerrouilleeAsync(id);
+        if (inscription is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        var echeance = (await EcheancesAsync([inscription]))[0];
+        var somme = echeance.Sommes.FirstOrDefault(s => s.Cle == saisie.Cle?.Trim());
+        if (somme is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, SommeIntrouvable);
+        if (somme.Reglee)
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, SommeDejaPayee);
+        if (!PayableAvantSchoolHub(echeance, somme))
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, SommeDApres);
+
+        journal.Noter(auteur, ActionDuJournal.PayeAvantSchoolHub, Couper($"{await QuiEtOuAsync(inscription)} · {somme.Libelle}"),
+            "À payer", $"Payé avant SchoolHub, {SaisieDuGroupe.EcrireUnMontant(somme.Montant)} TND");
+        contexte.Reglements.Add(Reglement.DUneSomme(inscription.Id, somme.Cle, somme.Montant, OrigineDuReglement.AvantSchoolHub, temps.GetUtcNow(), auteur.Id));
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>ELV-07 : l'assurance de l'année a été payée avant SchoolHub, tant qu'elle n'est ni réglée ni dispensée.</summary>
+    public async Task<IssueSurUneAssurance> AssurancePayeeAvantSchoolHubAsync(Compte auteur, Guid eleveId)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var eleve = await EleveVerrouilleAsync(eleveId);
+        if (eleve is null)
+            return new IssueSurUneAssurance(null, StatusCodes.Status404NotFound, EleveIntrouvable);
+        if (await AssuranceEnCoursAsync(eleveId) is not { } enCours)
+            return new IssueSurUneAssurance(null, StatusCodes.Status404NotFound, AucuneAssurance);
+        if (enCours.Decrite.Etat == EtatDispensee)
+            return new IssueSurUneAssurance(null, StatusCodes.Status409Conflict, AssuranceDejaDispensee);
+        if (enCours.Decrite.Etat != EtatAPayer)
+            return new IssueSurUneAssurance(null, StatusCodes.Status409Conflict, AssuranceDejaPayee);
+
+        journal.Noter(auteur, ActionDuJournal.PayeAvantSchoolHub, Couper($"{eleve.Prenom} {eleve.Nom} · Assurance {enCours.Decrite.Annee}"),
+            "À payer", $"Payé avant SchoolHub, {SaisieDuGroupe.EcrireUnMontant(enCours.Assurance.Montant)} TND");
+        contexte.Reglements.Add(Reglement.DeLAssurance(enCours.Assurance.Id, enCours.Assurance.Montant, OrigineDuReglement.AvantSchoolHub,
+            temps.GetUtcNow(), auteur.Id));
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneAssurance((await AssuranceEnCoursAsync(eleveId))!.Value.Decrite, StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// ELV-10 : « Payer tout le reste » d'une Formation en tranches : ses tranches pas réglées à venir deviennent une seule
+    /// somme, due aujourd'hui. Pas de réduction.
+    /// </summary>
+    public async Task<IssueSurUneInscription> RegrouperLeResteAsync(Guid id)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var inscription = await InscriptionVerrouilleeAsync(id);
+        if (inscription is null)
+            return RefusSurUneInscription(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (inscription.Mode != ModeDeTarification.EnTranches)
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, SeuleUneFormationEnTranches);
+        if (inscription.ResteRegroupeLe is not null)
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, ResteDejaRegroupe);
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        if (!ATrancheAVenir((await EcheancesAsync([inscription]))[0], aujourdhui))
+            return RefusSurUneInscription(StatusCodes.Status409Conflict, AucuneTrancheAVenir);
+
+        inscription.RegrouperLeReste(aujourdhui);
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// Une somme pas réglée d'une Révision ou d'une Formation déjà en cours (première séance dans SchoolHub après la 1),
+    /// due à la première séance du groupe dans SchoolHub : c'est là que l'échéancier place ce qui était dû avant.
+    /// </summary>
+    private static bool PayableAvantSchoolHub(Echeance echeance, SommeDue somme) =>
+        echeance.Groupe.Type != TypeDeGroupe.Etude
+        && echeance.Groupe.PremiereSeance > 1
+        && !somme.Reglee
+        && somme.Seance == echeance.Groupe.PremiereSeance;
+
+    /// <summary>Une Formation en tranches pas encore regroupée, qui a une tranche pas réglée à venir.</summary>
+    private static bool ATrancheAVenir(Echeance echeance, DateOnly aujourdhui) =>
+        echeance.Inscription.Mode == ModeDeTarification.EnTranches
+        && echeance.Inscription.ResteRegroupeLe is null
+        && echeance.Sommes.Any(s => !s.Reglee && s.Date > aujourdhui);
+
     private const string EtatAPayer = "APayer";
     private const string EtatPayeeAvantSchoolHub = "PayeeAvantSchoolHub";
     private const string EtatDispensee = "Dispensee";
@@ -486,8 +582,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 i.PrixSpecial,
                 i.RaisonDuPrixSpecial,
                 e.Sommes.Where(s => s.Reglee).Select(s => new SommeReglee(s.Libelle, s.Montant, e.Origines[s.Cle].ToString())).ToList(),
-                [],
-                false);
+                e.Sommes.Where(s => PayableAvantSchoolHub(e, s)).Select(s => new SommePayable(s.Cle, s.Libelle, s.Montant)).ToList(),
+                ATrancheAVenir(e, aujourdhui));
         }).ToList();
     }
 

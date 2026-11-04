@@ -20,6 +20,10 @@ public static class InscriptionsEndpoints
         groupe.MapPut("/{id:guid}/prix-special", AccorderUnPrixSpecialAsync).RequireAuthorization(Politiques.Proprietaire);
         groupe.MapDelete("/{id:guid}/prix-special", RetirerLePrixSpecialAsync).RequireAuthorization(Politiques.Proprietaire);
         api.MapPost("/eleves/{id:guid}/assurance/dispense", DispenserAsync).RequireAuthorization(Politiques.Proprietaire);
+        // ELV-07 et ELV-10 : toute personne connectée du centre.
+        groupe.MapPost("/{id:guid}/paye-avant-schoolhub", PayeAvantSchoolHubAsync);
+        groupe.MapPost("/{id:guid}/reste", async (Guid id, InscriptionsDuCentre inscriptions) => Repondre(await inscriptions.RegrouperLeResteAsync(id)));
+        api.MapPost("/eleves/{id:guid}/assurance/payee-avant-schoolhub", AssurancePayeeAvantSchoolHubAsync);
         return api;
     }
 
@@ -51,6 +55,24 @@ public static class InscriptionsEndpoints
         InscriptionsDuCentre inscriptions)
     {
         var issue = await inscriptions.DispenserAsync(await AuteurAsync(utilisateur, comptes), id, saisie);
+        return issue.Assurance is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Assurance);
+    }
+
+    private static async Task<Results<Ok<InscriptionDeLEleve>, JsonHttpResult<Avis>>> PayeAvantSchoolHubAsync(
+        Guid id,
+        CleSaisie saisie,
+        ClaimsPrincipal utilisateur,
+        UserManager<Compte> comptes,
+        InscriptionsDuCentre inscriptions) =>
+        Repondre(await inscriptions.PayeAvantSchoolHubAsync(await AuteurAsync(utilisateur, comptes), id, saisie));
+
+    private static async Task<Results<Ok<AssuranceDeLEleve>, JsonHttpResult<Avis>>> AssurancePayeeAvantSchoolHubAsync(
+        Guid id,
+        ClaimsPrincipal utilisateur,
+        UserManager<Compte> comptes,
+        InscriptionsDuCentre inscriptions)
+    {
+        var issue = await inscriptions.AssurancePayeeAvantSchoolHubAsync(await AuteurAsync(utilisateur, comptes), id);
         return issue.Assurance is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Assurance);
     }
 
@@ -175,6 +197,9 @@ public sealed record PrixSpecialSaisi(decimal? Montant, string? Raison);
 
 /// <summary>Une raison, pour une dispense d'assurance.</summary>
 public sealed record RaisonSaisie(string? Raison);
+
+/// <summary>La clé d'une somme d'une inscription : « Totalité », « Tranche 1 »…</summary>
+public sealed record CleSaisie(string? Cle);
 
 /// <summary>La réponse d'une inscription : l'inscription, ce qu'il paiera à sa première séance, l'avertissement et les messages.</summary>
 public sealed record EnregistrementDeLInscription(

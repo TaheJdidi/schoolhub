@@ -202,6 +202,129 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
             HttpStatusCode.NotFound, "Aucune assurance cette année");
     }
 
+    // ----- Payé avant SchoolHub (ELV-07) -----
+
+    /// <summary>Une Révision déjà en cours (GRP-07) : 100 TND en 10 séances, saisie à la séance 4, le samedi 20/11.</summary>
+    private CreationDUnGroupe RevisionDejaEnCours => new(
+        _karim, "Physique", _neuvieme, [Samedi10h], null, DeuxiemeSeanceDuMois3, null, "",
+        Type: "Revision", PrixTotal: 100m, NombreDeSeances: 10, SeanceEnCours: 4);
+
+    /// <summary>Une Formation déjà en cours : 300 TND en 10 séances, tranches aux séances 1, 5 et 9, saisie à la séance 4, aujourd'hui.</summary>
+    private CreationDUnGroupe FormationDejaEnCours => new(
+        _karim, "Informatique", null, [Samedi10h], null, new DateOnly(2027, 11, 27), null, "",
+        Type: "Formation", PrixTotal: 300m, NombreDeSeances: 10, SeanceEnCours: 4,
+        Tranches: [new TrancheSaisie(100m, 1), new TrancheSaisie(100m, 5), new TrancheSaisie(100m, 9)]);
+
+    [Fact]
+    public async Task L_assurance_payee_avant_SchoolHub()
+    {
+        var etude = await GroupeAsync(Etude);
+        await InscrireAsync(etude, null, DeuxiemeSeanceDuMois3);
+        var adresse = $"/api/eleves/{_adem}/assurance/payee-avant-schoolhub";
+
+        var reponse = await _client.PostAsync(adresse, null);
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("PayeeAvantSchoolHub", (await reponse.Content.ReadFromJsonAsync<AssuranceDeLEleve>())!.Etat);
+        Assert.Equal(["Mois 3 (3 séances)"], (await APayerAsync(_adem)).Lignes.Select(l => l.Libelle));
+        var ligne = Assert.Single(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.PayeAvantSchoolHub);
+        Assert.Equal(("Amira Jlassi", "Adem Miled · Assurance 2027-2028", "À payer", "Payé avant SchoolHub, 20,000 TND"),
+            (ligne.Auteur, ligne.Detail, ligne.Avant, ligne.Apres));
+        await VerifierLeRefusAsync(await _client.PostAsync(adresse, null), HttpStatusCode.Conflict, "L'assurance est déjà payée");
+
+        var lina = await EleveAsync(_client, _neuvieme, "Lina");
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/eleves/{lina}/assurance/payee-avant-schoolhub", null),
+            HttpStatusCode.NotFound, "Aucune assurance cette année");
+        Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync("/api/inscriptions",
+            new DemandeDInscription(lina, etude, null, DeuxiemeSeanceDuMois3))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _proprietaire.PostAsJsonAsync($"/api/eleves/{lina}/assurance/dispense", new RaisonSaisie("Orphelin"))).StatusCode);
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/eleves/{lina}/assurance/payee-avant-schoolhub", null),
+            HttpStatusCode.Conflict, "L'assurance est déjà dispensée");
+    }
+
+    [Fact]
+    public async Task Une_somme_d_un_groupe_deja_en_cours()
+    {
+        var inscription = await InscrireAsync(await GroupeAsync(RevisionDejaEnCours), "EnTotalite", DeuxiemeSeanceDuMois3);
+        Assert.Equal([new SommePayable("Totalité", "Totalité, séances 4 à 10", 70m)], (await InscriptionAsync(inscription)).PayablesAvantSchoolHub);
+
+        var reglee = await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Totalité")));
+
+        Assert.Equal([new SommeReglee("Totalité, séances 4 à 10", 70m, "AvantSchoolHub")], reglee.Reglees);
+        Assert.Empty(reglee.PayablesAvantSchoolHub);
+        Assert.Empty((await APayerAsync(_adem)).Lignes);
+        var ligne = Assert.Single(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.PayeAvantSchoolHub);
+        Assert.Equal(("Adem Miled · Groupe Samedi 10h → 12h (Physique) · Totalité, séances 4 à 10", "À payer", "Payé avant SchoolHub, 70,000 TND"),
+            (ligne.Detail, ligne.Avant, ligne.Apres));
+    }
+
+    [Fact]
+    public async Task Une_somme_qui_ne_date_pas_d_avant_SchoolHub()
+    {
+        var etude = await InscrireAsync(await GroupeAsync(Etude), null, DeuxiemeSeanceDuMois3);
+        var revision = await InscrireAsync(await GroupeAsync(RevisionDejaEnCours with { SeanceEnCours = null }), "EnTotalite", DeuxiemeSeanceDuMois3);
+
+        Assert.Empty((await InscriptionAsync(etude)).PayablesAvantSchoolHub);
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{etude}/paye-avant-schoolhub", new CleSaisie("Mois 3")),
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{revision}/paye-avant-schoolhub", new CleSaisie("Totalité")),
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{etude}/paye-avant-schoolhub", new CleSaisie("Mois 99")),
+            HttpStatusCode.NotFound, "Somme introuvable");
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{Guid.NewGuid()}/paye-avant-schoolhub", new CleSaisie("Mois 3")),
+            HttpStatusCode.NotFound, "Inscription introuvable");
+    }
+
+    [Fact]
+    public async Task Deux_fois_paye_avant_SchoolHub()
+    {
+        var inscription = await InscrireAsync(await GroupeAsync(RevisionDejaEnCours), "EnTotalite", DeuxiemeSeanceDuMois3);
+        var adresse = $"/api/inscriptions/{inscription}/paye-avant-schoolhub";
+
+        var reponses = await Task.WhenAll(_client.PostAsJsonAsync(adresse, new CleSaisie("Totalité")), _client.PostAsJsonAsync(adresse, new CleSaisie("Totalité")));
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], reponses.Select(r => r.StatusCode).Order());
+        var refus = reponses.Single(r => r.StatusCode == HttpStatusCode.Conflict);
+        Assert.Equal(new Avis("Cette somme est déjà payée"), await refus.Content.ReadFromJsonAsync<Avis>());
+        Assert.Single((await InscriptionAsync(inscription)).Reglees);
+    }
+
+    // ----- Payer tout le reste (ELV-10) -----
+
+    [Fact]
+    public async Task Payer_tout_le_reste()
+    {
+        // La tranche 1 a été payée avant SchoolHub ; les tranches 2 (le 04/12) et 3 (le 01/01) deviennent 200 TND dus aujourd'hui.
+        var inscription = await InscrireAsync(await GroupeAsync(FormationDejaEnCours), "EnTranches", new DateOnly(2027, 11, 27));
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Tranche 1")));
+        Assert.True((await InscriptionAsync(inscription)).PeutRegrouperLeReste);
+        Assert.Empty((await APayerAsync(_adem)).Lignes);
+
+        var regroupee = await DecrireAsync(await _client.PostAsync($"/api/inscriptions/{inscription}/reste", null));
+
+        Assert.False(regroupee.PeutRegrouperLeReste);
+        Assert.Equal([new LigneAPayer(inscription, "Informatique · Groupe Samedi 10h → 12h", "Reste de la Formation", "Reste", 200m, new DateOnly(2027, 11, 27))],
+            (await APayerAsync(_adem)).Lignes);
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/inscriptions/{inscription}/reste", null), HttpStatusCode.Conflict, "Le reste est déjà regroupé");
+    }
+
+    [Fact]
+    public async Task Le_reste_se_refuse_hors_d_une_formation_en_tranches_a_venir()
+    {
+        var etude = await InscrireAsync(await GroupeAsync(Etude), null, DeuxiemeSeanceDuMois3);
+        // Saisie à la séance 9 : toutes ses tranches sont dues aujourd'hui, aucune n'est à venir.
+        var presqueFinie = await InscrireAsync(await GroupeAsync(FormationDejaEnCours with { Matiere = "Anglais", SeanceEnCours = 9 }), "EnTranches",
+            new DateOnly(2027, 11, 27));
+
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/inscriptions/{etude}/reste", null),
+            HttpStatusCode.Conflict, "Seule une Formation payée en tranches regroupe son reste");
+        Assert.False((await InscriptionAsync(presqueFinie)).PeutRegrouperLeReste);
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/inscriptions/{presqueFinie}/reste", null),
+            HttpStatusCode.Conflict, "Il ne reste aucune tranche à venir");
+        await VerifierLeRefusAsync(await _client.PostAsync($"/api/inscriptions/{Guid.NewGuid()}/reste", null),
+            HttpStatusCode.NotFound, "Inscription introuvable");
+    }
+
     // ----- Les autres centres -----
 
     [Fact]
@@ -256,6 +379,9 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
         return (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
     }
+
+    private async Task<InscriptionDeLEleve> InscriptionAsync(Guid inscription) =>
+        (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem}"))!.Single(i => i.Id == inscription);
 
     private async Task<APayer> APayerAsync(Guid eleve) => (await _client.GetFromJsonAsync<APayer>($"/api/eleves/{eleve}/a-payer"))!;
 
