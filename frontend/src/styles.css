@@ -53,6 +53,7 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:1.8}
 .note{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--sunk);color:var(--ink-2);font-size:13px}
 .note.bad{background:var(--bad-soft);color:var(--bad)}
 .note.ok{background:var(--ok-soft);color:var(--ok)}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
 .note p{margin:0}
 
 /* Pastilles d'état, comme celles de la maquette */

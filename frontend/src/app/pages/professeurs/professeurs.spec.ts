@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { envoyer, saisir } from '../../test/formulaires';
 import { PageDeTest } from '../../test/page-de-test';
 import { Professeur } from './professeur';
 import { Professeurs } from './professeurs';
@@ -190,6 +191,125 @@ describe('la page « Professeurs »', () => {
     expect(page.querySelector('.cote .note.bad')?.textContent).toContain("Fermez d'abord ses groupes");
     expect(noms()).toEqual(['Karim Ben Salah']);
     expect(bouton(fiche(), 'Marquer parti').disabled).toBe(false);
+  });
+
+  // ----- Le formulaire -----
+
+  const NADIA: Professeur = { id: 'n', prenom: 'Nadia', nom: 'Bouzid', telephone: '97 112 846', email: null, parti: false, groupesOuverts: 0 };
+  const champ = (nom: string) => page.querySelector(`[formcontrolname="${nom}"]`) as HTMLInputElement;
+
+  async function remplir(prenom: string, nom: string, telephone: string): Promise<void> {
+    saisir(page, '[formcontrolname="prenom"]', prenom);
+    saisir(page, '[formcontrolname="nom"]', nom);
+    saisir(page, '[formcontrolname="telephone"]', telephone);
+    await harness.fixture.whenStable();
+  }
+
+  async function ouvrirLAjout(): Promise<void> {
+    await cliquer(page, 'Ajouter un professeur');
+    expect(page.querySelector('form')).not.toBeNull();
+  }
+
+  it('ajoute un professeur', async () => {
+    await ouvrir([KARIM, LEILA]);
+    await ouvrirLAjout();
+    expect(page.querySelector('form')?.textContent).toContain('Email (facultatif)');
+    expect(fiche()).toBeNull();
+
+    await remplir(' Nadia ', 'Bouzid', '97 112 846');
+    envoyer(page);
+    const requete = http.expectOne({ method: 'POST', url: ADRESSE });
+    expect(requete.request.body).toEqual({ prenom: 'Nadia', nom: 'Bouzid', telephone: '97 112 846', email: '' });
+    requete.flush({ professeur: NADIA, avertissement: null }, { status: 201, statusText: 'Created' });
+
+    await attendre('Professeur ajouté');
+    expect(page.querySelector('form')).toBeNull();
+    expect(fiche().querySelector('h2')?.textContent).toContain('Nadia Bouzid');
+    expect(noms()).toEqual(['Karim Ben Salah', 'Leila Khelifi', 'Nadia Bouzid']);
+    expect(page.querySelector('.note.warn')).toBeNull();
+  });
+
+  it('refuse une fiche incomplète', async () => {
+    await ouvrir([KARIM]);
+    await ouvrirLAjout();
+
+    await remplir('Nadia', 'Bouzid', '  ');
+    envoyer(page);
+
+    await attendre('Remplissez le prénom, le nom et le téléphone');
+    expect(page.querySelector('.cote .note.bad')).not.toBeNull();
+  });
+
+  it("prévient d'un téléphone déjà pris", async () => {
+    await ouvrir([KARIM]);
+    await ouvrirLAjout();
+
+    await remplir('Nadia', 'Bouzid', '98 401 220');
+    envoyer(page);
+    http
+      .expectOne(ADRESSE)
+      .flush(
+        { professeur: { ...NADIA, telephone: '98 401 220' }, avertissement: 'Ce téléphone est aussi celui de Karim Ben Salah' },
+        { status: 201, statusText: 'Created' },
+      );
+
+    await attendre('Professeur ajouté');
+    expect(page.querySelector('.cote .note.warn')?.textContent).toContain('Ce téléphone est aussi celui de Karim Ben Salah');
+  });
+
+  it('modifie un professeur', async () => {
+    await ouvrir([KARIM, LEILA]);
+
+    await cliquer(fiche(), 'Modifier');
+    expect([champ('prenom').value, champ('nom').value, champ('telephone').value, champ('email').value]).toEqual([
+      'Karim',
+      'Ben Salah',
+      '98 401 220',
+      'karim@exemple.tn',
+    ]);
+
+    saisir(page, '[formcontrolname="nom"]', 'Ben Salah Jr');
+    envoyer(page);
+    const requete = http.expectOne({ method: 'PUT', url: `${ADRESSE}/k` });
+    expect(requete.request.body).toEqual({ prenom: 'Karim', nom: 'Ben Salah Jr', telephone: '98 401 220', email: 'karim@exemple.tn' });
+    requete.flush({ professeur: { ...KARIM, nom: 'Ben Salah Jr' }, avertissement: null });
+
+    await attendre('Fiche enregistrée');
+    expect(noms()).toEqual(['Karim Ben Salah Jr', 'Leila Khelifi']);
+    expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah Jr');
+  });
+
+  it("remplit l'email vide d'un professeur sans email", async () => {
+    await ouvrir([LEILA]);
+
+    await cliquer(fiche(), 'Modifier');
+
+    expect(champ('email').value).toBe('');
+  });
+
+  it('annule le formulaire', async () => {
+    await ouvrir([KARIM]);
+    await ouvrirLAjout();
+
+    await cliquer(page, 'Annuler');
+
+    expect(page.querySelector('form')).toBeNull();
+    expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah');
+  });
+
+  it("montre un refus sous le formulaire, et bloque le bouton pendant l'envoi", async () => {
+    await ouvrir([KARIM]);
+    await ouvrirLAjout();
+
+    await remplir('Nadia', 'Bouzid', '9711284');
+    envoyer(page);
+    await vi.waitFor(() => expect(bouton(page, 'Enregistrer').disabled).toBe(true));
+    http.expectOne(ADRESSE).flush({ message: 'Le téléphone doit avoir 8 chiffres' }, { status: 400, statusText: 'Bad Request' });
+
+    await attendre('Le téléphone doit avoir 8 chiffres');
+    expect(page.querySelector('.cote .note.bad')?.textContent).toContain('Le téléphone doit avoir 8 chiffres');
+    expect(page.querySelector('form')).not.toBeNull();
+    expect(bouton(page, 'Enregistrer').disabled).toBe(false);
   });
 
   it("bloque l'ajout si la liste n'a pas pu se charger", async () => {

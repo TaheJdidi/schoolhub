@@ -3,7 +3,7 @@
     <h1 class="h1">Professeurs</h1>
     <p class="sub">{{ sousTitre() }}</p>
   </div>
-  <button type="button" class="btn primary" [disabled]="!charge() || envoi()">Ajouter un professeur</button>
+  <button type="button" class="btn primary" [disabled]="!charge() || envoi()" (click)="ouvrirLAjout()">Ajouter un professeur</button>
 </div>
 
 <div class="filtres" role="group" aria-label="Filtrer les professeurs">
@@ -41,7 +41,33 @@
   </div>
 
   <div class="cote">
-    @if (choisi(); as professeur) {
+    @if (mode() !== 'fiche') {
+      <form class="card carte" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
+        <h2 class="titre">{{ mode() === 'ajout' ? 'Nouveau professeur' : 'Modifier la fiche' }}</h2>
+        <div class="champs">
+          <label class="f">
+            Prénom
+            <input formControlName="prenom" autocomplete="off" />
+          </label>
+          <label class="f">
+            Nom
+            <input formControlName="nom" autocomplete="off" />
+          </label>
+          <label class="f">
+            Téléphone
+            <input formControlName="telephone" autocomplete="off" inputmode="tel" />
+          </label>
+          <label class="f">
+            Email (facultatif)
+            <input type="email" formControlName="email" autocomplete="off" inputmode="email" />
+          </label>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
+          <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
+        </div>
+      </form>
+    } @else if (choisi(); as professeur) {
       <section class="card carte fiche">
         <div class="entete">
           <h2 class="titre">{{ nomComplet(professeur) }}</h2>
@@ -68,7 +94,7 @@
           </div>
         } @else {
           <div class="actions">
-            <button type="button" class="btn" [disabled]="envoi()">Modifier</button>
+            <button type="button" class="btn" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
             @if (professeur.parti) {
               <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur)">Revenir au centre</button>
             } @else {
@@ -82,6 +108,9 @@
 
     @if (succes(); as succes) {
       <p class="note ok" role="status">{{ succes }}</p>
+    }
+    @if (avertissement(); as avertissement) {
+      <p class="note warn" role="status">{{ avertissement }}</p>
     }
     @if (erreur(); as erreur) {
       <p class="note bad" role="alert">{{ erreur }}</p>
