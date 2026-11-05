@@ -21,8 +21,11 @@ public sealed class Reglement : IAppartientAuCentre
     /// <summary>La clé d'un règlement de l'assurance de l'année.</summary>
     public const string CleDeLAssurance = "Assurance";
 
-    private Reglement(Guid? inscriptionId, Guid? assuranceId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId)
+    private Reglement(
+        Guid? inscriptionId, Guid? assuranceId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId,
+        decimal partDuReport = 0m)
     {
+        PartDuReport = partDuReport;
         InscriptionId = inscriptionId;
         AssuranceId = assuranceId;
         Cle = cle;
@@ -50,8 +53,12 @@ public sealed class Reglement : IAppartientAuCentre
 
     public Guid AuteurId { get; private set; }
 
-    internal static Reglement DUneSomme(Guid inscriptionId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId) =>
-        new(inscriptionId, null, cle, montant, origine, regleLe, auteurId);
+    /// <summary>ELV-09 : la part du report qui a réduit cette somme ; figée au paiement, elle ne sert pas une seconde fois.</summary>
+    public decimal PartDuReport { get; private set; }
+
+    internal static Reglement DUneSomme(
+        Guid inscriptionId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId, decimal partDuReport = 0m) =>
+        new(inscriptionId, null, cle, montant, origine, regleLe, auteurId, partDuReport);
 
     internal static Reglement DeLAssurance(Guid assuranceId, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId) =>
         new(null, assuranceId, CleDeLAssurance, montant, origine, regleLe, auteurId);
@@ -65,6 +72,7 @@ internal sealed class ReglementConfiguration : IEntityTypeConfiguration<Reglemen
         reglement.ToTable("reglements");
         reglement.Property(r => r.Cle).HasMaxLength(30);
         reglement.Property(r => r.Montant).HasPrecision(12, 3);
+        reglement.Property(r => r.PartDuReport).HasPrecision(12, 3);
         reglement.Property(r => r.Origine).HasConversion<string>().HasMaxLength(20);
         reglement.HasOne<Inscription>().WithMany().HasForeignKey(r => r.InscriptionId).OnDelete(DeleteBehavior.Restrict);
         reglement.HasOne<AssuranceDeLAnnee>().WithMany().HasForeignKey(r => r.AssuranceId).OnDelete(DeleteBehavior.Restrict);

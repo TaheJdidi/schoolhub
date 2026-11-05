@@ -406,7 +406,8 @@ public sealed class EcheancierTests
         var seances = Samedis(8);
 
         var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 48m)]),
-            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], null, Reglees(("Mois 1", 6m)), Report: 30m));
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], null, Reglees(("Mois 1", 6m)), Report: 30m,
+                PartsDuReport: Reglees(("Mois 1", 30m))));
 
         Assert.Equal([(6m, true), (48m, false)], sommes.Select(s => (s.Montant, s.Reglee)));
     }
@@ -433,4 +434,64 @@ public sealed class EcheancierTests
             new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[0]), seances[1]));
     }
 
+    // ----- Corrections de la relecture de l'étape 4 -----
+
+    [Fact]
+    public void Le_report_d_une_tranche_payee_ne_sert_pas_deux_fois()
+    {
+        // 3 × 100 TND et un report de 90 TND : la tranche 1 vaut 10 TND. Payée, elle garde ses 90 TND de report.
+        var seances = Samedis(10);
+        var formation = FormationEnTranches(seances);
+
+        Assert.Equal([10m, 100m, 100m], Echeancier.Calculer(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], Report: 90m)).Select(s => s.Montant));
+        Assert.Equal([10m, 100m, 100m], Echeancier.Calculer(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, Reglees(("Tranche 1", 10m)), Report: 90m,
+                PartsDuReport: Reglees(("Tranche 1", 90m)))).Select(s => s.Montant));
+    }
+
+    [Fact]
+    public void Un_prix_special_ne_refait_pas_servir_le_report()
+    {
+        // Le Mois 1 a coûté 36 − 30 = 6 TND, payés ; un prix spécial de 20 TND vient ensuite : le Mois 2 vaut 20 TND.
+        var seances = Samedis(8);
+
+        var sommes = Echeancier.Calculer(Etude(seances, [new PrixDuGroupe(1, 48m)]),
+            new ConditionsDeLInscription(ModeDeTarification.ParMois, seances[1], 20m, Reglees(("Mois 1", 6m)), Report: 30m,
+                PartsDuReport: Reglees(("Mois 1", 30m))));
+
+        Assert.Equal([(6m, true), (20m, false)], sommes.Select(s => (s.Montant, s.Reglee)));
+        Assert.Equal([30m, 0m], sommes.Select(s => s.ReportDeduit));
+    }
+
+    [Fact]
+    public void La_valeur_non_suivie_compte_le_report()
+    {
+        // La totalité des séances 5 à 10 (60 TND) couverte par 40 TND de report : quitter le groupe le jour même rend ces 40 TND.
+        var seances = Samedis(10);
+        var revision = Revision(seances, 100m, 10);
+
+        Assert.Equal(40m, Echeancier.ValeurNonSuivie(revision,
+            new ConditionsDeLInscription(ModeDeTarification.EnTotalite, seances[4], Report: 40m), seances[4]));
+        // Un report de 100 TND sur 60 TND : les 40 TND qui restent suivent aussi.
+        Assert.Equal(100m, Echeancier.ValeurNonSuivie(revision,
+            new ConditionsDeLInscription(ModeDeTarification.EnTotalite, seances[4], Report: 100m), seances[4]));
+    }
+
+    [Fact]
+    public void La_valeur_non_suivie_d_une_formation()
+    {
+        // Le prix d'une séance (300 ÷ 10 = 30 TND) × les séances avant le changement est consommé ; le reste du payé suit.
+        var seances = Samedis(10);
+        var formation = FormationEnTranches(seances);
+
+        Assert.Equal(50m, Echeancier.ValeurNonSuivie(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, Reglees(("Tranche 1", 100m), ("Tranche 2", 100m))), seances[5]));
+        Assert.Equal(10m, Echeancier.ValeurNonSuivie(formation,
+            new ConditionsDeLInscription(ModeDeTarification.EnTranches, seances[0], null, Reglees(("Tranche 1", 100m))), seances[3]));
+        // Une Formation saisie à la séance 4 (GRP-07), 300 TND payés, le changement à la séance 7 : 4 séances, 120 TND.
+        var dejaEnCours = new CalendrierAPayer(TypeDeGroupe.Formation, 4, Samedis(7), [], 300m, 10, []);
+        Assert.Equal(120m, Echeancier.ValeurNonSuivie(dejaEnCours,
+            new ConditionsDeLInscription(ModeDeTarification.EnUneFois, seances[0], null, Reglees(("Une fois", 300m))), seances[3]));
+    }
 }

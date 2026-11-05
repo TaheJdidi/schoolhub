@@ -18,15 +18,18 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Qui compte comme inscrit ? | Pour le nombre d'élèves et la capacité : une inscription pas arrêtée, ou arrêtée à une date qui n'est pas encore passée. Pour « Déjà inscrit » : une inscription pas arrêtée, comme l'index unique. |
 | Le changement de groupe : à quelle date ? | À la première séance de l'élève dans le nouveau groupe, choisie comme pour une inscription. L'ancienne inscription s'arrête la veille. |
 | Le même type ? | Le nouveau groupe est du même type que l'ancien (ELV-09), ouvert, pas terminé, et l'élève n'y est pas déjà inscrit. Le mode se choisit comme pour une inscription. |
-| La valeur des séances payées et pas suivies ? | Pour chaque somme réglée de l'ancienne inscription, la part de ses séances qui tombent à la date du changement ou après : son montant réglé × ces séances ÷ ses séances, au millime. Une Formation (en une fois, en tranches, ou son reste) compte ensemble tout ce qui est réglé, sur toutes les séances de l'élève. L'exemple d'ELV-09 tient : le Mois 5 payé 40 TND, le changement après la séance 1 : 30 TND. |
-| Comment la déduire ? | La nouvelle inscription garde ce **report**. Il réduit ses sommes une à une, de la première à la dernière, jusqu'à s'épuiser : « le surplus est reporté sur ses paiements suivants ». L'exemple d'ELV-09 : la 2ᵉ séance d'un Mois à 48 TND, 36 TND moins 30 TND, soit 6 TND. Une somme réglée garde sa part du report. |
+| La valeur des séances payées et pas suivies ? | Une somme est payée par son règlement et par sa part du report ; le report pas encore utilisé suit en entier. Étude et Révision : pour chaque somme, ce qui est payé × ses séances à la date du changement ou après ÷ ses séances, au millime. Formation : tout ce qui est payé, moins le prix d'une séance × les séances avant le changement (celles d'avant SchoolHub comprises), jamais moins de 0 — à confirmer par Lassad et Taha. L'exemple d'ELV-09 tient : le Mois 5 payé 40 TND, le changement après la séance 1 : 30 TND. |
+| Comment la déduire ? | La nouvelle inscription garde l'inscription de départ, et son **report** se calcule à chaque lecture : un paiement noté plus tard sur l'ancienne inscription, ou un second changement, le suit. Il réduit ses sommes une à une, de la première à la dernière, jusqu'à s'épuiser : « le surplus est reporté sur ses paiements suivants ». L'exemple d'ELV-09 : la 2ᵉ séance d'un Mois à 48 TND, 36 TND moins 30 TND, soit 6 TND. Un règlement fige la part du report de sa somme : elle ne sert jamais deux fois. |
 | Le journal ? | L'arrêt et le changement de groupe (exigences communes). |
 | Le message WhatsApp d'un changement ? | Le même que pour une inscription : le nouveau groupe et sa première séance. |
-| Un groupe fermé ? | Rien de plus pour l'instant : ses séances après la fermeture disparaissent déjà, donc plus rien n'y est dû. La liste des élèves avant de fermer, et le changement proposé, restent à faire avec la fermeture (mémoire « Fermer un groupe »). |
+| Un groupe fermé ? | Il ne se ferme plus tant qu'un élève y est inscrit après la date de fermeture : « Des élèves sont encore inscrits après cette date : arrêtez leur inscription ou changez-les de groupe d'abord » (409). Chaque élève change de groupe ou arrête d'abord (Q16) : la fermeture effacerait sinon les séances payées et le report. La liste des élèves sur la page de fermeture reste à faire (mémoire « Fermer un groupe »). |
+| Le prix spécial d'un élève qui change de groupe ? | Il ne suit pas : seul le propriétaire en accorde un (ELV-05). La confirmation prévient : « Le prix spécial de l'ancien groupe ne suit pas : prévenez le propriétaire. ». |
+| Une inscription défaite, une réinscription ? | Une inscription arrêtée avant sa première séance ne rend pas l'assurance due. Une réinscription (ou un changement) ne peut pas commencer au plus tard à la date d'arrêt d'une inscription du même élève dans ce groupe : « Cet élève est déjà inscrit dans ce groupe ». |
 
 ## 1. Les données
 
-- **Inscription** : `ArreteLe` (date, facultative) et `Report` (au millime, 0 par défaut). L'index unique (`EleveId`, `GroupeId`) ne compte plus que les inscriptions dont `ArreteLe` est vide.
+- **Inscription** : `ArreteLe` (date, facultative) et `DepuisInscriptionId` (l'inscription quittée par un changement). L'index unique (`EleveId`, `GroupeId`) ne compte plus que les inscriptions dont `ArreteLe` est vide.
+- **Règlement** : `PartDuReport`, la part du report qui a réduit sa somme, figée au paiement.
 
 ## 2. L'échéancier
 

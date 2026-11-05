@@ -39,7 +39,7 @@ public sealed record CalendrierAPayer(
 /// (« Mois 3 », « Séance 4 », « Totalité », « Une fois », « Tranche 2 », « Reste ») la désigne pour un règlement ; une
 /// somme réglée vaut le montant de son règlement.
 /// </summary>
-public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateOnly Date, string Cle = "", bool Reglee = false);
+public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateOnly Date, string Cle = "", bool Reglee = false, decimal ReportDeduit = 0m);
 
 /// <summary>
 /// Ce que l'inscription ajoute au calendrier du groupe : son mode, sa première séance, son prix spécial (ELV-05), ses
@@ -53,7 +53,8 @@ public sealed record ConditionsDeLInscription(
     IReadOnlyDictionary<string, decimal>? Reglements = null,
     DateOnly? ResteRegroupeLe = null,
     DateOnly? ArreteLe = null,
-    decimal Report = 0m);
+    decimal Report = 0m,
+    IReadOnlyDictionary<string, decimal>? PartsDuReport = null);
 
 /// <summary>
 /// ELV-03 : toutes les sommes qu'une inscription doit, depuis la première séance de l'élève, sans base de données.
@@ -113,14 +114,18 @@ public static class Echeancier
             .OrderBy(s => s.Date).ThenBy(s => s.Seance)
             .ToList();
 
-        // ELV-09 : le report réduit les sommes une à une, dans l'ordre ; une somme réglée garde sa part.
-        var report = conditions.Report;
+        // ELV-09 : une somme réglée garde la part du report figée dans son règlement ; ce qui reste du report réduit les
+        // sommes pas réglées une à une, dans l'ordre, sans jamais descendre sous 0.
+        var partsDuReport = conditions.PartsDuReport ?? new Dictionary<string, decimal>();
+        sommes = sommes.Select(s => s.Reglee ? s with { ReportDeduit = partsDuReport.GetValueOrDefault(s.Cle) } : s).ToList();
+        var report = Math.Max(0m, conditions.Report - sommes.Sum(s => s.ReportDeduit));
         for (var i = 0; i < sommes.Count && report > 0; i++)
         {
+            if (sommes[i].Reglee)
+                continue;
             var part = Math.Min(sommes[i].Montant, report);
             report -= part;
-            if (!sommes[i].Reglee)
-                sommes[i] = sommes[i] with { Montant = sommes[i].Montant - part };
+            sommes[i] = sommes[i] with { Montant = sommes[i].Montant - part, ReportDeduit = part };
         }
 
         // Une somme réglée vaut son règlement : ni un prix spécial, ni un nouveau prix, ni le report ne la change.
@@ -130,20 +135,29 @@ public static class Echeancier
     }
 
     /// <summary>
-    /// ELV-09 : la valeur des séances payées et pas suivies à partir de cette date. Pour chaque somme réglée, son montant
-    /// réglé × ses séances à cette date ou après ÷ ses séances, au millime. Une Formation compte ensemble tout ce qui est
-    /// réglé, sur toutes les séances de l'élève.
+    /// ELV-09 : la valeur des séances payées et pas suivies à partir de cette date. Une somme est payée par son règlement et
+    /// par sa part du report ; le report pas encore utilisé suit en entier. Étude et Révision : pour chaque somme, ce qui
+    /// est payé × ses séances à cette date ou après ÷ ses séances, au millime. Formation : tout ce qui est payé, moins le
+    /// prix d'une séance × les séances avant le changement (celles d'avant SchoolHub comprises), jamais moins de 0.
     /// </summary>
     public static decimal ValeurNonSuivie(CalendrierAPayer groupe, ConditionsDeLInscription conditions, DateOnly depuisLe)
     {
         if (Rang(groupe, conditions.DebutLe) is not { } rang)
             return 0m;
         var suivies = groupe.Seances.Skip(rang).Select((date, i) => new SeanceSuivie(groupe.PremiereSeance + rang + i, date)).ToList();
-        var reglees = Calculer(groupe, conditions with { ArreteLe = null }).Where(s => s.Reglee).ToList();
+        var sommes = Calculer(groupe, conditions with { ArreteLe = null });
+        var payees = sommes.Select(s => (Somme: s, Paye: (s.Reglee ? s.Montant : 0m) + s.ReportDeduit)).ToList();
+        var inutilise = Math.Max(0m, conditions.Report - sommes.Sum(s => s.ReportDeduit));
 
         if (groupe.Type == TypeDeGroupe.Formation)
-            return Part(reglees.Sum(s => s.Montant), suivies, depuisLe);
-        return reglees.Sum(somme => Part(somme.Montant, SeancesDeLaSomme(somme, suivies), depuisLe));
+        {
+            var prix = conditions.PrixSpecial ?? groupe.PrixTotal!.Value;
+            var numeroDuChangement = suivies.FirstOrDefault(s => s.Date >= depuisLe)?.Numero ?? groupe.NombreDeSeances!.Value + 1;
+            var consomme = prix * (numeroDuChangement - 1) / groupe.NombreDeSeances!.Value;
+            return Math.Max(0m, decimal.Round(payees.Sum(p => p.Paye) + inutilise - consomme, 3, MidpointRounding.AwayFromZero));
+        }
+
+        return payees.Sum(p => Part(p.Paye, SeancesDeLaSomme(p.Somme, suivies), depuisLe)) + inutilise;
     }
 
     /// <summary>Les séances qu'une somme paie : celles de son Mois, sa séance, ou toutes celles de l'élève pour la totalité.</summary>

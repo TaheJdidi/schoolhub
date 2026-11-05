@@ -99,9 +99,6 @@
           @for (reglee of inscription.reglees; track reglee.libelle) {
             <small>{{ reglee.libelle }} · {{ montant(reglee.montant) }} TND · payé avant SchoolHub</small>
           }
-          @if (inscription.arreteLe; as arreteLe) {
-            <small class="special">Inscription arrêtée le {{ date(arreteLe) }}</small>
-          } @else {
           @for (payable of inscription.payablesAvantSchoolHub; track payable.cle) {
             <div class="sous-action">
               <small>{{ payable.libelle }} · {{ montant(payable.montant) }} TND</small>
@@ -120,6 +117,9 @@
               }
             </div>
           }
+          @if (inscription.arreteLe; as arreteLe) {
+            <small class="special">Inscription arrêtée le {{ date(arreteLe) }}</small>
+          } @else {
           @if (inscription.peutRegrouperLeReste) {
             @if (resteOuvertPour(inscription.id)) {
               <p class="question">Regrouper les tranches à venir en une somme due aujourd'hui ?</p>

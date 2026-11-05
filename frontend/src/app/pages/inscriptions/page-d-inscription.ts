@@ -178,7 +178,8 @@ export class PageDInscription implements OnInit {
         ]);
         this.groupeChoisi.set(fiche.id);
         this.montrerLeGroupe(fiche);
-        this.dejaInscrits.set(new Set(inscriptions.map((inscription) => inscription.eleve.id)));
+        // Un élève arrêté peut se réinscrire (ELV-08) : seules les inscriptions pas arrêtées comptent.
+        this.dejaInscrits.set(new Set(inscriptions.filter((inscription) => inscription.arreteLe === null).map((inscription) => inscription.eleve.id)));
       }
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) {

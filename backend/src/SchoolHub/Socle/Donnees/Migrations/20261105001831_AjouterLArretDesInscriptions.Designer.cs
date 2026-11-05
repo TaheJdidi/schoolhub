@@ -12,7 +12,7 @@ using SchoolHub.Socle.Donnees;
 namespace SchoolHub.Socle.Donnees.Migrations
 {
     [DbContext(typeof(SchoolHubDbContext))]
-    [Migration("20261104234853_AjouterLArretDesInscriptions")]
+    [Migration("20261105001831_AjouterLArretDesInscriptions")]
     partial class AjouterLArretDesInscriptions
     {
         /// <inheritdoc />
@@ -412,6 +412,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("date")
                         .HasColumnName("debut_le");
 
+                    b.Property<Guid?>("DepuisInscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("depuis_inscription_id");
+
                     b.Property<Guid>("EleveId")
                         .HasColumnType("uuid")
                         .HasColumnName("eleve_id");
@@ -440,11 +444,6 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("raison_du_prix_special");
 
-                    b.Property<decimal>("Report")
-                        .HasPrecision(12, 3)
-                        .HasColumnType("numeric(12,3)")
-                        .HasColumnName("report");
-
                     b.Property<DateOnly?>("ResteRegroupeLe")
                         .HasColumnType("date")
                         .HasColumnName("reste_regroupe_le");
@@ -454,6 +453,9 @@ namespace SchoolHub.Socle.Donnees.Migrations
 
                     b.HasIndex("CentreId")
                         .HasDatabaseName("ix_inscriptions_centre_id");
+
+                    b.HasIndex("DepuisInscriptionId")
+                        .HasDatabaseName("ix_inscriptions_depuis_inscription_id");
 
                     b.HasIndex("GroupeId")
                         .HasDatabaseName("ix_inscriptions_groupe_id");
@@ -505,6 +507,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("origine");
+
+                    b.Property<decimal>("PartDuReport")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("part_du_report");
 
                     b.Property<DateTimeOffset>("RegleLe")
                         .HasColumnType("timestamp with time zone")
@@ -1130,6 +1137,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_inscriptions_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Inscriptions.Inscription", null)
+                        .WithMany()
+                        .HasForeignKey("DepuisInscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inscriptions_inscriptions_depuis_inscription_id");
 
                     b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
                         .WithMany()

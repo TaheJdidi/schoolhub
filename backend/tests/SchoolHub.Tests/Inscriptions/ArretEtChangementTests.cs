@@ -31,6 +31,7 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
     private Centre _jasmins = null!;
     private Compte _amira = null!;
     private HttpClient _client = null!;
+    private HttpClient _proprietaire = null!;
     private Guid _neuvieme;
     private Guid _karim;
     private Guid _adem;
@@ -43,8 +44,8 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
         _jasmins = await _application.CreerCentreAsync();
         await _application.RecopierLesNiveauxDOfficeAsync(_jasmins);
         var hedi = await _application.CreerCompteAsync(_jasmins, "Hedi", "Ben Salah", RoleDuCompte.Proprietaire);
-        var proprietaire = await _application.ClientConnecteAsync(hedi);
-        var reglages = await proprietaire.PutAsJsonAsync("/api/centre/parametres", new ReglagesDuCentre(
+        _proprietaire = await _application.ClientConnecteAsync(hedi);
+        var reglages = await _proprietaire.PutAsJsonAsync("/api/centre/parametres", new ReglagesDuCentre(
             "Centre Les Jasmins", "73 221 400", null, new AnneeScolaireSaisie(new DateOnly(2027, 9, 15), new DateOnly(2028, 6, 30)), 20m, null, null, null));
         Assert.Equal(HttpStatusCode.OK, reglages.StatusCode);
         _amira = await _application.CreerCompteAsync(_jasmins, "Amira", "Jlassi");
@@ -250,6 +251,94 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
         Assert.Equal([autre], groupes.Select(g => g.Id));
         await VerifierLeRefusAsync(await _client.GetAsync($"/api/inscriptions/groupes-possibles?eleve={_adem}&depuis={Guid.NewGuid()}"),
             HttpStatusCode.NotFound, "Inscription introuvable");
+    }
+
+    // ----- Corrections de la relecture -----
+
+    private async Task<EnregistrementDeLInscription> ChangerAsync(Guid inscription, DemandeDeChangement demande)
+    {
+        var reponse = await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/changement", demande);
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        return (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!;
+    }
+
+    private async Task<InscriptionDeLEleve> InscriptionAsync(Guid inscription) =>
+        (await _client.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem}"))!.Single(i => i.Id == inscription);
+
+    [Fact]
+    public async Task Un_paiement_note_apres_le_changement_donne_son_report()
+    {
+        // La totalité a été payée en espèces avant SchoolHub, mais la secrétaire ne le note qu'après le changement.
+        var ancienne = await InscrireAsync(_adem, await GroupeAsync(RevisionDejaEnCours), "EnTotalite", DeuxiemeSeanceDuMois3);
+        var changement = await ChangerAsync(ancienne, new DemandeDeChangement(await GroupeAsync(AutreRevision), "EnTotalite", new DateOnly(2027, 12, 11)));
+        Assert.Equal(0m, changement.Inscription.Report);
+
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{ancienne}/paye-avant-schoolhub", new CleSaisie("Totalité")));
+
+        Assert.Equal(40m, (await InscriptionAsync(changement.Inscription.Id)).Report);
+    }
+
+    [Fact]
+    public async Task Un_second_changement_garde_le_report()
+    {
+        // Le jour même, la secrétaire voit qu'elle s'est trompée de groupe, et change encore : les 40 TND suivent.
+        var ancienne = await RevisionPayeeAsync();
+        var versB = await ChangerAsync(ancienne, new DemandeDeChangement(await GroupeAsync(AutreRevision), "EnTotalite", new DateOnly(2027, 12, 11)));
+        var c = await GroupeAsync(AutreRevision with { Creneaux = [new CreneauSaisi("Samedi", "16:00", "18:00")] });
+
+        var versC = await ChangerAsync(versB.Inscription.Id, new DemandeDeChangement(c, "EnTotalite", new DateOnly(2027, 12, 11)));
+
+        Assert.Equal(40m, versC.Inscription.Report);
+        Assert.Equal([new SommeALArrivee("Totalité, séances 5 à 10", 20m)], versC.APayerALArrivee);
+    }
+
+    [Fact]
+    public async Task Un_groupe_ne_ferme_pas_avec_des_eleves_encore_inscrits()
+    {
+        var etude = await GroupeAsync(Etude);
+        var inscription = await InscrireAsync(_adem, etude, null, DeuxiemeSeanceDuMois3);
+        var fermeture = new FermetureDUnGroupe(new DateOnly(2027, 11, 27), "Trop peu d'élèves");
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/groupes/{etude}/fermeture", fermeture), HttpStatusCode.Conflict,
+            "Des élèves sont encore inscrits après cette date : arrêtez leur inscription ou changez-les de groupe d'abord");
+
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/arret", new DateSaisie(new DateOnly(2027, 11, 27))));
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync($"/api/groupes/{etude}/fermeture", fermeture)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Une_inscription_defaite_ne_laisse_pas_d_assurance()
+    {
+        // Inscrit pour le 04/12, arrêté le 27/11 : l'inscription n'a jamais commencé, l'assurance n'est pas due.
+        var inscription = await InscrireAsync(_adem, await GroupeAsync(Etude), null, DerniereSeanceDuMois3);
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/arret", new DateSaisie(new DateOnly(2027, 11, 27))));
+
+        Assert.Equal(HttpStatusCode.NoContent, (await _client.GetAsync($"/api/eleves/{_adem}/assurance")).StatusCode);
+        await AllerAuAsync(new DateTimeOffset(2027, 12, 11, 9, 0, 0, TimeSpan.Zero));
+        Assert.Empty((await APayerAsync(_adem)).Lignes);
+    }
+
+    [Fact]
+    public async Task Une_reinscription_ne_chevauche_pas_l_arret()
+    {
+        var etude = await GroupeAsync(Etude);
+        var inscription = await InscrireAsync(_adem, etude, null, DeuxiemeSeanceDuMois3);
+        await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/arret", new DateSaisie(new DateOnly(2028, 6, 30))));
+
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(_adem, etude, null, new DateOnly(2027, 12, 11))),
+            HttpStatusCode.Conflict, "Cet élève est déjà inscrit dans ce groupe");
+    }
+
+    [Fact]
+    public async Task Le_prix_special_ne_suit_pas_le_changement()
+    {
+        var ancienne = await RevisionPayeeAsync();
+        Assert.Equal(HttpStatusCode.OK, (await _proprietaire.PutAsJsonAsync($"/api/inscriptions/{ancienne}/prix-special",
+            new PrixSpecialSaisi(50m, "Famille en difficulté"))).StatusCode);
+
+        var changement = await ChangerAsync(ancienne, new DemandeDeChangement(await GroupeAsync(AutreRevision), "EnTotalite", new DateOnly(2027, 12, 11)));
+
+        Assert.Equal("Le prix spécial de l'ancien groupe ne suit pas : prévenez le propriétaire.", changement.Avertissement);
     }
 
     // ----- Outils -----

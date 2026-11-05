@@ -455,4 +455,14 @@ describe('la fiche d’un élève', () => {
     expect(carte('inscription').textContent).toContain("Report de 30,000 TND depuis l'ancien groupe");
     expect(carte('inscription').querySelector('a[href="/eleves/e1/changement/i1"]')?.textContent).toContain('Changer de groupe');
   });
+
+  it("garde « Déjà payé avant SchoolHub » sur une inscription arrêtée", async () => {
+    await ouvrir(ADEM, [
+      { ...INSCRIPTION, arreteLe: '2027-12-04', payablesAvantSchoolHub: [{ cle: 'Totalité', libelle: 'Totalité, séances 4 à 10', montant: 70 }] },
+    ]);
+
+    expect(carte('inscription').textContent).toContain('Inscription arrêtée le 04/12/2027');
+    expect(bouton('Déjà payé avant SchoolHub')).toBeDefined();
+    expect(bouton("Arrêter l'inscription")).toBeUndefined();
+  });
 });

@@ -44,6 +44,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private const string DejaDansCeGroupe = "L'élève est déjà dans ce groupe";
     private const string PasLeMemeType = "Le nouveau groupe doit être du même type";
     private const string ChangementTropTot = "Le changement vient avant sa première séance dans l'ancien groupe";
+    private const string PrixSpecialQuiNeSuitPas = "Le prix spécial de l'ancien groupe ne suit pas : prévenez le propriétaire.";
 
     public const string ChoisirLEleve = "Choisissez l'élève";
     public const string EleveIntrouvable = "Élève introuvable";
@@ -137,9 +138,14 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         journal.Noter(auteur, ActionDuJournal.ChangementDeGroupe, Couper(detail), CouperA100(ancienGroupe.Nom),
             CouperA100($"{groupe.Nom}, depuis le {SaisieDuGroupe.EcrireUneDate(debutLe)}"));
 
-        var avertissement = await AvertissementDeCapaciteAsync(groupe);
+        var avertissements = new[]
+        {
+            await AvertissementDeCapaciteAsync(groupe),
+            ancienne.PrixSpecial is null ? null : PrixSpecialQuiNeSuitPas,
+        }.OfType<string>().ToList();
+        var avertissement = avertissements.Count == 0 ? null : string.Join(" ", avertissements);
         ancienne.Arreter(debutLe.AddDays(-1));
-        var inscription = new Inscription(ancienne.EleveId, groupe.Id, mode, debutLe, temps.GetUtcNow(), report);
+        var inscription = new Inscription(ancienne.EleveId, groupe.Id, mode, debutLe, temps.GetUtcNow(), ancienne.Id);
         contexte.Inscriptions.Add(inscription);
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
         var assurance = await AssuranceALArriveeAsync(ancienne.EleveId, groupe, centre, debutLe);
@@ -162,7 +168,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var seances = await SeancesAsync(groupe.Id);
         if (CalendrierDuGroupe.EstTermine(groupe.Type, seances.LastOrDefault()?.Date, DateDeTunis.Aujourdhui(temps)))
             return (default, [], Refus(StatusCodes.Status409Conflict, GroupeTermine));
-        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupe.Id && i.ArreteLe == null))
+        // Une inscription pas arrêtée, ou arrêtée à la première séance demandée ou après : l'élève y est encore.
+        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == eleveId && i.GroupeId == groupe.Id
+                && (i.ArreteLe == null || (debutLe != null && i.ArreteLe >= debutLe))))
             return (default, [], Refus(StatusCodes.Status409Conflict, DejaInscrit));
 
         var modes = Echeancier.ModesPossibles(groupe.Type, groupe.Tranches.Count > 0);
@@ -204,9 +212,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         Eleve eleve, Inscription inscription, Groupe groupe, List<Seance> seances, SommeALArrivee? assurance, string? avertissement, Centre centre)
     {
         var decrite = (await DecrireAsync([inscription]))[0];
-        var calendrier = Calendrier(groupe, seances);
-        var premiere = Echeancier.PremiereSeance(calendrier, inscription.DebutLe);
-        var aPayer = Echeancier.Calculer(calendrier, new ConditionsDeLInscription(inscription.Mode, inscription.DebutLe, Report: inscription.Report))
+        var echeance = (await EcheancesAsync([inscription]))[0];
+        var premiere = Echeancier.PremiereSeance(echeance.Calendrier, inscription.DebutLe);
+        var aPayer = echeance.Sommes
             .Where(s => s.Seance == premiere)
             .Select(s => new SommeALArrivee(s.Libelle, s.Montant))
             .ToList();
@@ -440,7 +448,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
         journal.Noter(auteur, ActionDuJournal.PayeAvantSchoolHub, Couper($"{await QuiEtOuAsync(inscription)} · {somme.Libelle}"),
             "À payer", $"Payé avant SchoolHub, {SaisieDuGroupe.EcrireUnMontant(somme.Montant)} TND");
-        contexte.Reglements.Add(Reglement.DUneSomme(inscription.Id, somme.Cle, somme.Montant, OrigineDuReglement.AvantSchoolHub, temps.GetUtcNow(), auteur.Id));
+        contexte.Reglements.Add(Reglement.DUneSomme(inscription.Id, somme.Cle, somme.Montant, OrigineDuReglement.AvantSchoolHub, temps.GetUtcNow(), auteur.Id,
+            somme.ReportDeduit));
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
         return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
@@ -561,6 +570,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var reglee = await contexte.Reglements.AnyAsync(r => r.AssuranceId == assurance.Id);
         var etat = assurance.DispenseeLe is not null ? EtatDispensee : reglee ? EtatPayeeAvantSchoolHub : EtatAPayer;
         var dueLe = await PremiereSeanceDEtudeAsync(eleveId, annee.Id);
+        // Plus d'inscription en Étude commencée : une assurance ni payée ni dispensée est sans objet.
+        if (dueLe is null && etat == EtatAPayer)
+            return null;
         return (assurance, new AssuranceDeLEleve(AssuranceDeLAnnee.Annee(annee), assurance.Montant, dueLe, etat, assurance.RaisonDeLaDispense));
     }
 
@@ -635,12 +647,14 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var etudes = await contexte.Inscriptions
             .Where(i => i.EleveId == eleveId)
             .Join(contexte.Groupes.Where(g => g.Type == TypeDeGroupe.Etude && g.AnneeScolaireId == anneeId),
-                i => i.GroupeId, g => g.Id, (i, g) => new { i.GroupeId, i.DebutLe })
+                i => i.GroupeId, g => g.Id, (i, g) => new { i.GroupeId, i.DebutLe, i.ArreteLe })
             .ToListAsync();
         var groupeIds = etudes.Select(e => e.GroupeId).ToList();
         var seances = await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).Select(s => new { s.GroupeId, s.Date }).ToListAsync();
+        // Une inscription arrêtée avant sa première séance n'a jamais commencé : elle ne compte pas.
         return etudes
-            .Select(e => seances.Where(s => s.GroupeId == e.GroupeId && s.Date >= e.DebutLe).Select(s => (DateOnly?)s.Date).Min())
+            .Select(e => seances.Where(s => s.GroupeId == e.GroupeId && s.Date >= e.DebutLe).Select(s => (DateOnly?)s.Date).Min() is { } premiere
+                && (e.ArreteLe is not { } arreteLe || premiere <= arreteLe) ? premiere : (DateOnly?)null)
             .Min();
     }
 
@@ -663,7 +677,43 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private sealed record Echeance(Inscription Inscription, Groupe Groupe, IReadOnlyList<Seance> Seances, IReadOnlyList<SommeDue> Sommes,
         IReadOnlyDictionary<string, OrigineDuReglement> Origines, CalendrierAPayer Calendrier, ConditionsDeLInscription Conditions);
 
-    private async Task<List<Echeance>> EcheancesAsync(IReadOnlyCollection<Inscription> inscriptions)
+    private async Task<List<Echeance>> EcheancesAsync(IReadOnlyCollection<Inscription> demandees)
+    {
+        // Les inscriptions de départ (ELV-09), de proche en proche : leur report vient de la précédente.
+        var inscriptions = demandees.ToDictionary(i => i.Id);
+        var aChercher = demandees.Where(i => i.DepuisInscriptionId is not null).Select(i => i.DepuisInscriptionId!.Value).ToList();
+        while (aChercher.Count > 0)
+        {
+            var trouvees = await contexte.Inscriptions.Where(i => aChercher.Contains(i.Id)).ToListAsync();
+            foreach (var trouvee in trouvees)
+                inscriptions.TryAdd(trouvee.Id, trouvee);
+            aChercher = trouvees.Where(i => i.DepuisInscriptionId is { } depuis && !inscriptions.ContainsKey(depuis))
+                .Select(i => i.DepuisInscriptionId!.Value).Distinct().ToList();
+        }
+
+        var toutes = inscriptions.Values.ToList();
+        var echeances = await EcheancesSansReportAsync(toutes);
+        var calculees = new Dictionary<Guid, Echeance>();
+        Echeance Calculer(Guid id)
+        {
+            if (calculees.TryGetValue(id, out var deja))
+                return deja;
+            var echeance = echeances[id];
+            if (echeance.Inscription.DepuisInscriptionId is { } depuis)
+            {
+                var precedente = Calculer(depuis);
+                var report = Echeancier.ValeurNonSuivie(precedente.Calendrier, precedente.Conditions, echeance.Inscription.DebutLe);
+                var conditions = echeance.Conditions with { Report = report };
+                echeance = echeance with { Conditions = conditions, Sommes = Echeancier.Calculer(echeance.Calendrier, conditions) };
+            }
+
+            return calculees[id] = echeance;
+        }
+
+        return demandees.Select(i => Calculer(i.Id)).ToList();
+    }
+
+    private async Task<Dictionary<Guid, Echeance>> EcheancesSansReportAsync(IReadOnlyCollection<Inscription> inscriptions)
     {
         var inscriptionIds = inscriptions.Select(i => (Guid?)i.Id).ToList();
         var groupeIds = inscriptions.Select(i => i.GroupeId).Distinct().ToList();
@@ -680,11 +730,11 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             var duGroupe = seances.GetValueOrDefault(i.GroupeId) ?? [];
             var regles = reglements[i.Id].ToList();
             var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe,
-                i.ArreteLe, i.Report);
+                i.ArreteLe, 0m, regles.ToDictionary(r => r.Cle, r => r.PartDuReport));
             var calendrier = Calendrier(groupe, duGroupe);
             return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(calendrier, conditions),
                 regles.ToDictionary(r => r.Cle, r => r.Origine), calendrier, conditions);
-        }).ToList();
+        }).ToDictionary(e => e.Inscription.Id);
     }
 
     /// <summary>
@@ -725,7 +775,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 e.Sommes.Where(s => PayableAvantSchoolHub(e, s)).Select(s => new SommePayable(s.Cle, s.Libelle, s.Montant)).ToList(),
                 ATrancheAVenir(e, aujourdhui),
                 i.ArreteLe,
-                i.Report);
+                e.Conditions.Report);
         }).ToList();
     }
 

@@ -39,6 +39,8 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
     private const string FermetureDansLeFutur = "La date de fermeture ne peut pas être après aujourd'hui";
     private const string MotifObligatoire = "Écrivez le motif de la fermeture";
     private const string MotifTropLong = "Le motif fait au plus 200 caractères";
+    private const string ElevesEncoreInscrits =
+        "Des élèves sont encore inscrits après cette date : arrêtez leur inscription ou changez-les de groupe d'abord";
 
     /// <summary>La taille de la colonne du détail d'une ligne du journal.</summary>
     private const int LongueurMaximaleDuDetail = 500;
@@ -211,6 +213,10 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             return Refus(StatusCodes.Status400BadRequest, MotifObligatoire);
         if (motif.Length > Groupe.LongueurMaximaleDuMotif)
             return Refus(StatusCodes.Status400BadRequest, MotifTropLong);
+        // Q16 : chaque élève change de groupe (il garde la valeur de ses séances payées) ou arrête, avant que les séances
+        // d'après la fermeture disparaissent.
+        if (await contexte.Inscriptions.AnyAsync(i => i.GroupeId == id && (i.ArreteLe == null || i.ArreteLe > date)))
+            return Refus(StatusCodes.Status409Conflict, ElevesEncoreInscrits);
 
         var professeur = await contexte.Professeurs.SingleAsync(p => p.Id == groupe.ProfesseurId);
         // Un nom, un professeur et un motif à leur plus long dépasseraient la colonne du détail : il est coupé.

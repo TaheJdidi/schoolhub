@@ -396,4 +396,22 @@ describe("la page d'inscription", () => {
     await vi.waitFor(() => expect(texte()).toContain('Changement enregistré'));
     expect(texte()).toContain("Report de 30,000 TND depuis l'ancien groupe");
   });
+
+  it("ne marque pas « Déjà inscrit » un élève dont l'inscription est arrêtée", async () => {
+    harness = await RouterTestingHarness.create('/professeurs/groupes/g1/inscription');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1'))).flush(FICHE_MATHS);
+    (await vi.waitFor(() => http.expectOne((r) => r.url === '/api/inscriptions' && r.params.get('groupe') === 'g1'))).flush([
+      { ...INSCRIPTION, arreteLe: '2027-11-27' },
+    ]);
+    await vi.waitFor(() => expect(page.querySelector('.sub')?.textContent).toContain('Groupe Samedi 10h → 12h'));
+
+    saisir(page, '[aria-label="Chercher un élève"]', 'adem');
+    (await vi.waitFor(() => http.expectOne((r) => r.params.get('recherche') === 'adem'))).flush([
+      { id: 'e1', prenom: 'Adem', nom: 'Miled', niveau: '9ᵉ année de base' },
+    ]);
+
+    await vi.waitFor(() => expect(page.querySelector('input[name="eleve"][value="e1"]')).not.toBeNull());
+    expect((page.querySelector('input[name="eleve"][value="e1"]') as HTMLInputElement).disabled).toBe(false);
+  });
 });

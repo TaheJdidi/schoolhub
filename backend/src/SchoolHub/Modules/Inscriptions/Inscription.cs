@@ -13,14 +13,14 @@ namespace SchoolHub.Modules.Inscriptions;
 /// </summary>
 public sealed class Inscription : IAppartientAuCentre
 {
-    internal Inscription(Guid eleveId, Guid groupeId, ModeDeTarification mode, DateOnly debutLe, DateTimeOffset inscritLe, decimal report = 0m)
+    internal Inscription(Guid eleveId, Guid groupeId, ModeDeTarification mode, DateOnly debutLe, DateTimeOffset inscritLe, Guid? depuisInscriptionId = null)
     {
         EleveId = eleveId;
         GroupeId = groupeId;
         Mode = mode;
         DebutLe = debutLe;
         InscritLe = inscritLe;
-        Report = report;
+        DepuisInscriptionId = depuisInscriptionId;
     }
 
     public Guid Id { get; private set; } = Guid.CreateVersion7();
@@ -64,8 +64,11 @@ public sealed class Inscription : IAppartientAuCentre
     /// <summary>ELV-08 : le dernier jour compté ; rien n'est dû après, ce qui est payé le reste.</summary>
     public DateOnly? ArreteLe { get; private set; }
 
-    /// <summary>ELV-09 : la valeur des séances payées et pas suivies dans l'ancien groupe, déduite des sommes dues ici.</summary>
-    public decimal Report { get; private set; }
+    /// <summary>
+    /// ELV-09 : l'inscription quittée pour celle-ci. Son report (la valeur de ses séances payées et pas suivies) se calcule à
+    /// chaque lecture : un paiement noté plus tard sur l'ancienne inscription, ou un second changement, le suit.
+    /// </summary>
+    public Guid? DepuisInscriptionId { get; private set; }
 
     public void Arreter(DateOnly le) => ArreteLe = le;
 }
@@ -120,7 +123,7 @@ internal sealed class InscriptionConfiguration : IEntityTypeConfiguration<Inscri
         inscription.ToTable("inscriptions");
         inscription.Property(i => i.Mode).HasConversion<string>().HasMaxLength(20);
         inscription.Property(i => i.PrixSpecial).HasPrecision(12, 3);
-        inscription.Property(i => i.Report).HasPrecision(12, 3);
+        inscription.HasOne<Inscription>().WithMany().HasForeignKey(i => i.DepuisInscriptionId).OnDelete(DeleteBehavior.Restrict);
         inscription.Property(i => i.RaisonDuPrixSpecial).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
         inscription.HasOne<Eleve>().WithMany().HasForeignKey(i => i.EleveId).OnDelete(DeleteBehavior.Restrict);
         inscription.HasOne<Groupe>().WithMany().HasForeignKey(i => i.GroupeId).OnDelete(DeleteBehavior.Restrict);
