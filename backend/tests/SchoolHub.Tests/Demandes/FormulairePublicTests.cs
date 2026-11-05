@@ -188,6 +188,36 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
         Assert.Empty(await DemandesAsync(oliviers.Id));
     }
 
+    // ----- Le lien et le QR code (DEM-02) -----
+
+    [Fact]
+    public async Task Le_lien_public()
+    {
+        var lien = (await _secretaire.GetFromJsonAsync<LienPublic>("/api/demandes/lien"))!.Lien;
+
+        Assert.StartsWith("http", lien, StringComparison.Ordinal);
+        Assert.EndsWith($"/inscription/{_jasmins.Code}", lien, StringComparison.Ordinal);
+        Assert.DoesNotContain("//inscription", lien, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Le_qr_code()
+    {
+        var reponse = await _secretaire.GetAsync("/api/demandes/qr-code");
+
+        Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
+        Assert.Equal("image/png", reponse.Content.Headers.ContentType?.MediaType);
+        var octets = await reponse.Content.ReadAsByteArrayAsync();
+        Assert.Equal([0x89, (byte)'P', (byte)'N', (byte)'G'], octets.Take(4));
+    }
+
+    [Fact]
+    public async Task Le_lien_et_le_qr_code_sont_reserves_aux_personnes_connectees()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _visiteur.GetAsync("/api/demandes/lien")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _visiteur.GetAsync("/api/demandes/qr-code")).StatusCode);
+    }
+
     // ----- Outils -----
 
     private async Task<Guid> GroupeAsync(CreationDUnGroupe creation)
