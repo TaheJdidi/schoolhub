@@ -16,15 +16,14 @@ namespace SchoolHub.Modules.Demandes;
 /// <summary>DEM-01 et DEM-02 : le formulaire public, ouvert à tous, et son lien, pour les personnes connectées.</summary>
 public static class DemandesEndpoints
 {
-    /// <summary>La limite d'envois du formulaire public : 5 par heure et par adresse (DEM-01).</summary>
+    /// <summary>La limite d'essais du formulaire public : 30 envois par heure et par adresse, acceptés ou refusés (DEM-01).</summary>
     public const string LimiteDuFormulaire = "formulaire-public";
 
-    private const string TropDEnvois = "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.";
-
     /// <summary>
-    /// La protection du formulaire public contre les envois abusifs : 5 envois par heure et par adresse. Derrière l'App
-    /// Service d'Azure, l'adresse du visiteur est la dernière de « X-Forwarded-For », ajoutée par Azure : un visiteur ne
-    /// peut pas se faire passer pour un autre en écrivant cet en-tête lui-même.
+    /// La protection du formulaire public contre les envois abusifs : 5 demandes enregistrées par heure et par adresse
+    /// (<see cref="LimiteDesDemandes"/>), et 30 essais, pour arrêter un robot qui n'envoie que des demandes fausses.
+    /// Derrière l'App Service d'Azure, l'adresse du visiteur est la dernière de « X-Forwarded-For », ajoutée par Azure : un
+    /// visiteur ne peut pas se faire passer pour un autre en écrivant cet en-tête lui-même.
     /// </summary>
     public static IServiceCollection AjouterLaProtectionDuFormulaire(this IServiceCollection services)
     {
@@ -35,14 +34,15 @@ public static class DemandesEndpoints
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
         });
+        services.AddSingleton<LimiteDesDemandes>();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (contexte, annulation) =>
-                new ValueTask(contexte.HttpContext.Response.WriteAsJsonAsync(new Avis(TropDEnvois), annulation));
+                new ValueTask(contexte.HttpContext.Response.WriteAsJsonAsync(new Avis(FormulairePublic.TropDEnvois), annulation));
             options.AddPolicy(LimiteDuFormulaire, contexte => RateLimitPartition.GetFixedWindowLimiter(
                 contexte.Connection.RemoteIpAddress?.ToString() ?? "inconnue",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
         });
         return services;
     }
@@ -82,9 +82,10 @@ public static class DemandesEndpoints
     private static async Task<Results<Created<DemandeRecue>, JsonHttpResult<Avis>>> EnvoyerAsync(
         string code,
         DemandeEnvoyee envoi,
-        FormulairePublic formulaire)
+        FormulairePublic formulaire,
+        HttpContext requete)
     {
-        var issue = await formulaire.EnvoyerAsync(code, envoi);
+        var issue = await formulaire.EnvoyerAsync(code, envoi, requete.Connection.RemoteIpAddress?.ToString() ?? "inconnue");
         return issue.Recue is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Created((string?)null, issue.Recue);
     }
 }

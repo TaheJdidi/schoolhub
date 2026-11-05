@@ -67,7 +67,10 @@ if (enCommande)
 }
 
 // L'adresse du visiteur, derrière l'App Service d'Azure, avant la limite d'envois du formulaire public (DEM-01).
-app.UseForwardedHeaders();
+// Avec ASPNETCORE_FORWARDEDHEADERS_ENABLED=true, ASP.NET lit déjà l'en-tête : une seconde lecture prendrait l'adresse
+// écrite par le visiteur lui-même, et la limite tomberait.
+if (!string.Equals(app.Configuration["ForwardedHeaders_Enabled"], "true", StringComparison.OrdinalIgnoreCase))
+    app.UseForwardedHeaders();
 // Les fichiers d'Angular passent avant la session : ils sont publics, sinon la page de connexion répondrait 401.
 app.UtiliserLesFichiersDeLApplication();
 app.UtiliserLaSession();

@@ -12,8 +12,9 @@ namespace SchoolHub.Modules.Demandes;
 /// travaille dans son propre espace de services, avec le centre du lien pour centre courant : une personne connectée à
 /// un autre centre envoie au centre du lien, et ne voit rien du sien. Il ne montre jamais d'élève, ni de nombre d'inscrits.
 /// </summary>
-public sealed class FormulairePublic(IServiceScopeFactory espaces, TimeProvider temps)
+public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDemandes limite, TimeProvider temps)
 {
+    internal const string TropDEnvois = "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.";
     private const string LienInconnu = "Ce lien d'inscription n'existe pas";
     private const string AucuneMatiere = "Choisissez au moins une matière";
     private const string GroupePlusPropose = "Ce groupe n'est plus proposé";
@@ -39,9 +40,10 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, TimeProvider 
 
     /// <summary>
     /// Enregistre la demande, avec les règles de la fiche élève (ELV-02) puis celles des groupes. Un champ piège rempli
-    /// (un robot) répond comme une demande reçue, sans rien enregistrer.
+    /// (un robot) répond comme une demande reçue, sans rien enregistrer. Une demande acceptée prend une des 5 places de
+    /// l'heure de cette adresse ; une demande refusée n'en prend pas.
     /// </summary>
-    public async Task<IssueDeLEnvoi> EnvoyerAsync(string code, DemandeEnvoyee envoi)
+    public async Task<IssueDeLEnvoi> EnvoyerAsync(string code, DemandeEnvoyee envoi, string adresse)
     {
         await using var espace = espaces.CreateAsyncScope();
         var (contexte, centre) = await OuvrirAsync(espace, code);
@@ -67,6 +69,8 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, TimeProvider 
         var amis = string.IsNullOrWhiteSpace(envoi.Amis) ? null : envoi.Amis.Trim();
         if (amis?.Length > DemandeDInscription.LongueurMaximaleDesAmis)
             return Refus(StatusCodes.Status400BadRequest, AmisTropLongs);
+        if (!limite.Prendre(adresse))
+            return Refus(StatusCodes.Status429TooManyRequests, TropDEnvois);
 
         contexte.DemandesDInscription.Add(new DemandeDInscription(fiche!, choisis, amis, temps.GetUtcNow()));
         await contexte.SaveChangesAsync();

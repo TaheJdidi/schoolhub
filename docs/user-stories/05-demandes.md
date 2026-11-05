@@ -14,7 +14,7 @@ En tant qu'élève ou parent, je veux demander une inscription depuis mon télé
 - Il peut citer les amis qui suivront le même groupe que lui (facultatif).
 - Le formulaire ne montre ni les noms des autres élèves, ni le nombre d'inscrits.
 - Après l'envoi : « Demande envoyée. Merci Adem ! Le centre vous confirmera le groupe et la date de la première séance sur WhatsApp. »
-- Plus de 5 envois en une heure depuis la même adresse sont refusés, et un champ piège invisible arrête les robots.
+- Plus de 5 demandes enregistrées en une heure depuis la même adresse sont refusées (une demande refusée ne compte pas, mais 30 essais au plus), et un champ piège invisible arrête les robots.
 
 Maquette : formulaire public d'inscription.
 

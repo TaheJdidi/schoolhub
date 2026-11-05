@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SchoolHub.Modules.Demandes;
@@ -27,6 +28,7 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
     private ApplicationDeTest _application = null!;
     private Centre _jasmins = null!;
+    private HttpClient _proprietaire = null!;
     private HttpClient _secretaire = null!;
     private HttpClient _visiteur = null!;
     private List<NiveauDuCentre> _niveaux = null!;
@@ -42,8 +44,8 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
         await _application.InitialiserLaBaseAsync();
         _jasmins = await _application.CreerCentreAsync();
         await _application.RecopierLesNiveauxDOfficeAsync(_jasmins);
-        var proprietaire = await _application.ClientConnecteAsync(await _application.CreerCompteAsync(_jasmins, "Hedi", "Ben Salah", RoleDuCompte.Proprietaire));
-        Assert.Equal(HttpStatusCode.OK, (await proprietaire.PutAsJsonAsync("/api/centre/parametres", new ReglagesDuCentre(
+        _proprietaire = await _application.ClientConnecteAsync(await _application.CreerCompteAsync(_jasmins, "Hedi", "Ben Salah", RoleDuCompte.Proprietaire));
+        Assert.Equal(HttpStatusCode.OK, (await _proprietaire.PutAsJsonAsync("/api/centre/parametres", new ReglagesDuCentre(
             "Centre Les Jasmins", null, null, new AnneeScolaireSaisie(new DateOnly(2027, 9, 15), new DateOnly(2028, 6, 30)), 20m, null, null, null))).StatusCode);
         _secretaire = await _application.ClientConnecteAsync(await _application.CreerCompteAsync(_jasmins, "Amira", "Jlassi"));
         _niveaux = (await _secretaire.GetFromJsonAsync<List<NiveauDuCentre>>("/api/niveaux"))!;
@@ -171,6 +173,58 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
         await VerifierLeRefusAsync(await _visiteur.SendAsync(Envoi("41.226.10.1")), HttpStatusCode.TooManyRequests,
             "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.");
         Assert.Equal(HttpStatusCode.Created, (await _visiteur.SendAsync(Envoi("41.226.10.2"))).StatusCode);
+    }
+
+    private HttpRequestMessage EnvoiDepuis(string adresseIp, DemandeEnvoyee demande)
+    {
+        var requete = new HttpRequestMessage(HttpMethod.Post, Adresse) { Content = JsonContent.Create(demande) };
+        requete.Headers.Add("X-Forwarded-For", adresseIp);
+        return requete;
+    }
+
+    [Fact]
+    public async Task Les_envois_refuses_ne_comptent_pas()
+    {
+        // Le parent se trompe cinq fois : sa demande, enfin juste, passe quand même.
+        for (var i = 0; i < 5; i++)
+            Assert.Equal(HttpStatusCode.BadRequest, (await _visiteur.SendAsync(EnvoiDepuis("41.226.10.1", Adem with { Prenom = " " }))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Created, (await _visiteur.SendAsync(EnvoiDepuis("41.226.10.1", Adem))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Trente_essais_dans_l_heure()
+    {
+        // Un robot qui envoie sans cesse des demandes fausses est arrêté au 31ᵉ essai.
+        for (var i = 0; i < 30; i++)
+            await _visiteur.SendAsync(EnvoiDepuis("41.226.10.1", Adem with { Prenom = " " }));
+
+        await VerifierLeRefusAsync(await _visiteur.SendAsync(EnvoiDepuis("41.226.10.1", Adem)), HttpStatusCode.TooManyRequests,
+            "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.");
+    }
+
+    [Fact]
+    public async Task La_limite_tient_quand_azure_lit_deja_les_en_tetes()
+    {
+        // Avec ASPNETCORE_FORWARDEDHEADERS_ENABLED, ASP.NET lit déjà X-Forwarded-For : une seconde lecture prendrait
+        // l'adresse écrite par le visiteur (6.6.6.N), et la limite tomberait.
+        await using var azure = _application.WithWebHostBuilder(hote => hote.UseSetting("FORWARDEDHEADERS_ENABLED", "true"));
+        var robot = azure.CreateClient();
+
+        for (var i = 0; i < 5; i++)
+            Assert.Equal(HttpStatusCode.Created, (await robot.SendAsync(EnvoiDepuis($"6.6.6.{i}, 41.226.10.1", Adem))).StatusCode);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await robot.SendAsync(EnvoiDepuis("6.6.6.9, 41.226.10.1", Adem))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Un_niveau_utilise_par_une_demande_ne_se_retire_pas()
+    {
+        var adultes = (await (await _proprietaire.PostAsJsonAsync("/api/niveaux", new NomDuNiveau("Adultes"))).Content.ReadFromJsonAsync<NiveauDuCentre>())!.Id;
+        Assert.Equal(HttpStatusCode.Created, (await _visiteur.PostAsJsonAsync(Adresse, Adem with { NiveauId = adultes, Groupes = [_informatique] })).StatusCode);
+
+        await VerifierLeRefusAsync(await _proprietaire.DeleteAsync($"/api/niveaux/{adultes}"), HttpStatusCode.Conflict,
+            "Ce niveau est utilisé par un groupe, un élève ou une demande");
     }
 
     [Fact]

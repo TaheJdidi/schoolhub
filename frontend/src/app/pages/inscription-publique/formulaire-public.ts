@@ -89,11 +89,22 @@ export class FormulairePublic implements OnInit {
     this.majeur.set((evenement.target as HTMLInputElement).checked);
   }
 
-  /** Un autre niveau : les matières qui n'y sont plus proposées sont décochées. */
+  /**
+   * Un autre niveau : les matières qui n'y sont plus proposées sont décochées ; une matière encore proposée garde son
+   * groupe s'il l'est aussi, sinon elle prend le premier groupe du nouveau niveau, celui que la liste affiche.
+   */
   protected choisirLeNiveau(evenement: Event): void {
     this.niveauId.set((evenement.target as HTMLSelectElement).value);
-    const proposees = new Set(this.matieres().map((m) => m.matiere));
-    this.choix.update((choix) => Object.fromEntries(Object.entries(choix).filter(([matiere]) => proposees.has(matiere))));
+    const proposees = new Map(this.matieres().map((m) => [m.matiere, m.groupes]));
+    this.choix.update((choix) =>
+      Object.fromEntries(
+        Object.entries(choix).flatMap(([matiere, groupe]) => {
+          const groupes = proposees.get(matiere);
+          if (!groupes) return [];
+          return [[matiere, groupes.some((g) => g.id === groupe) ? groupe : groupes[0].id]];
+        }),
+      ),
+    );
   }
 
   /** Cochée, une matière propose son premier groupe ; décochée, elle sort de la demande. */

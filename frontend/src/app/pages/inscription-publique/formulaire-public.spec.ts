@@ -24,6 +24,7 @@ describe("le formulaire public d'inscription", () => {
       { id: 'g3', matiere: 'Informatique', niveauId: null, type: 'Formation', professeur: 'Karim Ben Salah', creneaux: SAMEDI },
       { id: 'g1', matiere: 'Mathématiques', niveauId: 'n9', type: 'Etude', professeur: 'Karim Ben Salah', creneaux: SAMEDI },
       { id: 'g4', matiere: 'Mathématiques', niveauId: 'n9', type: 'Revision', professeur: 'Sami Trabelsi', creneaux: [{ jour: 'Mardi', debut: '17:00', fin: '19:00' }] },
+      { id: 'g5', matiere: 'Mathématiques', niveauId: 'n8', type: 'Etude', professeur: 'Sami Trabelsi', creneaux: SAMEDI },
     ],
   };
 
@@ -109,6 +110,20 @@ describe("le formulaire public d'inscription", () => {
     await cocher('Informatique');
     const informatique = page.querySelector('select[aria-label="Groupe préféré en Informatique"]') as HTMLSelectElement;
     expect(informatique.options[0].textContent?.trim()).toBe('Karim Ben Salah · Samedi 10h → 12h · Formation');
+  });
+
+  it('envoie le groupe affiché quand le niveau change', async () => {
+    await ouvrir();
+    await choisirLeNiveau('n8');
+    await cocher('Mathématiques');
+
+    // Le groupe de 8ᵉ n'est plus proposé en 9ᵉ : la matière reste cochée, avec le premier groupe de la 9ᵉ.
+    await choisirLeNiveau('n9');
+    const groupes = page.querySelector('select[aria-label="Groupe préféré en Mathématiques"]') as HTMLSelectElement;
+    expect(groupes.value).toBe('g1');
+    const requete = await envoyer();
+    expect(requete.request.body.groupes).toEqual(['g1']);
+    requete.flush({ prenom: 'Adem' }, { status: 201, statusText: 'Created' });
   });
 
   it('dit quand les contacts de l’élève sont facultatifs', async () => {

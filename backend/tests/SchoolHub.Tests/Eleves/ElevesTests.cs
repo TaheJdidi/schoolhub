@@ -255,7 +255,7 @@ public sealed class ElevesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
 
         var reponse = await _proprietaire.DeleteAsync($"/api/niveaux/{universite}");
 
-        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Ce niveau est utilisé par un groupe ou un élève");
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Ce niveau est utilisé par un groupe, un élève ou une demande");
     }
 
     [Fact]

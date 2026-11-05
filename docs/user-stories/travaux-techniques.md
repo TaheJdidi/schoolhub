@@ -44,3 +44,7 @@ Laissés par la relecture des comptes et de la connexion (03/11/2026) :
 - **Limiter le nombre d'essais** (`AddRateLimiter`) sur la connexion, le mot de passe oublié, le nouveau mot de passe et l'invitation. Pour un email inconnu, calculer quand même un hachage, et envoyer l'email de mot de passe oublié en dehors de la requête : le temps de réponse ne doit pas dire si l'email existe.
 - **Pouvoir renvoyer l'invitation d'un propriétaire** (le « renvoyer » de CPT-04, ou une commande) : aujourd'hui, un invité qui perd son email n'a aucun recours.
 - **Répondre `{ "message": … }` en cas d'erreur inattendue**, au lieu d'une erreur 500 vide.
+
+Laissés par la relecture du formulaire public (05/11/2026) :
+
+- **Vérifier sur l'App Service l'adresse que voit la limite du formulaire public** : envoyer une demande depuis deux téléphones et regarder que chacun a ses 5 demandes. L'application prend la dernière adresse de « X-Forwarded-For » ; si Azure en ajoute plusieurs, ou si `ASPNETCORE_FORWARDEDHEADERS_ENABLED` change, tout le monde partagerait la même limite, ou personne n'en aurait.

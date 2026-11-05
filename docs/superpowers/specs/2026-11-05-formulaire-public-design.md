@@ -18,7 +18,7 @@ Lassad et Taha ont demandé de travailler sans questions et de prendre chaque fo
 | Question | Décision |
 |---|---|
 | Où vit le code ? | Un module `Demandes` (`backend/src/SchoolHub/Modules/Demandes/`), de l'[ADR 0003](../../adr/0003-un-seul-deploiement-decoupe-en-modules.md). |
-| Les envois abusifs ? | 5 envois par heure et par adresse ; le 6ᵉ reçoit 429 « Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure. » (`AddRateLimiter`). Un champ piège invisible (`siteWeb`) : rempli, la demande fait comme si elle était envoyée, mais rien n'est enregistré. Un captcha seulement si des abus apparaissent. |
+| Les envois abusifs ? | 5 demandes enregistrées par heure et par adresse (une demande refusée ne compte pas), et 30 essais, acceptés ou refusés ; au-delà, 429 « Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure. » (`AddRateLimiter`). Un champ piège invisible (`siteWeb`) : rempli, la demande fait comme si elle était envoyée, mais rien n'est enregistré. Un captcha seulement si des abus apparaissent. |
 | L'adresse de l'envoi, derrière Azure ? | L'App Service ajoute l'adresse du visiteur dans `X-Forwarded-For`. `UseForwardedHeaders` lit la dernière entrée seulement (`ForwardLimit = 1`) : un visiteur ne peut pas se faire passer pour un autre en écrivant cet en-tête lui-même. |
 | Le centre d'un formulaire ? | Il se lit dans l'adresse (`…/inscription/les-jasmins`, le code du centre). Le formulaire travaille dans un espace de services à lui, avec ce centre courant : une personne connectée à un autre centre peut aussi l'envoyer, et ne voit rien de son propre centre. |
 | Les règles de la fiche ? | Les mêmes que la fiche élève (ELV-02), avec les mêmes messages, vérifiées par le même code. |
@@ -55,7 +55,7 @@ Les refus de la fiche élève (ELV-02), dans leur ordre, puis :
 | Un groupe inconnu, fermé, terminé, d'un autre centre, ou d'un autre niveau | 400 « Ce groupe n'est plus proposé » |
 | Deux groupes de la même matière | 400 « Choisissez un seul groupe par matière » |
 | Amis trop longs | 400 « Les amis font au plus 500 caractères » |
-| Plus de 5 envois dans l'heure | 429 « Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure. » |
+| Plus de 5 demandes enregistrées, ou plus de 30 essais, dans l'heure | 429 « Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure. » |
 
 ## 3. Les pages
 
@@ -71,5 +71,5 @@ Sur un téléphone, tout passe en une colonne, sans défilement de côté.
 
 | Côté | Ce que les tests vérifient |
 |---|---|
-| .NET | Le formulaire : les groupes ouverts et pas terminés, les Formations sans niveau, ni élève ni nombre d'inscrits ; un lien inconnu ; envoyer (la demande enregistrée pour le bon centre) ; chaque refus ; le champ piège ; la limite de 5 envois ; une personne connectée à un autre centre ; le lien et le QR code (PNG), réservés à une personne connectée. |
+| .NET | Le formulaire : les groupes ouverts et pas terminés, les Formations sans niveau, ni élève ni nombre d'inscrits ; un lien inconnu ; envoyer (la demande enregistrée pour le bon centre) ; chaque refus ; le champ piège ; la limite de 5 demandes (les refus ne comptent pas) et de 30 essais, même quand Azure lit déjà X-Forwarded-For ; une personne connectée à un autre centre ; le lien et le QR code (PNG), réservés à une personne connectée. |
 | Angular | Le formulaire (la règle de la 7ᵉ année, « majeur », les matières et leurs groupes selon le niveau, l'envoi exact avec le champ piège vide, la confirmation, les refus, la limite, un lien inconnu) ; la page « Demandes » (le lien, la copie, le QR code, l'affiche) ; l'affiche ; les adresses. |

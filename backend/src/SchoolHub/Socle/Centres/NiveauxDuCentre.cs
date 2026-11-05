@@ -15,7 +15,7 @@ public sealed class NiveauxDuCentre(SchoolHubDbContext contexte)
     private const string ExisteDeja = "Ce niveau existe déjà";
     private const string NiveauDOffice = "Les niveaux d'office ne se modifient pas";
     private const string Introuvable = "Niveau introuvable";
-    private const string NiveauUtilise = "Ce niveau est utilisé par un groupe ou un élève";
+    private const string NiveauUtilise = "Ce niveau est utilisé par un groupe, un élève ou une demande";
 
     /// <summary>Les niveaux d'office dans l'ordre scolaire, puis les niveaux ajoutés, par nom.</summary>
     public Task<List<Niveau>> ListerAsync() =>
@@ -65,7 +65,8 @@ public sealed class NiveauxDuCentre(SchoolHubDbContext contexte)
         var (niveau, interdit) = await TrouverUnNiveauAjouteAsync(id);
         if (interdit is not null)
             return interdit;
-        if (await contexte.Groupes.AnyAsync(g => g.NiveauId == id) || await contexte.Eleves.AnyAsync(e => e.NiveauId == id))
+        if (await contexte.Groupes.AnyAsync(g => g.NiveauId == id) || await contexte.Eleves.AnyAsync(e => e.NiveauId == id)
+            || await contexte.DemandesDInscription.AnyAsync(d => d.NiveauId == id))
             return IssueSurUnNiveau.Refusee(StatusCodes.Status409Conflict, NiveauUtilise);
 
         contexte.Niveaux.Remove(niveau!);
