@@ -210,6 +210,19 @@ describe("les adresses de l'application", () => {
     expect(adresseActuelle()).toBe('/aujourdhui');
   });
 
+  it("le formulaire public s'ouvre sans connexion sur /inscription/les-jasmins", async () => {
+    const navigation = harness.navigateByUrl('/inscription/les-jasmins');
+    (await vi.waitFor(() => http.expectOne('/api/public/inscription/les-jasmins'))).flush(
+      { message: "Ce lien d'inscription n'existe pas" },
+      { status: 404, statusText: 'Not Found' },
+    );
+    await navigation;
+    await vi.waitFor(() => expect(texte()).toContain("Ce lien d'inscription n'existe pas."));
+
+    http.expectNone('/api/moi');
+    expect(titre()).toBe("Demande d'inscription · SchoolHub");
+  });
+
   it("sans session, la connexion s'affiche sans parler de session expirée", async () => {
     const navigation = harness.navigateByUrl('/connexion');
     const requete = await vi.waitFor(() => http.expectOne('/api/moi'));

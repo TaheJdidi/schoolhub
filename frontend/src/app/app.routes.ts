@@ -23,6 +23,7 @@ import { estConnecte, estProprietaire, nonConnecte } from './socle/session/garde
 const titre = (page: string) => `${page} · SchoolHub`;
 
 /** La fiche d'un élève et la page d'inscription se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
+const formulairePublic = () => import('./pages/inscription-publique/formulaire-public').then((module) => module.FormulairePublic);
 const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((module) => module.PageDeLEleve);
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 
@@ -59,6 +60,8 @@ export const routes: Routes = [
   { path: 'invitation', component: Invitation, title: titre('Choisir son mot de passe') },
   { path: 'mot-de-passe-oublie', component: MotDePasseOublie, title: titre('Mot de passe oublié') },
   { path: 'nouveau-mot-de-passe', component: NouveauMotDePasse, title: titre('Nouveau mot de passe') },
+  // DEM-01 : le formulaire public d'un centre, sans connexion, chargé à la demande.
+  { path: 'inscription/:code', loadComponent: formulairePublic, title: titre("Demande d'inscription") },
   {
     path: '',
     component: Cadre,

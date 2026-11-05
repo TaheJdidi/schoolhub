@@ -1,0 +1,151 @@
+<main class="publique">
+  @if (introuvable()) {
+    <header class="entete">
+      <h1 class="h1">Demande d'inscription</h1>
+      <p class="sub">Ce lien d'inscription n'existe pas.</p>
+    </header>
+  } @else if (formulaire(); as formulaire) {
+    <header class="entete">
+      <p class="tag">{{ formulaire.centre }}</p>
+      <h1 class="h1">{{ titre() }}</h1>
+      <p class="sub">
+        Remplissez ce formulaire, sans créer de compte. Le centre vous confirmera le groupe et la date de la première séance sur WhatsApp.
+      </p>
+    </header>
+
+    @if (merci(); as prenom) {
+      <section class="card carte">
+        <p class="note ok" role="status">
+          Demande envoyée. Merci {{ prenom }} ! Le centre vous confirmera le groupe et la date de la première séance sur WhatsApp.
+        </p>
+      </section>
+    } @else {
+      <form class="cartes" (submit)="envoyer($event)" novalidate>
+        <section class="card carte">
+          <h2 class="titre">L'élève</h2>
+          <div class="champs">
+            <label class="f">
+              Prénom
+              <input class="inp" aria-label="Prénom" autocomplete="given-name" (input)="saisir(prenom, $event)" />
+            </label>
+            <label class="f">
+              Nom
+              <input class="inp" aria-label="Nom" autocomplete="family-name" (input)="saisir(nom, $event)" />
+            </label>
+            <label class="f">
+              Niveau scolaire
+              <select class="inp" aria-label="Niveau scolaire" (change)="choisirLeNiveau($event)">
+                <option value="">Choisir…</option>
+                @for (niveau of formulaire.niveaux; track niveau.id) {
+                  <option [value]="niveau.id">{{ niveau.nom }}</option>
+                }
+              </select>
+            </label>
+            <label class="f">
+              <span>Établissement scolaire <span class="opt">(facultatif)</span></span>
+              <input class="inp" aria-label="Établissement scolaire" (input)="saisir(etablissement, $event)" />
+            </label>
+            <label class="f">
+              <span>
+                Téléphone de l'élève
+                @if (contactsFacultatifs()) {
+                  <span class="opt">(facultatif avant la 7ᵉ année)</span>
+                }
+              </span>
+              <input class="inp" aria-label="Téléphone de l'élève" inputmode="tel" placeholder="22 345 678" (input)="saisir(telephoneEleve, $event)" />
+            </label>
+            <label class="f">
+              <span>
+                Email de l'élève
+                @if (contactsFacultatifs()) {
+                  <span class="opt">(facultatif avant la 7ᵉ année)</span>
+                }
+              </span>
+              <input class="inp" aria-label="Email de l'élève" inputmode="email" (input)="saisir(emailEleve, $event)" />
+            </label>
+          </div>
+        </section>
+
+        <section class="card carte">
+          <h2 class="titre">Le parent</h2>
+          <label class="case">
+            <input type="checkbox" aria-label="L'élève est majeur" (change)="basculerMajeur($event)" />
+            L'élève est majeur
+          </label>
+          <div class="champs">
+            <label class="f">
+              <span>
+                Téléphone WhatsApp du parent
+                @if (majeur()) {
+                  <span class="opt">(facultatif pour un élève majeur)</span>
+                }
+              </span>
+              <input class="inp" aria-label="Téléphone WhatsApp du parent" inputmode="tel" placeholder="98 123 456" (input)="saisir(telephoneParent, $event)" />
+            </label>
+            <label class="f">
+              <span>Email du parent <span class="opt">(facultatif)</span></span>
+              <input class="inp" aria-label="Email du parent" inputmode="email" (input)="saisir(emailParent, $event)" />
+            </label>
+          </div>
+        </section>
+
+        <section class="card carte">
+          <h2 class="titre">Matières souhaitées</h2>
+          <p class="aide">Pour chaque matière, choisissez le groupe que vous préférez.</p>
+          @if (niveauId() === '') {
+            <p class="vide">Choisissez d'abord le niveau scolaire.</p>
+          } @else {
+            @for (matiere of matieres(); track matiere.matiere) {
+              <div class="matiere">
+                <label class="case">
+                  <input type="checkbox" [attr.aria-label]="matiere.matiere" [checked]="!!choix()[matiere.matiere]" (change)="cocher(matiere, $event)" />
+                  {{ matiere.matiere }}
+                </label>
+                @if (choix()[matiere.matiere]; as choisi) {
+                  <select class="inp" [attr.aria-label]="'Groupe préféré en ' + matiere.matiere" (change)="choisirLeGroupe(matiere.matiere, $event)">
+                    @for (groupe of matiere.groupes; track groupe.id) {
+                      <option [value]="groupe.id" [selected]="groupe.id === choisi">{{ libelle(groupe) }}</option>
+                    }
+                  </select>
+                }
+              </div>
+            } @empty {
+              <p class="vide">Aucun groupe n'est proposé pour ce niveau pour l'instant.</p>
+            }
+          }
+        </section>
+
+        <section class="card carte">
+          <h2 class="titre">Amis</h2>
+          <label class="f">
+            <span>Amis qui suivront le même groupe <span class="opt">(facultatif)</span></span>
+            <textarea
+              class="inp"
+              rows="2"
+              aria-label="Amis qui suivront le même groupe"
+              placeholder="Prénom et nom, séparés par des virgules"
+              (input)="saisir(amis, $event)"
+            ></textarea>
+          </label>
+        </section>
+
+        <!-- Le champ piège : invisible pour une personne, un robot le remplit. -->
+        <div class="piege" aria-hidden="true">
+          <label>
+            Site web
+            <input name="siteWeb" tabindex="-1" autocomplete="off" (input)="saisir(siteWeb, $event)" />
+          </label>
+        </div>
+
+        <div class="envoi">
+          @if (erreur(); as erreur) {
+            <p class="note bad" role="alert">{{ erreur }}</p>
+          }
+          <button type="submit" class="btn primary" [disabled]="envoi()">Envoyer ma demande</button>
+        </div>
+      </form>
+    }
+  } @else if (erreur(); as erreur) {
+    <p class="note bad" role="alert">{{ erreur }}</p>
+  }
+</main>
