@@ -101,7 +101,7 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
 
         await InscrireAsync(_adem, etude, null, new DateOnly(2027, 12, 11));
 
-        await VerifierLeRefusAsync(await _client.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(_adem, etude, null, new DateOnly(2027, 12, 18))),
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync("/api/inscriptions", new InscriptionSaisie(_adem, etude, null, new DateOnly(2027, 12, 18))),
             HttpStatusCode.Conflict, "Cet élève est déjà inscrit dans ce groupe");
     }
 
@@ -143,7 +143,7 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
         var formation = (await (await secretaire.PostAsJsonAsync("/api/groupes", new CreationDUnGroupe(
             await ProfesseurAsync(secretaire), "Informatique", null, [Samedi10h], null, new DateOnly(2027, 12, 4), null, "",
             Type: "Formation", PrixTotal: 300m, NombreDeSeances: 10))).Content.ReadFromJsonAsync<FicheDuGroupe>())!.Id;
-        var inscription = (await (await secretaire.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(eleve, formation, null, new DateOnly(2027, 12, 4))))
+        var inscription = (await (await secretaire.PostAsJsonAsync("/api/inscriptions", new InscriptionSaisie(eleve, formation, null, new DateOnly(2027, 12, 4))))
             .Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
 
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/arret", new DateSaisie(DerniereSeanceDuMois3)),
@@ -325,7 +325,7 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
         var inscription = await InscrireAsync(_adem, etude, null, DeuxiemeSeanceDuMois3);
         await DecrireAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/arret", new DateSaisie(new DateOnly(2028, 6, 30))));
 
-        await VerifierLeRefusAsync(await _client.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(_adem, etude, null, new DateOnly(2027, 12, 11))),
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync("/api/inscriptions", new InscriptionSaisie(_adem, etude, null, new DateOnly(2027, 12, 11))),
             HttpStatusCode.Conflict, "Cet élève est déjà inscrit dans ce groupe");
     }
 
@@ -372,7 +372,7 @@ public sealed class ArretEtChangementTests(PostgreSqlDeTest postgreSql) : IAsync
 
     private async Task<Guid> InscrireAsync(Guid eleve, Guid groupe, string? mode, DateOnly debutLe)
     {
-        var reponse = await _client.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(eleve, groupe, mode, debutLe));
+        var reponse = await _client.PostAsJsonAsync("/api/inscriptions", new InscriptionSaisie(eleve, groupe, mode, debutLe));
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
         return (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
     }

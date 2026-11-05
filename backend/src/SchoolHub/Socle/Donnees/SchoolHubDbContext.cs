@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Demandes;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
@@ -45,6 +46,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<AssuranceDeLAnnee> Assurances => Set<AssuranceDeLAnnee>();
 
     public DbSet<Reglement> Reglements => Set<Reglement>();
+
+    public DbSet<DemandeDInscription> DemandesDInscription => Set<DemandeDInscription>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

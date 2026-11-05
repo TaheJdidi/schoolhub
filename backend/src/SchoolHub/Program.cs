@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using SchoolHub.Modules.Demandes;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
@@ -29,6 +30,8 @@ builder.Services.AddScoped<ProfesseursDuCentre>();
 builder.Services.AddScoped<GroupesDuCentre>();
 builder.Services.AddScoped<ElevesDuCentre>();
 builder.Services.AddScoped<InscriptionsDuCentre>();
+builder.Services.AddScoped<FormulairePublic>();
+builder.Services.AjouterLaProtectionDuFormulaire();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
 // processus que le serveur web, parfois lancé depuis un autre dossier (console SSH) : par défaut, la protection
@@ -63,9 +66,12 @@ if (enCommande)
     return codeDeSortie;
 }
 
+// L'adresse du visiteur, derrière l'App Service d'Azure, avant la limite d'envois du formulaire public (DEM-01).
+app.UseForwardedHeaders();
 // Les fichiers d'Angular passent avant la session : ils sont publics, sinon la page de connexion répondrait 401.
 app.UtiliserLesFichiersDeLApplication();
 app.UtiliserLaSession();
+app.UseRateLimiter();
 
 var api = app.MapGroup("/api");
 api.MapGet("/sante", () => "SchoolHub fonctionne.").AllowAnonymous();
@@ -79,6 +85,7 @@ api.MapProfesseurs();
 api.MapGroupes();
 api.MapEleves();
 api.MapInscriptions();
+api.MapDemandes();
 app.MapPagesDeLApplication(api);
 
 app.Run();

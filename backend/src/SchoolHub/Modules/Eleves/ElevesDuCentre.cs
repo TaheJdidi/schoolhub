@@ -119,7 +119,12 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
 
     public static IssueSurUnEleve EleveIntrouvable => new(null, StatusCodes.Status404NotFound, Introuvable);
 
-    /// <summary>Les champs dans l'ordre du formulaire, sans les espaces autour : le premier refusé donne la réponse.</summary>
+    /// <summary>
+    /// Les champs dans l'ordre du formulaire, sans les espaces autour : le premier refusé donne la réponse. Le formulaire
+    /// public (DEM-01) vérifie ses demandes avec les mêmes règles.
+    /// </summary>
+    internal Task<(Coordonnees? Coordonnees, IssueSurUnEleve? Refus)> VerifierLaFicheAsync(FicheSaisieDeLEleve saisie) => VerifierAsync(saisie);
+
     private async Task<(Coordonnees? Coordonnees, IssueSurUnEleve? Refus)> VerifierAsync(FicheSaisieDeLEleve saisie)
     {
         var prenom = saisie.Prenom?.Trim() ?? "";

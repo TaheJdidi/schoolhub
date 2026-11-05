@@ -67,7 +67,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     /// enregistré. La ligne de l'élève reste verrouillée jusqu'à la fin : deux inscriptions du même élève, venues de deux
     /// onglets, passent l'une après l'autre, et la seconde voit la première (et son assurance).
     /// </summary>
-    public async Task<IssueDInscription> InscrireAsync(DemandeDInscription demande)
+    public async Task<IssueDInscription> InscrireAsync(InscriptionSaisie demande)
     {
         if (demande.EleveId is not { } eleveId)
             return Refus(StatusCodes.Status400BadRequest, ChoisirLEleve);

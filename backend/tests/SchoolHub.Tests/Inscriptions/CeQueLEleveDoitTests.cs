@@ -236,7 +236,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         await VerifierLeRefusAsync(await _client.PostAsync($"/api/eleves/{lina}/assurance/payee-avant-schoolhub", null),
             HttpStatusCode.NotFound, "Aucune assurance cette année");
         Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync("/api/inscriptions",
-            new DemandeDInscription(lina, etude, null, DeuxiemeSeanceDuMois3))).StatusCode);
+            new InscriptionSaisie(lina, etude, null, DeuxiemeSeanceDuMois3))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await _proprietaire.PostAsJsonAsync($"/api/eleves/{lina}/assurance/dispense", new RaisonSaisie("Orphelin"))).StatusCode);
         await VerifierLeRefusAsync(await _client.PostAsync($"/api/eleves/{lina}/assurance/payee-avant-schoolhub", null),
             HttpStatusCode.Conflict, "L'assurance est déjà dispensée");
@@ -388,7 +388,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
             professeur, "Informatique", null, [Samedi10h], null, new DateOnly(2027, 12, 4), null, "", Type: "Formation", PrixTotal: 300m, NombreDeSeances: 10)))
             .Content.ReadFromJsonAsync<FicheDuGroupe>())!.Id;
         var inscription = (await (await secretaire.PostAsJsonAsync("/api/inscriptions",
-            new DemandeDInscription(eleve, formation, null, new DateOnly(2027, 12, 4)))).Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
+            new InscriptionSaisie(eleve, formation, null, new DateOnly(2027, 12, 4)))).Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
 
         await VerifierLeRefusAsync(await _client.GetAsync($"/api/eleves/{eleve}/a-payer"), HttpStatusCode.NotFound, "Élève introuvable");
         await VerifierLeRefusAsync(await _proprietaire.PutAsJsonAsync($"/api/inscriptions/{inscription}/prix-special", new PrixSpecialSaisi(0m, "Proche")),
@@ -423,7 +423,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
 
     private async Task<Guid> InscrireAsync(Guid groupe, string? mode, DateOnly debutLe)
     {
-        var reponse = await _client.PostAsJsonAsync("/api/inscriptions", new DemandeDInscription(_adem, groupe, mode, debutLe));
+        var reponse = await _client.PostAsJsonAsync("/api/inscriptions", new InscriptionSaisie(_adem, groupe, mode, debutLe));
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
         return (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!.Inscription.Id;
     }

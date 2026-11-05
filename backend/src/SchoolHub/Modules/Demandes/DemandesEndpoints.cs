@@ -1,0 +1,99 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.HttpOverrides;
+using SchoolHub.Modules.Eleves;
+using SchoolHub.Modules.Groupes;
+using SchoolHub.Socle.Comptes;
+
+namespace SchoolHub.Modules.Demandes;
+
+/// <summary>DEM-01 et DEM-02 : le formulaire public, ouvert à tous, et son lien, pour les personnes connectées.</summary>
+public static class DemandesEndpoints
+{
+    /// <summary>La limite d'envois du formulaire public : 5 par heure et par adresse (DEM-01).</summary>
+    public const string LimiteDuFormulaire = "formulaire-public";
+
+    private const string TropDEnvois = "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.";
+
+    /// <summary>
+    /// La protection du formulaire public contre les envois abusifs : 5 envois par heure et par adresse. Derrière l'App
+    /// Service d'Azure, l'adresse du visiteur est la dernière de « X-Forwarded-For », ajoutée par Azure : un visiteur ne
+    /// peut pas se faire passer pour un autre en écrivant cet en-tête lui-même.
+    /// </summary>
+    public static IServiceCollection AjouterLaProtectionDuFormulaire(this IServiceCollection services)
+    {
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor;
+            options.ForwardLimit = 1;
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = (contexte, annulation) =>
+                new ValueTask(contexte.HttpContext.Response.WriteAsJsonAsync(new Avis(TropDEnvois), annulation));
+            options.AddPolicy(LimiteDuFormulaire, contexte => RateLimitPartition.GetFixedWindowLimiter(
+                contexte.Connection.RemoteIpAddress?.ToString() ?? "inconnue",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+        });
+        return services;
+    }
+
+    public static IEndpointRouteBuilder MapDemandes(this IEndpointRouteBuilder api)
+    {
+        var formulaire = api.MapGroup("/public/inscription").AllowAnonymous();
+        formulaire.MapGet("/{code}", LireAsync);
+        formulaire.MapPost("/{code}", EnvoyerAsync).RequireRateLimiting(LimiteDuFormulaire);
+        return api;
+    }
+
+    private static async Task<Results<Ok<FormulaireDuCentre>, JsonHttpResult<Avis>>> LireAsync(string code, FormulairePublic formulaire) =>
+        await formulaire.LireAsync(code) is { } trouve
+            ? TypedResults.Ok(trouve)
+            : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, "Ce lien d'inscription n'existe pas");
+
+    private static async Task<Results<Created<DemandeRecue>, JsonHttpResult<Avis>>> EnvoyerAsync(
+        string code,
+        DemandeEnvoyee envoi,
+        FormulairePublic formulaire)
+    {
+        var issue = await formulaire.EnvoyerAsync(code, envoi);
+        return issue.Recue is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Created((string?)null, issue.Recue);
+    }
+}
+
+/// <summary>Un niveau proposé par le formulaire ; « dOffice » sert à la règle de la 7ᵉ année, comme sur la fiche élève.</summary>
+public sealed record NiveauDuFormulaire(Guid Id, string Nom, bool DOffice);
+
+/// <summary>Un groupe proposé : la matière, le niveau (vide pour une Formation ouverte à tous), le type, le professeur et l'horaire.</summary>
+public sealed record GroupeDuFormulaire(Guid Id, string Matiere, Guid? NiveauId, string Type, string Professeur, List<CreneauDuGroupe> Creneaux);
+
+/// <summary>Le formulaire public d'un centre : son nom, son année scolaire (« 2027-2028 »), ses niveaux et ses groupes.</summary>
+public sealed record FormulaireDuCentre(string Centre, string? Annee, List<NiveauDuFormulaire> Niveaux, List<GroupeDuFormulaire> Groupes);
+
+/// <summary>
+/// Ce que le formulaire envoie : la fiche de l'élève, son groupe préféré pour chaque matière, les amis cités, et le champ
+/// piège <see cref="SiteWeb"/>, invisible, qu'un robot remplit.
+/// </summary>
+public sealed record DemandeEnvoyee(
+    string? Prenom,
+    string? Nom,
+    Guid? NiveauId,
+    bool Majeur,
+    string? TelephoneParent,
+    string? EmailParent,
+    string? TelephoneEleve,
+    string? EmailEleve,
+    string? Etablissement,
+    List<Guid>? Groupes,
+    string? Amis,
+    string? SiteWeb)
+{
+    /// <summary>La fiche de l'élève, vérifiée par les règles d'ELV-02.</summary>
+    public FicheSaisieDeLEleve Fiche => new(Prenom, Nom, NiveauId, Majeur, TelephoneParent, EmailParent, TelephoneEleve, EmailEleve, Etablissement);
+}
+
+/// <summary>La réponse d'un envoi : le prénom, pour « Demande envoyée. Merci Adem ! ».</summary>
+public sealed record DemandeRecue(string Prenom);

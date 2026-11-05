@@ -103,6 +103,98 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Demandes.DemandeDInscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Amis")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("amis");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("EmailEleve")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email_eleve");
+
+                    b.Property<string>("EmailParent")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email_parent");
+
+                    b.Property<string>("Etablissement")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("etablissement");
+
+                    b.Property<string>("Etat")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("etat");
+
+                    b.Property<bool>("Majeur")
+                        .HasColumnType("boolean")
+                        .HasColumnName("majeur");
+
+                    b.Property<Guid>("NiveauId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("niveau_id");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<string>("NomDeRecherche")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("nom_de_recherche");
+
+                    b.Property<string>("Prenom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("prenom");
+
+                    b.Property<DateTimeOffset>("RecueLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recue_le");
+
+                    b.Property<string>("TelephoneEleve")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone_eleve");
+
+                    b.Property<string>("TelephoneParent")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone_parent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_demandes_d_inscription");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_demandes_d_inscription_centre_id");
+
+                    b.HasIndex("NiveauId")
+                        .HasDatabaseName("ix_demandes_d_inscription_niveau_id");
+
+                    b.HasIndex("Etat", "RecueLe")
+                        .HasDatabaseName("ix_demandes_d_inscription_etat_recue_le");
+
+                    b.ToTable("demandes_d_inscription", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Eleves.Eleve", b =>
                 {
                     b.Property<Guid>("Id")
@@ -913,6 +1005,62 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Demandes.DemandeDInscription", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_demandes_d_inscription_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Niveau", null)
+                        .WithMany()
+                        .HasForeignKey("NiveauId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_demandes_d_inscription_niveaux_niveau_id");
+
+                    b.OwnsMany("SchoolHub.Modules.Demandes.GroupeDeLaDemande", "GroupesPreferes", b1 =>
+                        {
+                            b1.Property<Guid>("DemandeDInscriptionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("demande_d_inscription_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<Guid>("GroupeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("groupe_id");
+
+                            b1.HasKey("DemandeDInscriptionId", "Id")
+                                .HasName("pk_groupes_demandes");
+
+                            b1.HasIndex("GroupeId")
+                                .HasDatabaseName("ix_groupes_demandes_groupe_id");
+
+                            b1.ToTable("groupes_demandes", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("DemandeDInscriptionId")
+                                .HasConstraintName("fk_groupes_demandes_demandes_d_inscription_demande_d_inscripti");
+
+                            b1.HasOne("SchoolHub.Modules.Groupes.Groupe", null)
+                                .WithMany()
+                                .HasForeignKey("GroupeId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired()
+                                .HasConstraintName("fk_groupes_demandes_groupes_groupe_id");
+                        });
+
+                    b.Navigation("GroupesPreferes");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Eleves.Eleve", b =>

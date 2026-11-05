@@ -87,7 +87,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     {
         var etude = await GroupeAsync(Etude);
 
-        var reponse = await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        var reponse = await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
         var enregistrement = (await reponse.Content.ReadFromJsonAsync<EnregistrementDeLInscription>())!;
@@ -107,8 +107,8 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var revision = await GroupeAsync(Revision);
         var formation = await GroupeAsync(Formation);
 
-        var enTotalite = await InscrireAsync(new DemandeDInscription(_adem, revision, "EnTotalite", new DateOnly(2027, 11, 13)));
-        var enTranches = await InscrireAsync(new DemandeDInscription(_adem, formation, "EnTranches", new DateOnly(2027, 11, 13)));
+        var enTotalite = await InscrireAsync(new InscriptionSaisie(_adem, revision, "EnTotalite", new DateOnly(2027, 11, 13)));
+        var enTranches = await InscrireAsync(new InscriptionSaisie(_adem, formation, "EnTranches", new DateOnly(2027, 11, 13)));
 
         Assert.Equal(("EnTotalite", 100m), (enTotalite.Inscription.Mode, enTotalite.Inscription.PrixNormal));
         Assert.Equal([new SommeALArrivee("Totalité", 100m)], enTotalite.APayerALArrivee);
@@ -132,14 +132,14 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var date = new DateOnly(2027, 11, 13);
         var demande = cas switch
         {
-            "sans élève" => new DemandeDInscription(null, etude, null, date),
-            "élève inconnu" => new DemandeDInscription(Guid.NewGuid(), etude, null, date),
-            "sans groupe" => new DemandeDInscription(_adem, null, null, date),
-            "groupe inconnu" => new DemandeDInscription(_adem, Guid.NewGuid(), null, date),
-            "sans mode" => new DemandeDInscription(_adem, revision, null, date),
-            "mode inconnu" => new DemandeDInscription(_adem, revision, "Gratuit", date),
-            "mode d'un autre type" => new DemandeDInscription(_adem, etude, "EnTotalite", date),
-            _ => new DemandeDInscription(_adem, etude, null, null),
+            "sans élève" => new InscriptionSaisie(null, etude, null, date),
+            "élève inconnu" => new InscriptionSaisie(Guid.NewGuid(), etude, null, date),
+            "sans groupe" => new InscriptionSaisie(_adem, null, null, date),
+            "groupe inconnu" => new InscriptionSaisie(_adem, Guid.NewGuid(), null, date),
+            "sans mode" => new InscriptionSaisie(_adem, revision, null, date),
+            "mode inconnu" => new InscriptionSaisie(_adem, revision, "Gratuit", date),
+            "mode d'un autre type" => new InscriptionSaisie(_adem, etude, "EnTotalite", date),
+            _ => new InscriptionSaisie(_adem, etude, null, null),
         };
 
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, demande), statut, message);
@@ -153,7 +153,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         // Un dimanche, puis un samedi d'avant le début du groupe.
         foreach (var date in new[] { new DateOnly(2027, 11, 14), new DateOnly(2027, 9, 11) })
         {
-            await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, etude, null, date)),
+            await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, etude, null, date)),
                 HttpStatusCode.BadRequest, "Ce groupe n'a pas de séance ce jour-là");
         }
     }
@@ -162,10 +162,10 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     public async Task Deja_inscrit()
     {
         var etude = await GroupeAsync(Etude);
-        await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
 
         await VerifierLeRefusAsync(
-            await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, etude, null, new DateOnly(2027, 11, 27))),
+            await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, etude, null, new DateOnly(2027, 11, 27))),
             HttpStatusCode.Conflict, "Cet élève est déjà inscrit dans ce groupe");
     }
 
@@ -176,14 +176,14 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var fermeture = await _client.PostAsJsonAsync($"/api/groupes/{etude}/fermeture", new FermetureDUnGroupe(new DateOnly(2027, 11, 10), "Trop peu d'élèves"));
         Assert.Equal(HttpStatusCode.OK, fermeture.StatusCode);
         await VerifierLeRefusAsync(
-            await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, etude, null, new DateOnly(2027, 11, 6))),
+            await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, etude, null, new DateOnly(2027, 11, 6))),
             HttpStatusCode.Conflict, "Ce groupe est fermé : on n'y inscrit plus");
 
         // Une Révision de 2 séances, les 13 et 20/11 : elle est terminée le 21.
         var courte = await GroupeAsync(Revision with { NombreDeSeances = 2 });
         await AllerAuAsync(new DateTimeOffset(2027, 11, 21, 9, 0, 0, TimeSpan.Zero));
         await VerifierLeRefusAsync(
-            await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, courte, "EnTotalite", new DateOnly(2027, 11, 20))),
+            await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, courte, "EnTotalite", new DateOnly(2027, 11, 20))),
             HttpStatusCode.Conflict, "Ce groupe est terminé : on n'y inscrit plus");
     }
 
@@ -191,7 +191,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     public async Task Deux_inscriptions_en_meme_temps()
     {
         var etude = await GroupeAsync(Etude);
-        var demande = new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3);
+        var demande = new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3);
 
         var reponses = await Task.WhenAll(_client.PostAsJsonAsync(Adresse, demande), _client.PostAsJsonAsync(Adresse, demande));
 
@@ -206,8 +206,8 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var etude = await GroupeAsync(Etude with { Capacite = 1 });
         var lina = await EleveAsync(Lina);
 
-        var premier = await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
-        var second = await InscrireAsync(new DemandeDInscription(lina, etude, null, DeuxiemeSeanceDuMois3));
+        var premier = await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        var second = await InscrireAsync(new InscriptionSaisie(lina, etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Null(premier.Avertissement);
         Assert.Equal("Ce groupe a atteint sa capacité. L'inscription reste possible.", second.Avertissement);
@@ -220,11 +220,11 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var etude = await GroupeAsync(Etude);
         var autreEtude = await GroupeAsync(Etude with { Matiere = "Arabe" });
 
-        Assert.DoesNotContain((await InscrireAsync(new DemandeDInscription(_adem, revision, "EnTotalite", new DateOnly(2027, 11, 13)))).APayerALArrivee,
+        Assert.DoesNotContain((await InscrireAsync(new InscriptionSaisie(_adem, revision, "EnTotalite", new DateOnly(2027, 11, 13)))).APayerALArrivee,
             s => s.Libelle.StartsWith("Assurance", StringComparison.Ordinal));
-        Assert.Contains((await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3))).APayerALArrivee,
+        Assert.Contains((await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3))).APayerALArrivee,
             s => s.Libelle == "Assurance 2027-2028");
-        Assert.DoesNotContain((await InscrireAsync(new DemandeDInscription(_adem, autreEtude, null, DeuxiemeSeanceDuMois3))).APayerALArrivee,
+        Assert.DoesNotContain((await InscrireAsync(new InscriptionSaisie(_adem, autreEtude, null, DeuxiemeSeanceDuMois3))).APayerALArrivee,
             s => s.Libelle.StartsWith("Assurance", StringComparison.Ordinal));
         Assert.Equal(1, await CompterAsync(contexte => contexte.Assurances));
     }
@@ -238,9 +238,9 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var arabe = await GroupeAsync(Etude with { Matiere = "Arabe" });
         var physique = await GroupeAsync(Etude with { Matiere = "Physique" });
 
-        var deMaths = await InscrireAsync(new DemandeDInscription(_adem, maths, null, new DateOnly(2027, 11, 27)));
-        var dArabe = await InscrireAsync(new DemandeDInscription(_adem, arabe, null, DeuxiemeSeanceDuMois3));
-        var dePhysique = await InscrireAsync(new DemandeDInscription(_adem, physique, null, new DateOnly(2027, 12, 4)));
+        var deMaths = await InscrireAsync(new InscriptionSaisie(_adem, maths, null, new DateOnly(2027, 11, 27)));
+        var dArabe = await InscrireAsync(new InscriptionSaisie(_adem, arabe, null, DeuxiemeSeanceDuMois3));
+        var dePhysique = await InscrireAsync(new InscriptionSaisie(_adem, physique, null, new DateOnly(2027, 12, 4)));
 
         Assert.Contains(new SommeALArrivee("Assurance 2027-2028", 20m), deMaths.APayerALArrivee);
         Assert.Contains(new SommeALArrivee("Assurance 2027-2028", 20m), dArabe.APayerALArrivee);
@@ -254,7 +254,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         await ReglerLeCentreAsync("73 221 400", null);
         var etude = await GroupeAsync(Etude);
 
-        var enregistrement = await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        var enregistrement = await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Equal([new SommeALArrivee("Mois 3 (3 séances)", 30m)], enregistrement.APayerALArrivee);
         Assert.Equal(0, await CompterAsync(contexte => contexte.Assurances));
@@ -272,7 +272,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var nour = await EleveAsync(new FicheSaisieDeLEleve("Nour", "Gharbi", Niveau("6ᵉ année de base"), true, "97 000 002", null, null, null, null));
 
         async Task<List<(string, string)>> DestinatairesAsync(Guid eleve) =>
-            (await InscrireAsync(new DemandeDInscription(eleve, formation, "EnUneFois", new DateOnly(2027, 11, 13)))).Messages
+            (await InscrireAsync(new InscriptionSaisie(eleve, formation, "EnUneFois", new DateOnly(2027, 11, 13)))).Messages
                 .Select(m => (m.Destinataire, m.Telephone)).ToList();
 
         Assert.Equal([("Sami", "55 111 222")], await DestinatairesAsync(sami));
@@ -287,7 +287,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var etude = await GroupeAsync(Etude);
         var lina = await EleveAsync(Lina);
 
-        var adem = await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        var adem = await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Equal(
             "Bonjour, l'inscription d'Adem Miled est enregistrée.\n"
@@ -297,7 +297,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         Assert.Equal($"https://wa.me/21698401220?text={Uri.EscapeDataString(adem.Texte)}", adem.Messages[0].Lien);
 
         await ReglerLeCentreAsync(null, 20m);
-        var sansTelephone = await InscrireAsync(new DemandeDInscription(lina, etude, null, DeuxiemeSeanceDuMois3));
+        var sansTelephone = await InscrireAsync(new InscriptionSaisie(lina, etude, null, DeuxiemeSeanceDuMois3));
         Assert.StartsWith("Bonjour, l'inscription de Lina Trabelsi est enregistrée.\n", sansTelephone.Texte);
         Assert.EndsWith("\nÀ bientôt. Centre Les Jasmins", sansTelephone.Texte);
     }
@@ -307,7 +307,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     [Fact]
     public async Task Une_fiche_inscrite_ne_se_supprime_pas()
     {
-        await InscrireAsync(new DemandeDInscription(_adem, await GroupeAsync(Etude), null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, await GroupeAsync(Etude), null, DeuxiemeSeanceDuMois3));
 
         await VerifierLeRefusAsync(await _client.DeleteAsync($"/api/eleves/{_adem}"),
             HttpStatusCode.Conflict, "Cette fiche a un historique : elle ne se supprime pas");
@@ -317,8 +317,8 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     public async Task Le_groupe_compte_ses_eleves()
     {
         var etude = await GroupeAsync(Etude);
-        await InscrireAsync(new DemandeDInscription(_adem, etude, null, DeuxiemeSeanceDuMois3));
-        await InscrireAsync(new DemandeDInscription(await EleveAsync(Lina), etude, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, etude, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(await EleveAsync(Lina), etude, null, DeuxiemeSeanceDuMois3));
 
         Assert.Equal(2, (await _client.GetFromJsonAsync<FicheDuGroupe>($"/api/groupes/{etude}"))!.Eleves);
         Assert.Equal(2, (await _client.GetFromJsonAsync<List<ResumeDuGroupe>>("/api/groupes"))!.Single(g => g.Id == etude).Eleves);
@@ -330,9 +330,9 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var etude = await GroupeAsync(Etude);
         var (eleveDesOliviers, formationDesOliviers) = await DonneesDesOliviersAsync();
 
-        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(eleveDesOliviers, etude, null, DeuxiemeSeanceDuMois3)),
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(eleveDesOliviers, etude, null, DeuxiemeSeanceDuMois3)),
             HttpStatusCode.NotFound, "Élève introuvable");
-        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new DemandeDInscription(_adem, formationDesOliviers, "EnUneFois", new DateOnly(2027, 11, 13))),
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, new InscriptionSaisie(_adem, formationDesOliviers, "EnUneFois", new DateOnly(2027, 11, 13))),
             HttpStatusCode.NotFound, "Groupe introuvable");
     }
 
@@ -344,9 +344,9 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var physique = await GroupeAsync(Revision with { Nom = "Physique du samedi" });
         var informatique = await GroupeAsync(Formation with { Nom = "Informatique du samedi" });
         var maths = await GroupeAsync(Etude with { Nom = "Mathématiques du samedi" });
-        await InscrireAsync(new DemandeDInscription(_adem, physique, "ALaSeance", new DateOnly(2027, 11, 20)));
-        await InscrireAsync(new DemandeDInscription(_adem, informatique, "EnTranches", new DateOnly(2027, 11, 13)));
-        await InscrireAsync(new DemandeDInscription(_adem, maths, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, physique, "ALaSeance", new DateOnly(2027, 11, 20)));
+        await InscrireAsync(new InscriptionSaisie(_adem, informatique, "EnTranches", new DateOnly(2027, 11, 13)));
+        await InscrireAsync(new InscriptionSaisie(_adem, maths, null, DeuxiemeSeanceDuMois3));
 
         var inscriptions = await InscriptionsAsync($"eleve={_adem}");
 
@@ -362,7 +362,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     {
         var etude = await GroupeAsync(Etude);
         foreach (var eleve in new[] { _adem, await EleveAsync(Lina), await EleveAsync(Adem with { Prenom = "Amel", Nom = "Chaabane" }) })
-            await InscrireAsync(new DemandeDInscription(eleve, etude, null, DeuxiemeSeanceDuMois3));
+            await InscrireAsync(new InscriptionSaisie(eleve, etude, null, DeuxiemeSeanceDuMois3));
 
         var inscriptions = await InscriptionsAsync($"groupe={etude}");
 
@@ -386,7 +386,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         var anglais = await GroupeAsync(Etude with { Matiere = "Anglais" });
         await _client.PostAsJsonAsync($"/api/groupes/{anglais}/fermeture", new FermetureDUnGroupe(new DateOnly(2027, 11, 10), "Trop peu d'élèves"));
         await GroupeAsync(Revision with { Matiere = "Chimie", NombreDeSeances = 2 });
-        await InscrireAsync(new DemandeDInscription(_adem, maths, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, maths, null, DeuxiemeSeanceDuMois3));
         // Le 21/11, la Révision de Chimie (13 et 20/11) est terminée.
         await AllerAuAsync(new DateTimeOffset(2027, 11, 21, 9, 0, 0, TimeSpan.Zero));
 
@@ -407,8 +407,8 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     {
         var maths = await GroupeAsync(Etude);
         var arabe = await GroupeAsync(Etude with { Matiere = "Arabe" });
-        await InscrireAsync(new DemandeDInscription(_adem, maths, null, new DateOnly(2027, 11, 27)));
-        await InscrireAsync(new DemandeDInscription(_adem, arabe, null, DeuxiemeSeanceDuMois3));
+        await InscrireAsync(new InscriptionSaisie(_adem, maths, null, new DateOnly(2027, 11, 27)));
+        await InscrireAsync(new InscriptionSaisie(_adem, arabe, null, DeuxiemeSeanceDuMois3));
 
         var assurance = await _client.GetFromJsonAsync<AssuranceDeLEleve>($"/api/eleves/{_adem}/assurance");
 
@@ -418,7 +418,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
     [Fact]
     public async Task Sans_etude_l_assurance_est_sans_objet()
     {
-        await InscrireAsync(new DemandeDInscription(_adem, await GroupeAsync(Revision), "EnTotalite", new DateOnly(2027, 11, 13)));
+        await InscrireAsync(new InscriptionSaisie(_adem, await GroupeAsync(Revision), "EnTotalite", new DateOnly(2027, 11, 13)));
 
         Assert.Equal(HttpStatusCode.NoContent, (await _client.GetAsync($"/api/eleves/{_adem}/assurance")).StatusCode);
         await VerifierLeRefusAsync(await _client.GetAsync($"/api/eleves/{Guid.NewGuid()}/assurance"), HttpStatusCode.NotFound, "Élève introuvable");
@@ -492,7 +492,7 @@ public sealed class InscriptionsTests(PostgreSqlDeTest postgreSql) : IAsyncLifet
         return (await reponse.Content.ReadFromJsonAsync<FicheDuGroupe>())!.Id;
     }
 
-    private async Task<EnregistrementDeLInscription> InscrireAsync(DemandeDInscription demande)
+    private async Task<EnregistrementDeLInscription> InscrireAsync(InscriptionSaisie demande)
     {
         var reponse = await _client.PostAsJsonAsync(Adresse, demande);
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
