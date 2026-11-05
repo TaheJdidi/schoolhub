@@ -59,7 +59,8 @@ src/app/
 │                       payé avant SchoolHub, reste d'une Formation, arrêt), inscriptions et
 │                       changements de groupe (depuis l'élève ou le
 │                       groupe, et la confirmation WhatsApp), comptes,
-│                       paramètres du centre, bientôt, accès réservé, introuvable
+│                       paramètres du centre, demandes d'inscription (le lien, le QR code et l'affiche),
+│                       le formulaire public d'inscription, bientôt, accès réservé, introuvable
 └── test/               les outils des tests
 ```
 

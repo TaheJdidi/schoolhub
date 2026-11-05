@@ -210,6 +210,19 @@ describe("les adresses de l'application", () => {
     expect(adresseActuelle()).toBe('/aujourdhui');
   });
 
+  it('une secrétaire voit le lien public sur /demandes, et imprime l’affiche sur /demandes/affiche', async () => {
+    await ouvrir('/demandes', AMIRA);
+    http.expectOne('/api/demandes/lien').flush({ lien: 'http://localhost:4200/inscription/les-jasmins' });
+    await vi.waitFor(() => expect(texte()).toContain('Le lien public du centre'));
+    expect(texte()).not.toContain('Cette page arrive bientôt');
+    expect(titre()).toBe("Demandes d'inscription · SchoolHub");
+
+    await harness.navigateByUrl('/demandes/affiche');
+    (await vi.waitFor(() => http.expectOne('/api/demandes/lien'))).flush({ lien: 'http://localhost:4200/inscription/les-jasmins' });
+    await vi.waitFor(() => expect(texte()).toContain('Scannez le code'));
+    expect(titre()).toBe('Affiche · SchoolHub');
+  });
+
   it("le formulaire public s'ouvre sans connexion sur /inscription/les-jasmins", async () => {
     const navigation = harness.navigateByUrl('/inscription/les-jasmins');
     (await vi.waitFor(() => http.expectOne('/api/public/inscription/les-jasmins'))).flush(
