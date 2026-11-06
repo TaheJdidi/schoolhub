@@ -11,7 +11,7 @@ namespace SchoolHub.Modules.Caisse;
 /// <summary>
 /// CAI-09 et CAI-10 : la caisse de chaque compte et sa clôture du soir, puis le contrôle des clôtures par le propriétaire.
 /// Une caisse, ce sont les reçus d'un compte, d'un jour, pas encore clôturés : un encaissement après la clôture ouvre la
-/// caisse suivante du jour. Les achats payés en espèces (RHA-04) viendront s'y soustraire ; d'ici là, aucune sortie.
+/// caisse suivante du jour. Les achats payés depuis la caisse (RHA-04) sont ses sorties : ils s'y soustraient.
 /// </summary>
 public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre journal, CentreCourant centreCourant, TimeProvider temps)
 {
@@ -37,7 +37,9 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
     {
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
         var ouverts = await contexte.Recus.Where(r => r.AuteurId == compte.Id && r.ClotureId == null && r.Jour <= aujourdhui).ToListAsync();
-        var jours = ouverts.Select(r => r.Jour).Append(aujourdhui).Distinct().Order().ToList();
+        // RHA-04 : les achats payés depuis sa caisse, pas encore clôturés : ses sorties de caisse.
+        var sorties = await SortiesOuvertes(compte.Id).Where(a => a.Jour <= aujourdhui).ToListAsync();
+        var jours = ouverts.Select(r => r.Jour).Concat(sorties.Select(a => a.Jour)).Append(aujourdhui).Distinct().Order().ToList();
         var rangs = await contexte.CloturesDeCaisse.Where(c => c.CompteId == compte.Id && jours.Contains(c.Jour))
             .GroupBy(c => c.Jour).Select(g => new { Jour = g.Key, Nombre = g.Count() })
             .ToDictionaryAsync(g => g.Jour, g => g.Nombre);
@@ -47,7 +49,9 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
             {
                 var recus = ouverts.Where(r => r.Jour == jour).ToList();
                 var encaisse = Encaisse(recus);
-                return new CaisseOuverte(jour, rangs.GetValueOrDefault(jour) + 1, encaisse, 0m, encaisse, recus.Count(r => r.AnnuleLe is null), jour < aujourdhui);
+                var sortiesDuJour = sorties.Where(a => a.Jour == jour).Sum(a => a.Montant);
+                return new CaisseOuverte(jour, rangs.GetValueOrDefault(jour) + 1, encaisse, sortiesDuJour, encaisse - sortiesDuJour, recus.Count(r => r.AnnuleLe is null),
+                    jour < aujourdhui);
             })
             .ToList();
         var clotures = await contexte.CloturesDeCaisse.Where(c => c.CompteId == compte.Id && c.Jour == aujourdhui).OrderBy(c => c.Rang).ToListAsync();
@@ -71,14 +75,18 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
         await using var transaction = await contexte.Database.BeginTransactionAsync();
         await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM comptes WHERE id = {auteur.Id} AND centre_id = {CentreId} FOR NO KEY UPDATE");
         var recus = await contexte.Recus.Where(r => r.AuteurId == auteur.Id && r.Jour == jour && r.ClotureId == null).ToListAsync();
-        if (recus.Count == 0)
+        var sorties = await SortiesOuvertes(auteur.Id).Where(a => a.Jour == jour).ToListAsync();
+        if (recus.Count == 0 && sorties.Count == 0)
             return Refus(StatusCodes.Status409Conflict, RienACloturer);
 
         var rang = await contexte.CloturesDeCaisse.CountAsync(c => c.CompteId == auteur.Id && c.Jour == jour) + 1;
-        var cloture = new ClotureDeCaisse(auteur.Id, $"{auteur.Prenom} {auteur.Nom}", jour, rang, Encaisse(recus), 0m, compte, temps.GetUtcNow());
+        var cloture = new ClotureDeCaisse(auteur.Id, $"{auteur.Prenom} {auteur.Nom}", jour, rang, Encaisse(recus), sorties.Sum(a => a.Montant), compte,
+            temps.GetUtcNow());
         contexte.CloturesDeCaisse.Add(cloture);
         foreach (var recu in recus)
             recu.Ranger(cloture.Id);
+        foreach (var sortie in sorties)
+            sortie.Ranger(cloture.Id);
         journal.Noter(auteur, ActionDuJournal.CaisseCloturee,
             $"Caisse de {cloture.Secretaire} du {SaisieDuGroupe.EcrireUneDate(jour)}" + (rang > 1 ? $" ({rang}ᵉ caisse)" : ""),
             $"Attendu {SaisieDuGroupe.EcrireUnMontant(cloture.Attendu)} TND",
@@ -103,10 +111,17 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
         var clotures = await requete.OrderByDescending(c => c.Jour).ThenByDescending(c => c.ClotureeLe).Take(CloturesAuPlus).ToListAsync();
 
         var aRecuperer = await contexte.CloturesDeCaisse.Where(c => c.ArgentRecuLe == null).SumAsync(c => (decimal?)c.Compte) ?? 0m;
-        var nonCloturees = (await contexte.Recus.Where(r => r.ClotureId == null && r.Jour < aujourdhui).ToListAsync())
-            .GroupBy(r => (r.AuteurId, r.Jour))
-            .OrderBy(g => g.Key.Jour).ThenBy(g => g.First().Auteur)
-            .Select(g => new CaisseNonCloturee(g.Key.AuteurId, g.First().Auteur, g.Key.Jour, Encaisse(g), g.Count(r => r.AnnuleLe is null)))
+        var recusOuverts = await contexte.Recus.Where(r => r.ClotureId == null && r.Jour < aujourdhui).ToListAsync();
+        var sortiesOuvertes = await contexte.Achats.Where(a => a.PayeDepuisLaCaisse && a.ClotureId == null && a.Jour < aujourdhui).ToListAsync();
+        var nonCloturees = recusOuverts.Select(r => (r.AuteurId, r.Auteur, r.Jour)).Concat(sortiesOuvertes.Select(a => (a.AuteurId, a.Auteur, a.Jour)))
+            .DistinctBy(c => (c.AuteurId, c.Jour))
+            .OrderBy(c => c.Jour).ThenBy(c => c.Auteur)
+            .Select(c =>
+            {
+                var recus = recusOuverts.Where(r => r.AuteurId == c.AuteurId && r.Jour == c.Jour).ToList();
+                var sorties = sortiesOuvertes.Where(a => a.AuteurId == c.AuteurId && a.Jour == c.Jour).Sum(a => a.Montant);
+                return new CaisseNonCloturee(c.AuteurId, c.Auteur, c.Jour, Encaisse(recus) - sorties, recus.Count(r => r.AnnuleLe is null));
+            })
             .ToList();
         var comptes = await contexte.Users.Where(c => c.CentreId == CentreId).OrderBy(c => c.Prenom).ThenBy(c => c.Nom)
             .Select(c => new CompteDeLaCaisse(c.Id, c.Prenom + " " + c.Nom))
@@ -124,6 +139,10 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
         await contexte.SaveChangesAsync();
         return new IssueDeLaCloture(Decrire(cloture), StatusCodes.Status200OK, null);
     }
+
+    /// <summary>RHA-04 : les sorties de caisse d'un compte pas encore clôturées : ses achats payés depuis sa caisse.</summary>
+    private IQueryable<SchoolHub.Modules.Achats.Achat> SortiesOuvertes(Guid compteId) =>
+        contexte.Achats.Where(a => a.AuteurId == compteId && a.PayeDepuisLaCaisse && a.ClotureId == null);
 
     /// <summary>L'encaissé : les reçus qui ne sont pas annulés.</summary>
     private static decimal Encaisse(IEnumerable<Recu> recus) => recus.Where(r => r.AnnuleLe is null).Sum(r => r.Total);

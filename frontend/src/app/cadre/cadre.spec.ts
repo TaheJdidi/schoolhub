@@ -120,7 +120,7 @@ describe('le cadre', () => {
     await vi.waitFor(() => expect(lien.querySelector('.compte')?.textContent?.trim()).toBe('3'));
     expect(lien.querySelector('.compte')?.getAttribute('aria-label')).toBe('3 à traiter');
 
-    await harness.navigateByUrl('/achats');
+    await harness.navigateByUrl('/journal');
     http.expectOne('/api/demandes/nombre').flush({ aTraiter: 0 });
 
     await vi.waitFor(() => expect(lien.querySelector('.compte')).toBeNull());
@@ -140,7 +140,7 @@ describe('le cadre', () => {
   });
 
   it("allume l'onglet « Plus » pour les autres pages du menu", async () => {
-    const page = await ouvrir('/achats', AMIRA);
+    const page = await ouvrir('/journal', AMIRA);
 
     expect(page.querySelector('.tabbar a[href="/plus"]')?.getAttribute('aria-current')).toBe('page');
     expect(page.querySelector('.tabbar a[href="/caisse"]')?.getAttribute('aria-current')).toBeNull();

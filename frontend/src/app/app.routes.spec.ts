@@ -205,11 +205,11 @@ describe("les adresses de l'application", () => {
   });
 
   it('une page pas encore faite le dit', async () => {
-    await ouvrir('/achats', AMIRA);
+    await ouvrir('/guichet', AMIRA);
 
-    expect(texte()).toContain('Achats');
+    expect(texte()).toContain('Guichet');
     expect(texte()).toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Achats · SchoolHub');
+    expect(titre()).toBe('Guichet · SchoolHub');
   });
 
   it('une secrétaire voit les reçus du jour sur /caisse, un reçu sur /caisse/recus/r1, et encaisse sur /eleves/e1/encaissement', async () => {

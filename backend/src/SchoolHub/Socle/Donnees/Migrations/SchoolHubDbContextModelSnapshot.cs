@@ -103,6 +103,128 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Achats.Achat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Auteur")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("auteur");
+
+                    b.Property<Guid>("AuteurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auteur_id");
+
+                    b.Property<string>("Categorie")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("categorie");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<Guid?>("ClotureId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cloture_id");
+
+                    b.Property<DateTimeOffset>("CreeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cree_le");
+
+                    b.Property<string>("Fournisseur")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("fournisseur");
+
+                    b.Property<DateOnly>("Jour")
+                        .HasColumnType("date")
+                        .HasColumnName("jour");
+
+                    b.Property<string>("Libelle")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("libelle");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.Property<bool>("PayeDepuisLaCaisse")
+                        .HasColumnType("boolean")
+                        .HasColumnName("paye_depuis_la_caisse");
+
+                    b.HasKey("Id")
+                        .HasName("pk_achats");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_achats_centre_id");
+
+                    b.HasIndex("ClotureId")
+                        .HasDatabaseName("ix_achats_cloture_id");
+
+                    b.HasIndex("Jour")
+                        .HasDatabaseName("ix_achats_jour");
+
+                    b.HasIndex("AuteurId", "ClotureId")
+                        .HasDatabaseName("ix_achats_auteur_id_cloture_id");
+
+                    b.ToTable("achats", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Achats.FactureDAchat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AchatId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("achat_id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<byte[]>("Contenu")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("contenu");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("nom");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_factures_d_achat");
+
+                    b.HasIndex("AchatId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_factures_d_achat_achat_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_factures_d_achat_centre_id");
+
+                    b.ToTable("factures_d_achat", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Bibliotheque.EntreeALaBibliotheque", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1506,6 +1628,46 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Achats.Achat", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AuteurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_achats_asp_net_users_auteur_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_achats_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Caisse.ClotureDeCaisse", null)
+                        .WithMany()
+                        .HasForeignKey("ClotureId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_achats_clotures_de_caisse_cloture_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Achats.FactureDAchat", b =>
+                {
+                    b.HasOne("SchoolHub.Modules.Achats.Achat", null)
+                        .WithMany()
+                        .HasForeignKey("AchatId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_factures_d_achat_achats_achat_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_factures_d_achat_centres_centre_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Bibliotheque.EntreeALaBibliotheque", b =>

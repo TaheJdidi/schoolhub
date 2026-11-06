@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Achats;
 using SchoolHub.Modules.Bibliotheque;
 using SchoolHub.Modules.Caisse;
 using SchoolHub.Modules.Demandes;
@@ -68,6 +69,10 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<Avance> Avances => Set<Avance>();
 
     public DbSet<PartDUnProfesseur> PartsDesProfesseurs => Set<PartDUnProfesseur>();
+
+    public DbSet<Achat> Achats => Set<Achat>();
+
+    public DbSet<FactureDAchat> FacturesDAchat => Set<FactureDAchat>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

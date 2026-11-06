@@ -14,6 +14,9 @@ public static class DateDeTunis
     public static DateOnly Aujourdhui(TimeProvider temps, TimeZoneInfo fuseau) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(temps.GetUtcNow(), fuseau).DateTime);
 
+    /// <summary>Le jour à Tunis de ce moment.</summary>
+    public static DateOnly Jour(DateTimeOffset moment) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(moment, Tunis).DateTime);
+
     /// <summary>L'heure à Tunis de ce moment, à la minute : « 14:32 » (BIB-01, BIB-02).</summary>
     public static TimeOnly Heure(DateTimeOffset moment)
     {
