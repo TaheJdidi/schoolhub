@@ -5,10 +5,11 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { PageDeTest } from '../../test/page-de-test';
 import { Caisse } from './caisse';
+import { EncaissementGroupe } from './encaissement-groupe';
 import { PageDEncaissement } from './page-d-encaissement';
 import { PageDuRecu } from './page-du-recu';
 import { RecuAImprimer } from './recu-a-imprimer';
-import { Encaissable, RecuDecrit } from './recu';
+import { Encaissable, EncaissementDuGroupe, RecuDecrit } from './recu';
 
 const RECU: RecuDecrit = {
   id: 'r1',
@@ -40,6 +41,8 @@ function configurer(): HttpTestingController {
         { path: 'caisse', component: Caisse },
         { path: 'caisse/recus/:id', component: PageDuRecu },
         { path: 'eleves/:id/encaissement', component: PageDEncaissement },
+        { path: 'professeurs/groupes/:id/encaissement', component: EncaissementGroupe },
+        { path: 'recus/impression', component: RecuAImprimer },
         { path: 'recus/:id/impression', component: RecuAImprimer },
         { path: '**', component: PageDeTest },
       ]),
@@ -195,6 +198,121 @@ describe('le reçu à imprimer', () => {
     expect(page.querySelector('tfoot')?.textContent).toContain('60,000 TND');
     expect(page.querySelector('.secretaire')?.textContent).toContain('Reçu par Amira Jlassi');
     http.verify();
+  });
+
+  it('montre plusieurs reçus, un par page, dans l’ordre des numéros', async () => {
+    const http = configurer();
+    const harness = await RouterTestingHarness.create('/recus/impression?ids=r1,r2');
+    const page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/recus/r1'))).flush(RECU);
+    http.expectOne('/api/recus/r2').flush({ ...RECU, id: 'r2', numero: 13, eleve: { id: 'e2', prenom: 'Lina', nom: 'Gharbi' } });
+    await vi.waitFor(() => expect(page.querySelectorAll('article.recu')).toHaveLength(2));
+
+    expect([...page.querySelectorAll('.numero b')].map((b) => b.textContent?.trim())).toEqual(['Reçu n° 12', 'Reçu n° 13']);
+    expect(page.querySelectorAll('.eleve')[1].textContent).toContain('Lina Gharbi');
+    http.verify();
+  });
+});
+
+describe("l'encaissement groupé", () => {
+  const ENCAISSEMENT: EncaissementDuGroupe = {
+    groupe: { id: 'g1', nom: 'Groupe Samedi 10h → 12h', matiere: 'Mathématiques', type: 'Etude' },
+    aPayer: [
+      {
+        eleveId: 'e2',
+        prenom: 'Lina',
+        nom: 'Gharbi',
+        couleur: 'Rouge',
+        sommes: [{ inscriptionId: 'i2', cle: 'Mois 3', libelle: 'Mois 3', montant: 40 }],
+        total: 40,
+      },
+      {
+        eleveId: 'e1',
+        prenom: 'Adem',
+        nom: 'Miled',
+        couleur: 'Orange',
+        sommes: [
+          { inscriptionId: 'i1', cle: 'Mois 3', libelle: 'Mois 3', montant: 40 },
+          { inscriptionId: null, cle: 'Assurance', libelle: 'Assurance 2027-2028', montant: 20 },
+        ],
+        total: 60,
+      },
+    ],
+    aJour: [{ id: 'e3', prenom: 'Sami', nom: 'Chaabane' }],
+  };
+
+  let http: HttpTestingController;
+  let page: HTMLElement;
+
+  beforeEach(async () => {
+    http = configurer();
+    const harness = await RouterTestingHarness.create('/professeurs/groupes/g1/encaissement');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1/encaissement'))).flush(ENCAISSEMENT);
+    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('Encaissement groupé'));
+  });
+
+  afterEach(() => http.verify());
+
+  const cases = () => [...page.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+  const encaisser = () => [...page.querySelectorAll('button')].find((b) => b.textContent?.includes('Encaisser et créer'))!;
+
+  it('liste ce que chacun doit, avec sa couleur, et ceux qui sont déjà à jour', () => {
+    expect(page.textContent).toContain('Mois 3 + Assurance 2027-2028');
+    expect(page.textContent).toContain('60,000 TND');
+    expect(page.textContent).toContain('Rouge');
+    expect(page.textContent).toContain('Sami Chaabane');
+    expect(cases().map((c) => c.checked)).toEqual([false, false]);
+    expect(encaisser().disabled).toBe(true);
+  });
+
+  it('« Tout cocher » coche tout et fait le total ; « Tout décocher » défait', async () => {
+    bouton(page, 'Tout cocher')!.click();
+    await vi.waitFor(() => expect(cases().map((c) => c.checked)).toEqual([true, true]));
+    expect(page.querySelector('.pied')?.textContent).toContain('100,000 TND');
+    expect(encaisser().textContent).toContain('Encaisser et créer 2 reçus');
+
+    bouton(page, 'Tout décocher')!.click();
+    await vi.waitFor(() => expect(cases().map((c) => c.checked)).toEqual([false, false]));
+  });
+
+  it('envoie chaque élève coché avec ses sommes, puis montre les reçus créés', async () => {
+    cases()[1].click();
+    await vi.waitFor(() => expect(encaisser().disabled).toBe(false));
+
+    encaisser().click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/groupes/g1/encaissement' });
+    expect(requete.request.body).toEqual({
+      eleves: [
+        {
+          eleveId: 'e1',
+          sommes: [
+            { inscriptionId: 'i1', cle: 'Mois 3' },
+            { inscriptionId: null, cle: 'Assurance' },
+          ],
+        },
+      ],
+    });
+    requete.flush({ recus: [RECU, { ...RECU, id: 'r2', numero: 13, emails: [] }] });
+
+    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('2 reçus créés'));
+    expect(page.textContent).toContain('n° 12');
+    expect(page.textContent).toContain('Email envoyé');
+    expect(page.textContent).toContain("Pas d'email");
+    const imprimer = [...page.querySelectorAll('a')].find((a) => a.textContent?.includes('Imprimer les 2 reçus'));
+    expect(imprimer?.getAttribute('href')).toBe('/recus/impression?ids=r1,r2');
+  });
+
+  it('montre le refus du serveur', async () => {
+    cases()[0].click();
+    await vi.waitFor(() => expect(encaisser().disabled).toBe(false));
+    encaisser().click();
+    http.expectOne({ method: 'POST', url: '/api/groupes/g1/encaissement' }).flush(
+      { message: 'Un élève coché a payé entre-temps : rechargez la page' },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain('a payé entre-temps'));
   });
 });
 

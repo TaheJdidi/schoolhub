@@ -17,7 +17,7 @@ namespace SchoolHub.Modules.Caisse;
 /// email, impression) ; retrouver les reçus ; les annuler. Espèces seulement, pas de paiement partiel : chaque somme se
 /// paie en entier, au montant calculé par la plateforme.
 /// </summary>
-public sealed class RecusDuCentre(
+public sealed partial class RecusDuCentre(
     SchoolHubDbContext contexte,
     InscriptionsDuCentre inscriptions,
     JournalDuCentre journal,
@@ -85,29 +85,47 @@ public sealed class RecusDuCentre(
             if (aRegler.Any(s => s is null))
                 return Refus(StatusCodes.Status409Conflict, SommePlusAPayer);
 
-            await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM centres WHERE id = {CentreId} FOR NO KEY UPDATE");
-            var numero = (await contexte.Recus.MaxAsync(r => (int?)r.Numero) ?? 0) + 1;
-            var maintenant = temps.GetUtcNow();
-            recu = new Recu(numero, eleve.Id, auteur.Id, $"{auteur.Prenom} {auteur.Nom}", maintenant, DateDeTunis.Aujourdhui(temps),
-                aRegler.Select(s => new LigneDuRecu(s!.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)));
-            contexte.Recus.Add(recu);
-            foreach (var somme in aRegler)
-            {
-                contexte.Reglements.Add(somme!.AssuranceId is { } assuranceId
-                    ? Reglement.DeLAssurance(assuranceId, somme.Montant, OrigineDuReglement.Encaissement, maintenant, auteur.Id, recu.Id)
-                    : Reglement.DUneSomme(somme.InscriptionId!.Value, somme.Cle, somme.Montant, OrigineDuReglement.Encaissement, maintenant, auteur.Id,
-                        somme.ReportDeduit, recu.Id));
-            }
-
-            journal.Noter(auteur, ActionDuJournal.Encaissement,
-                Couper($"Reçu n° {numero} · {eleve.Prenom} {eleve.Nom} · {string.Join(", ", aRegler.Select(s => s!.Libelle))}"),
-                "À payer", $"Encaissé, {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
+            recu = CreerLeRecu(auteur, eleve, aRegler.OfType<SommeEncaissable>().ToList(), await NumeroSuivantAsync());
             await contexte.SaveChangesAsync();
             await transaction.CommitAsync();
         }
 
         await EnvoyerParEmailAsync(recu);
         return new IssueDuRecu(await DecrireAsync(recu, auteur), StatusCodes.Status201Created, null);
+    }
+
+    /// <summary>
+    /// Le numéro du prochain reçu du centre. La ligne du centre reste verrouillée jusqu'à la fin de la transaction : deux
+    /// encaissements ne prennent jamais le même numéro.
+    /// </summary>
+    private async Task<int> NumeroSuivantAsync()
+    {
+        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM centres WHERE id = {CentreId} FOR NO KEY UPDATE");
+        return (await contexte.Recus.MaxAsync(r => (int?)r.Numero) ?? 0) + 1;
+    }
+
+    /// <summary>
+    /// Le reçu de l'élève, à ce numéro, avec une ligne et un règlement par somme : les sommes deviennent réglées. Va au
+    /// journal. Rien n'est encore enregistré : l'appelant enregistre et valide la transaction.
+    /// </summary>
+    private Recu CreerLeRecu(Compte auteur, Eleve eleve, IReadOnlyList<SommeEncaissable> aRegler, int numero)
+    {
+        var maintenant = temps.GetUtcNow();
+        var recu = new Recu(numero, eleve.Id, auteur.Id, $"{auteur.Prenom} {auteur.Nom}", maintenant, DateDeTunis.Aujourdhui(temps),
+            aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)));
+        contexte.Recus.Add(recu);
+        foreach (var somme in aRegler)
+        {
+            contexte.Reglements.Add(somme.AssuranceId is { } assuranceId
+                ? Reglement.DeLAssurance(assuranceId, somme.Montant, OrigineDuReglement.Encaissement, maintenant, auteur.Id, recu.Id)
+                : Reglement.DUneSomme(somme.InscriptionId!.Value, somme.Cle, somme.Montant, OrigineDuReglement.Encaissement, maintenant, auteur.Id,
+                    somme.ReportDeduit, recu.Id));
+        }
+
+        journal.Noter(auteur, ActionDuJournal.Encaissement,
+            Couper($"Reçu n° {numero} · {eleve.Prenom} {eleve.Nom} · {string.Join(", ", aRegler.Select(s => s.Libelle))}"),
+            "À payer", $"Encaissé, {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
+        return recu;
     }
 
     /// <summary>CAI-05 et CAI-06 : un reçu, son texte et ses messages prêts ; <c>null</c> s'il n'est pas dans ce centre.</summary>

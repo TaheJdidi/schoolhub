@@ -31,6 +31,7 @@ const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((modul
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 const pageDeLaDemande = () => import('./pages/demandes/page-de-la-demande').then((module) => module.PageDeLaDemande);
 const pageDeLAppel = () => import('./pages/seances/page-de-l-appel').then((module) => module.PageDeLAppel);
+const encaissementGroupe = () => import('./pages/caisse/encaissement-groupe').then((module) => module.EncaissementGroupe);
 const pageDEncaissement = () => import('./pages/caisse/page-d-encaissement').then((module) => module.PageDEncaissement);
 const pageDuRecu = () => import('./pages/caisse/page-du-recu').then((module) => module.PageDuRecu);
 const recuAImprimer = () => import('./pages/caisse/recu-a-imprimer').then((module) => module.RecuAImprimer);
@@ -76,6 +77,7 @@ export const routes: Routes = [
   // DEM-02 : l'affiche à imprimer, sans le menu, pour une personne connectée.
   { path: 'demandes/affiche', loadComponent: affiche, canActivate: [estConnecte], title: titre('Affiche') },
   // CAI-05 : le reçu à imprimer, au format A5, sans le menu.
+  { path: 'recus/impression', loadComponent: recuAImprimer, canActivate: [estConnecte], title: titre('Reçus') },
   { path: 'recus/:id/impression', loadComponent: recuAImprimer, canActivate: [estConnecte], title: titre('Reçu') },
   // SEA-08 : la feuille d'appel à imprimer, sans le menu, pour une personne connectée.
   { path: 'feuille-d-appel/:id', loadComponent: feuilleDAppel, canActivate: [estConnecte], title: titre("Feuille d'appel") },
@@ -91,6 +93,7 @@ export const routes: Routes = [
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
       { path: 'professeurs/groupes/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'groupe' }, title: titre('Inscription') },
       // SEA-07 : l'appel d'une séance, sous son groupe.
+      { path: 'professeurs/groupes/:id/encaissement', loadComponent: encaissementGroupe, title: titre('Encaissement groupé') },
       { path: 'professeurs/groupes/:id/appel/:seance', loadComponent: pageDeLAppel, title: titre('Appel') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.

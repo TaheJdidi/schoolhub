@@ -228,6 +228,12 @@ describe("les adresses de l'application", () => {
     (await vi.waitFor(() => http.expectOne('/api/eleves/e1/encaissable'))).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
     expect(titre()).toBe('Encaissement · SchoolHub');
+
+    // CAI-04 : l'encaissement groupé, depuis un groupe.
+    await harness.navigateByUrl('/professeurs/groupes/g1/encaissement');
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1/encaissement'))).flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
+    expect(titre()).toBe('Encaissement groupé · SchoolHub');
   });
 
   it("une personne déjà connectée qui ouvre la connexion passe à « Aujourd'hui »", async () => {

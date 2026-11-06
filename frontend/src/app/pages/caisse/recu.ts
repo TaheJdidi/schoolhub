@@ -57,5 +57,36 @@ export interface RecuDeLaListe {
   annule: boolean;
 }
 
+/** CAI-04 : une somme due à ce jour dans le groupe ; `inscriptionId` vaut `null` pour l'assurance. */
+export interface SommeDuGroupe {
+  inscriptionId: string | null;
+  cle: string;
+  libelle: string;
+  montant: number;
+}
+
+/** CAI-04 : un élève qui doit quelque chose à ce jour dans le groupe. */
+export interface EleveAEncaisser {
+  eleveId: string;
+  prenom: string;
+  nom: string;
+  /** CAI-01 : « APayer », « Orange » ou « Rouge ». */
+  couleur: string;
+  sommes: SommeDuGroupe[];
+  total: number;
+}
+
+/** CAI-04 : GET /api/groupes/{id}/encaissement. */
+export interface EncaissementDuGroupe {
+  groupe: { id: string; nom: string; matiere: string; type: string };
+  aPayer: EleveAEncaisser[];
+  aJour: { id: string; prenom: string; nom: string }[];
+}
+
+/** CAI-04 : la réponse de POST /api/groupes/{id}/encaissement, un reçu par élève. */
+export interface RecusDuGroupe {
+  recus: RecuDecrit[];
+}
+
 /** CAI-05 : le texte affiché quand l'élève n'a aucun email. */
 export const AUCUN_EMAIL = 'Aucun email n’est connu pour cet élève. Ajoutez-en un sur sa fiche, ou utilisez WhatsApp.';

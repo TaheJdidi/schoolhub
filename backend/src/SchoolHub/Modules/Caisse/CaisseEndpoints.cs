@@ -24,6 +24,20 @@ public static class CaisseEndpoints
                 : TypedResults.Created($"/api/recus/{issue.Recu.Id}", issue.Recu);
         });
 
+        // CAI-04 : l'encaissement groupé, depuis un groupe.
+        api.MapGet("/groupes/{id:guid}/encaissement", async Task<Results<Ok<EncaissementDuGroupe>, JsonHttpResult<Avis>>> (Guid id, RecusDuCentre recus) =>
+            await recus.EncaissementDuGroupeAsync(id) is { } encaissement
+                ? TypedResults.Ok(encaissement)
+                : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, RecusDuCentre.GroupeIntrouvable));
+        api.MapPost("/groupes/{id:guid}/encaissement", async Task<Results<Created<RecusDuGroupe>, JsonHttpResult<Avis>>> (
+            Guid id, EncaissementGroupeSaisi saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, RecusDuCentre recus) =>
+        {
+            var issue = await recus.EncaisserLeGroupeAsync(await AuteurAsync(utilisateur, comptes), id, saisie);
+            return issue.Recus is null
+                ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+                : TypedResults.Created("/api/recus", issue.Recus);
+        });
+
         // CAI-08 : le rappel de paiement, et les élèves en rouge.
         api.MapGet("/eleves/en-rouge", (RappelsDePaiement rappels) => rappels.EnRougeAsync());
         api.MapGet("/eleves/{id:guid}/rappel", async Task<Results<Ok<RappelDePaiement>, JsonHttpResult<Avis>>> (Guid id, RappelsDePaiement rappels) =>
@@ -64,6 +78,26 @@ public sealed record SommeChoisie(Guid? InscriptionId, string? Cle);
 
 /// <summary>CAI-03 : les sommes cochées sur la fiche de l'élève.</summary>
 public sealed record EncaissementSaisi(List<SommeChoisie>? Sommes);
+
+/// <summary>CAI-04 : un élève coché, avec les sommes que la page a montrées pour lui.</summary>
+public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes);
+
+/// <summary>CAI-04 : les élèves cochés de l'encaissement groupé.</summary>
+public sealed record EncaissementGroupeSaisi(List<EleveCoche>? Eleves);
+
+/// <summary>CAI-04 : une somme due à ce jour dans le groupe (ou l'assurance, sans inscription).</summary>
+public sealed record SommeDuGroupe(Guid? InscriptionId, string Cle, string Libelle, decimal Montant);
+
+/// <summary>CAI-04 : un élève qui doit quelque chose à ce jour dans le groupe : sa couleur (CAI-01), ses sommes et leur total.</summary>
+public sealed record EleveAEncaisser(Guid EleveId, string Prenom, string Nom, string Couleur, List<SommeDuGroupe> Sommes, decimal Total);
+
+public sealed record GroupeEncaisse(Guid Id, string Nom, string Matiere, string Type);
+
+/// <summary>CAI-04 : le groupe, les élèves qui doivent quelque chose à ce jour, et ceux qui sont déjà à jour.</summary>
+public sealed record EncaissementDuGroupe(GroupeEncaisse Groupe, List<EleveAEncaisser> APayer, List<EleveDuRecu> AJour);
+
+/// <summary>CAI-04 : les reçus créés, un par élève, dans l'ordre de leurs numéros.</summary>
+public sealed record RecusDuGroupe(List<RecuDecrit> Recus);
 
 /// <summary>CAI-07 : le motif de l'annulation, « Mauvais élève sélectionné ».</summary>
 public sealed record AnnulationDuRecu(string? Motif);
