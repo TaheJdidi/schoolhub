@@ -190,6 +190,87 @@ describe("la page de l'appel", () => {
     expect(bouton('Annuler cette séance')).toBeUndefined();
     expect(bouton('Déplacer cette séance')).toBeUndefined();
   });
+  it('montre à part les élèves en rattrapage, et la séance rattrapée ailleurs', async () => {
+    await ouvrir({
+      ...APPEL,
+      eleves: [eleve('i2', 'Adem', 'Miled', { rattrapeeLe: '2027-11-30' })],
+      rattrapages: [
+        {
+          rattrapageId: 'r1',
+          inscriptionId: 'i9',
+          eleveId: 'e9',
+          prenom: 'Lina',
+          nom: 'Gharbi',
+          groupeDOrigine: 'Groupe Mardi 17h → 19h',
+          seanceRattrapee: '2027-11-30',
+          absent: false,
+          prevenuLe: null,
+          messages: [],
+        },
+      ],
+    });
+
+    expect(eleveA('Adem').textContent).toContain('Rattrapée le 30/11');
+    expect(page.textContent).toContain('En rattrapage');
+    expect(eleveA('Lina').textContent).toContain("Paie dans son groupe d'origine · Groupe Mardi 17h → 19h, rattrape le 30/11");
+    expect(page.textContent).toContain('2 présents · 0 absent');
+
+    eleveA('Lina').click();
+    await vi.waitFor(() => expect(eleveA('Lina').getAttribute('aria-pressed')).toBe('true'));
+    bouton("Enregistrer l'appel")!.click();
+    const requete = http.expectOne({ method: 'PUT', url: '/api/seances/s1/appel' });
+    expect(requete.request.body).toEqual({ absents: ['i9'] });
+    requete.flush({ ...APPEL, appelFait: true });
+  });
+
+  it('ajoute un élève en rattrapage', async () => {
+    await ouvrir(APPEL);
+
+    bouton('Ajouter un élève en rattrapage')!.click();
+    http.expectOne('/api/seances/s1/rattrapages/possibles').flush([
+      {
+        inscriptionId: 'i9',
+        eleveId: 'e9',
+        prenom: 'Lina',
+        nom: 'Gharbi',
+        groupe: { id: 'g2', nom: 'Groupe Mardi 17h → 19h' },
+        seances: [{ id: 's9', date: '2027-11-30', debut: '17:00', fin: '19:00' }],
+      },
+    ]);
+    await vi.waitFor(() => expect(page.querySelector('select[aria-label="Élève en rattrapage"]')).not.toBeNull());
+    const choisir = (libelle: string, valeur: string) => {
+      const liste = page.querySelector(`select[aria-label="${libelle}"]`) as HTMLSelectElement;
+      liste.value = valeur;
+      liste.dispatchEvent(new Event('change'));
+    };
+    choisir('Élève en rattrapage', 'i9');
+    await vi.waitFor(() => expect(page.querySelector('select[aria-label="Séance rattrapée"]')).not.toBeNull());
+    expect(page.querySelector('select[aria-label="Séance rattrapée"]')?.textContent).toContain('mardi 30/11/2027 · 17h');
+    choisir('Séance rattrapée', 's9');
+
+    bouton('Ajouter en rattrapage')!.click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/seances/s1/rattrapages' });
+    expect(requete.request.body).toEqual({ inscriptionId: 'i9', seanceRattrapeeId: 's9' });
+    requete.flush({
+      ...APPEL,
+      rattrapages: [
+        { rattrapageId: 'r1', inscriptionId: 'i9', eleveId: 'e9', prenom: 'Lina', nom: 'Gharbi', groupeDOrigine: 'Groupe Mardi 17h → 19h',
+          seanceRattrapee: '2027-11-30', absent: false, prevenuLe: null, messages: [] },
+      ],
+    });
+
+    await vi.waitFor(() => expect(page.textContent).toContain('En rattrapage'));
+    expect(bouton('Ajouter un élève en rattrapage')).toBeDefined();
+  });
+
+  it('dit quand aucun élève ne peut venir en rattrapage', async () => {
+    await ouvrir(APPEL);
+
+    bouton('Ajouter un élève en rattrapage')!.click();
+    http.expectOne('/api/seances/s1/rattrapages/possibles').flush([]);
+
+    await vi.waitFor(() => expect(page.textContent).toContain('Aucun élève ne peut venir en rattrapage à cette séance.'));
+  });
   it("dit qu'une séance inconnue n'existe pas", async () => {
     await ouvrir(null);
 

@@ -2,13 +2,16 @@ import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
-import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel } from './appel';
+import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
 import { MessagesDuChangement } from './messages-du-changement';
+
+/** Un absent à prévenir : un élève du groupe ou en rattrapage (SEA-11, SEA-12). */
+type Prevenable = EleveALAppel | EleveEnRattrapage;
 
 /** Ce que la secrétaire fait de la séance (SEA-03, SEA-04). */
 type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
@@ -71,11 +74,39 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
               >
                 <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
                 <small>{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</small>
+                @if (eleve.rattrapeeLe; as le) {
+                  <small class="origine">Rattrapée le {{ court(le) }}</small>
+                }
               </button>
             } @empty {
               <p class="vide">Aucun élève attendu à cette séance.</p>
             }
           </div>
+          <!-- SEA-12 : les élèves en rattrapage, à part. -->
+          @if (appel.rattrapages?.length) {
+            <h3 class="tag">En rattrapage</h3>
+            <div class="eleves">
+              @for (eleve of appel.rattrapages; track eleve.rattrapageId) {
+                <div class="en-rattrapage">
+                  <button
+                    type="button"
+                    class="eleve"
+                    [class.absent]="absents().includes(eleve.inscriptionId)"
+                    [attr.aria-pressed]="absents().includes(eleve.inscriptionId)"
+                    [disabled]="!appel.ouvert || envoi()"
+                    (click)="basculer(eleve)"
+                  >
+                    <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                    <small>{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</small>
+                    <small class="origine">Paie dans son groupe d'origine · {{ eleve.groupeDOrigine }}, rattrape le {{ court(eleve.seanceRattrapee) }}</small>
+                  </button>
+                  <button type="button" class="btn ghost retirer" [disabled]="envoi()" (click)="retirerLeRattrapage(eleve.rattrapageId)">
+                    Retirer {{ eleve.prenom }}
+                  </button>
+                </div>
+              }
+            </div>
+          }
           @if (appel.ouvert) {
             <div class="actions">
               <button type="button" class="btn primary" [disabled]="envoi()" (click)="enregistrer()">
@@ -109,6 +140,53 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
                   <p class="vide">Aucun téléphone pour le prévenir.</p>
                 }
               </div>
+            }
+          </section>
+        }
+
+        <!-- SEA-12 : ajouter un élève en rattrapage. -->
+        @if (!appel.annulee) {
+          <section class="card carte">
+            <h2 class="titre">Rattrapage</h2>
+            @if (rattrapables() === null) {
+              <div class="actions debut">
+                <button type="button" class="btn" (click)="chercherLesRattrapables()">Ajouter un élève en rattrapage</button>
+              </div>
+            } @else {
+              <p class="aide">Les élèves des autres groupes du même professeur, de la même matière et du même niveau. Ils paient dans leur groupe.</p>
+              @if (rattrapables()!.length === 0) {
+                <p class="vide">Aucun élève ne peut venir en rattrapage à cette séance.</p>
+              } @else {
+                <div class="champs">
+                  <label class="f">
+                    Élève
+                    <select class="inp" aria-label="Élève en rattrapage" (change)="choisirLeRattrapable($any($event.target).value)">
+                      <option value="">Choisissez l'élève</option>
+                      @for (eleve of rattrapables(); track eleve.inscriptionId) {
+                        <option [value]="eleve.inscriptionId">{{ eleve.prenom }} {{ eleve.nom }} · {{ eleve.groupe.nom }}</option>
+                      }
+                    </select>
+                  </label>
+                  @if (rattrapableChoisi(); as eleve) {
+                    <label class="f">
+                      Séance de son groupe qu'il rattrape
+                      <select class="inp" aria-label="Séance rattrapée" (change)="seanceRattrapee.set($any($event.target).value)">
+                        <option value="">Choisissez la séance</option>
+                        @for (seance of eleve.seances; track seance.id) {
+                          <option [value]="seance.id">{{ jour(seance.date) }} · {{ heure(seance.debut) }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                </div>
+              }
+              <div class="actions">
+                <button type="button" class="btn" [disabled]="envoi()" (click)="rattrapables.set(null)">Retour</button>
+                <button type="button" class="btn primary" [disabled]="envoi()" (click)="ajouterLeRattrapage()">Ajouter en rattrapage</button>
+              </div>
+            }
+            @if (erreurDuRattrapage(); as erreur) {
+              <p class="note bad" role="alert">{{ erreur }}</p>
             }
           </section>
         }
@@ -184,6 +262,9 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     .absent-a-prevenir:first-of-type { border-top: 0; }
     .absent-a-prevenir .pill { justify-self: start; }
     .actions.debut { justify-content: flex-start; }
+    .eleve small.origine { color: var(--ink-2); font-weight: 400; }
+    .en-rattrapage { display: grid; gap: 4px; }
+    .retirer { justify-self: start; font-size: 12.5px; padding: 2px 8px; }
   `,
 })
 export class PageDeLAppel implements OnInit {
@@ -199,9 +280,80 @@ export class PageDeLAppel implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
-  protected readonly presents = computed(() => (this.appel()?.eleves.length ?? 0) - this.absents().length);
-  /** Les absents tels qu'enregistrés : ceux à prévenir. */
-  protected readonly absentsEnregistres = computed(() => this.appel()?.eleves.filter((e) => e.absent) ?? []);
+  protected readonly presents = computed(
+    () => (this.appel()?.eleves.length ?? 0) + (this.appel()?.rattrapages?.length ?? 0) - this.absents().length,
+  );
+  /** Les absents tels qu'enregistrés, élèves en rattrapage compris : ceux à prévenir. */
+  protected readonly absentsEnregistres = computed<Prevenable[]>(() => [
+    ...(this.appel()?.eleves.filter((e) => e.absent) ?? []),
+    ...(this.appel()?.rattrapages?.filter((e) => e.absent) ?? []),
+  ]);
+
+  // ----- Le rattrapage (SEA-12) -----
+
+  protected readonly rattrapables = signal<EleveRattrapable[] | null>(null);
+  private readonly inscriptionChoisie = signal('');
+  protected readonly rattrapableChoisi = computed(() => this.rattrapables()?.find((e) => e.inscriptionId === this.inscriptionChoisie()) ?? null);
+  protected readonly seanceRattrapee = signal('');
+  protected readonly erreurDuRattrapage = signal<string | null>(null);
+
+  protected async chercherLesRattrapables(): Promise<void> {
+    this.erreurDuRattrapage.set(null);
+    this.inscriptionChoisie.set('');
+    this.seanceRattrapee.set('');
+    try {
+      this.rattrapables.set(await firstValueFrom(this.http.get<EleveRattrapable[]>(`/api/seances/${this.seanceId}/rattrapages/possibles`)));
+    } catch (erreur) {
+      this.erreurDuRattrapage.set(messageDErreur(erreur));
+    }
+  }
+
+  protected choisirLeRattrapable(inscriptionId: string): void {
+    this.inscriptionChoisie.set(inscriptionId);
+    this.seanceRattrapee.set('');
+  }
+
+  protected async ajouterLeRattrapage(): Promise<void> {
+    if (this.envoi()) return;
+    if (!this.inscriptionChoisie() || !this.seanceRattrapee()) {
+      this.erreurDuRattrapage.set("Choisissez l'élève et la séance qu'il rattrape");
+      return;
+    }
+    await this.changerLeRattrapage(
+      this.http.post<AppelDeLaSeance>(`/api/seances/${this.seanceId}/rattrapages`, {
+        inscriptionId: this.inscriptionChoisie(),
+        seanceRattrapeeId: this.seanceRattrapee(),
+      }),
+    );
+  }
+
+  protected async retirerLeRattrapage(rattrapageId: string): Promise<void> {
+    if (this.envoi()) return;
+    await this.changerLeRattrapage(this.http.delete<AppelDeLaSeance>(`/api/seances/${this.seanceId}/rattrapages/${rattrapageId}`));
+  }
+
+  /** L'appel revient à jour ; les absents marqués sur la page et pas encore enregistrés restent marqués. */
+  private async changerLeRattrapage(requete: Observable<AppelDeLaSeance>): Promise<void> {
+    this.envoi.set(true);
+    this.erreurDuRattrapage.set(null);
+    try {
+      const marques = this.absents();
+      const appel = await firstValueFrom(requete);
+      const presentes = new Set([...appel.eleves, ...(appel.rattrapages ?? [])].map((e) => e.inscriptionId));
+      this.appel.set(appel);
+      this.absents.set(marques.filter((id) => presentes.has(id)));
+      this.rattrapables.set(null);
+    } catch (erreur) {
+      this.erreurDuRattrapage.set(messageDErreur(erreur));
+    } finally {
+      this.envoi.set(false);
+    }
+  }
+
+  /** « 30/11 ». */
+  protected court(date: string): string {
+    return formatDate(date, 'dd/MM', FRANCAIS);
+  }
 
   async ngOnInit(): Promise<void> {
     try {
@@ -214,10 +366,10 @@ export class PageDeLAppel implements OnInit {
 
   private montrer(appel: AppelDeLaSeance): void {
     this.appel.set(appel);
-    this.absents.set(appel.eleves.filter((e) => e.absent).map((e) => e.inscriptionId));
+    this.absents.set([...appel.eleves, ...(appel.rattrapages ?? [])].filter((e) => e.absent).map((e) => e.inscriptionId));
   }
 
-  protected basculer(eleve: EleveALAppel): void {
+  protected basculer(eleve: { inscriptionId: string }): void {
     this.succes.set(null);
     this.absents.update((absents) =>
       absents.includes(eleve.inscriptionId) ? absents.filter((id) => id !== eleve.inscriptionId) : [...absents, eleve.inscriptionId],
@@ -310,7 +462,7 @@ export class PageDeLAppel implements OnInit {
   }
 
   /** Le message s'ouvre dans WhatsApp ; la page le marque, sans attendre. */
-  protected async prevenir(eleve: EleveALAppel): Promise<void> {
+  protected async prevenir(eleve: Prevenable): Promise<void> {
     const appel = this.appel();
     if (!appel || eleve.prevenuLe) return;
     try {
@@ -319,6 +471,7 @@ export class PageDeLAppel implements OnInit {
       this.appel.set({
         ...appel,
         eleves: appel.eleves.map((e) => (e.inscriptionId === eleve.inscriptionId ? { ...e, prevenuLe: maintenant } : e)),
+        rattrapages: appel.rattrapages?.map((e) => (e.inscriptionId === eleve.inscriptionId ? { ...e, prevenuLe: maintenant } : e)),
       });
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

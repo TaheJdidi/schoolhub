@@ -250,6 +250,18 @@ describe("les adresses de l'application", () => {
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
 
+  it("une secrétaire imprime une feuille d'appel sur /feuille-d-appel/g1, sans le menu", async () => {
+    await ouvrir('/feuille-d-appel/g1?du=2027-11-13&au=2027-12-04', AMIRA);
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1/feuille-d-appel?du=2027-11-13&au=2027-12-04'))).flush(
+      { message: 'Groupe introuvable' },
+      { status: 404, statusText: 'Not Found' },
+    );
+    await vi.waitFor(() => expect(texte()).toContain('Groupe introuvable'));
+
+    expect(titre()).toBe("Feuille d'appel · SchoolHub");
+    expect((harness.fixture.nativeElement as HTMLElement).querySelector('.rail')).toBeNull();
+  });
+
   it("l'accueil montre les appels à recopier", async () => {
     await ouvrir('/aujourdhui', AMIRA);
     http.expectOne('/api/seances/a-recopier').flush([

@@ -35,6 +35,7 @@ builder.Services.AddScoped<FormulairePublic>();
 builder.Services.AddScoped<DemandesDuCentre>();
 builder.Services.AddScoped<AppelsDuCentre>();
 builder.Services.AddScoped<CalendrierDesSeances>();
+builder.Services.AddScoped<FeuillesDAppel>();
 builder.Services.AjouterLaProtectionDuFormulaire();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre

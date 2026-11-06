@@ -11,6 +11,45 @@ export interface EleveALAppel {
   /** Le moment où le message a été ouvert ; `null` tant qu'il ne l'est pas. */
   prevenuLe: string | null;
   messages: MessageWhatsApp[];
+  /** SEA-12 : la date de la séance d'un autre groupe où l'élève rattrape celle-ci. */
+  rattrapeeLe?: string | null;
+}
+
+/** SEA-12 : un élève en rattrapage à l'appel, à part : il paie dans son groupe d'origine. */
+export interface EleveEnRattrapage {
+  rattrapageId: string;
+  inscriptionId: string;
+  eleveId: string;
+  prenom: string;
+  nom: string;
+  groupeDOrigine: string;
+  /** La séance de son groupe qu'il rattrape, « 2027-11-30 ». */
+  seanceRattrapee: string;
+  absent: boolean;
+  prevenuLe: string | null;
+  messages: MessageWhatsApp[];
+}
+
+/** SEA-12 : un élève qui peut venir en rattrapage (GET /api/seances/{id}/rattrapages/possibles). */
+export interface EleveRattrapable {
+  inscriptionId: string;
+  eleveId: string;
+  prenom: string;
+  nom: string;
+  groupe: { id: string; nom: string };
+  seances: { id: string; date: string; debut: string; fin: string }[];
+}
+
+/** SEA-08 : la feuille d'appel d'un groupe (GET /api/groupes/{id}/feuille-d-appel?du=&au=). */
+export interface FeuilleDAppel {
+  centre: string;
+  annee: string | null;
+  groupe: string;
+  matiere: string;
+  niveau: string | null;
+  professeur: string;
+  seances: { date: string; debut: string }[];
+  eleves: { nom: string; prenom: string }[];
 }
 
 /** Le groupe d'une séance. */
@@ -39,6 +78,8 @@ export interface AppelDeLaSeance {
   motifDAnnulation?: string | null;
   /** « Prevue », « Remplacement » ou « Supplementaire ». */
   nature?: NatureDeLaSeance;
+  /** SEA-12 : les élèves en rattrapage à cette séance. */
+  rattrapages?: EleveEnRattrapage[];
 }
 
 /** D'où vient une séance. */

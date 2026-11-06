@@ -759,6 +759,49 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("absences", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Seances.Rattrapage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<Guid>("InscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inscription_id");
+
+                    b.Property<Guid>("SeanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seance_id");
+
+                    b.Property<Guid>("SeanceRattrapeeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seance_rattrapee_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rattrapages");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_rattrapages_centre_id");
+
+                    b.HasIndex("SeanceRattrapeeId")
+                        .HasDatabaseName("ix_rattrapages_seance_rattrapee_id");
+
+                    b.HasIndex("InscriptionId", "SeanceRattrapeeId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_rattrapages_inscription_id_seance_rattrapee_id");
+
+                    b.HasIndex("SeanceId", "InscriptionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_rattrapages_seance_id_inscription_id");
+
+                    b.ToTable("rattrapages", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1458,6 +1501,37 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_absences_seances_seance_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Seances.Rattrapage", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_rattrapages_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Inscriptions.Inscription", null)
+                        .WithMany()
+                        .HasForeignKey("InscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_rattrapages_inscriptions_inscription_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Seance", null)
+                        .WithMany()
+                        .HasForeignKey("SeanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_rattrapages_seances_seance_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Seance", null)
+                        .WithMany()
+                        .HasForeignKey("SeanceRattrapeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_rattrapages_seances_seance_rattrapee_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>

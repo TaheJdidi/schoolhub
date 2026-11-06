@@ -30,6 +30,7 @@ const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((modul
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 const pageDeLaDemande = () => import('./pages/demandes/page-de-la-demande').then((module) => module.PageDeLaDemande);
 const pageDeLAppel = () => import('./pages/seances/page-de-l-appel').then((module) => module.PageDeLAppel);
+const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((module) => module.FeuilleDAppel);
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
@@ -69,6 +70,8 @@ export const routes: Routes = [
   { path: 'inscription/:code', loadComponent: formulairePublic, title: titre("Demande d'inscription") },
   // DEM-02 : l'affiche à imprimer, sans le menu, pour une personne connectée.
   { path: 'demandes/affiche', loadComponent: affiche, canActivate: [estConnecte], title: titre('Affiche') },
+  // SEA-08 : la feuille d'appel à imprimer, sans le menu, pour une personne connectée.
+  { path: 'feuille-d-appel/:id', loadComponent: feuilleDAppel, canActivate: [estConnecte], title: titre("Feuille d'appel") },
   {
     path: '',
     component: Cadre,

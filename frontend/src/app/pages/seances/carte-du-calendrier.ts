@@ -1,13 +1,18 @@
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
-import { FicheDuGroupe, heure, Jour, JOURS } from '../groupes/groupe';
+import { dateDuJourLocale, FicheDuGroupe, heure, Jour, JOURS } from '../groupes/groupe';
 import { ChangementDuCalendrier } from './appel';
 import { MessagesDuChangement } from './messages-du-changement';
+
+/** « 27/11 ». */
+function court(date: string): string {
+  return formatDate(date, 'dd/MM', FRANCAIS);
+}
 
 /** Un créneau en cours de saisie. */
 interface CreneauSaisi {
@@ -49,13 +54,38 @@ interface CreneauSaisi {
         <p class="aide">Aucune séance annulée ni supplémentaire.</p>
       }
 
-      @if (modifiable()) {
-        @if (action() === null) {
-          <div class="actions debut">
+      @if (action() === null) {
+        <div class="actions debut">
+          <button type="button" class="btn" (click)="ouvrir('feuille')">Imprimer une feuille d'appel</button>
+          @if (modifiable()) {
             <button type="button" class="btn" (click)="ouvrir('supplementaire')">Ajouter une séance supplémentaire</button>
             <button type="button" class="btn" (click)="ouvrir('horaire')">Changer l'horaire du groupe</button>
-          </div>
-        } @else if (action() === 'supplementaire') {
+          }
+        </div>
+      } @else if (action() === 'feuille') {
+        <!-- SEA-08 : la période de la feuille d'appel. -->
+        <h3 class="tag">Feuille d'appel</h3>
+        <div class="champs">
+          <label class="f">
+            Période
+            <select class="inp" aria-label="Période de la feuille" (change)="periode.set($any($event.target).value)">
+              @for (choix of periodes(); track choix.valeur) {
+                <option [value]="choix.valeur" [selected]="choix.valeur === periode()">{{ choix.libelle }}</option>
+              }
+              <option value="dates" [selected]="periode() === 'dates'">Des dates</option>
+            </select>
+          </label>
+          @if (periode() === 'dates') {
+            <label class="f">Du <input #du type="date" (input)="du_.set(du.value)" /></label>
+            <label class="f">Au <input #au type="date" (input)="au_.set(au.value)" /></label>
+          }
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" (click)="fermer()">Retour</button>
+          <button type="button" class="btn primary" (click)="ouvrirLaFeuille()">Ouvrir la feuille</button>
+        </div>
+      } @else if (modifiable()) {
+        @if (action() === 'supplementaire') {
           <h3 class="tag">Séance supplémentaire</h3>
           <p class="aide">Elle est offerte : elle a son appel, mais ne compte pas dans le Mois.</p>
           <div class="champs">
@@ -128,7 +158,53 @@ export class CarteDuCalendrier {
 
   protected readonly heure = heure;
   protected readonly jours = JOURS;
-  protected readonly action = signal<'supplementaire' | 'horaire' | null>(null);
+  protected readonly action = signal<'supplementaire' | 'horaire' | 'feuille' | null>(null);
+
+  // ----- La feuille d'appel (SEA-08) -----
+
+  private readonly router = inject(Router);
+  protected readonly periode = signal('');
+  protected readonly du_ = signal('');
+  protected readonly au_ = signal('');
+
+  /**
+   * Les périodes proposées : la séance du jour s'il y en a une ; pour une Étude, chaque Mois, le Mois en cours d'abord ;
+   * pour une Révision ou une Formation, les 4 prochaines séances. Chacune avec ses dates de début et de fin.
+   */
+  protected readonly periodes = computed(() => {
+    const fiche = this.fiche();
+    const aujourdhui = dateDuJourLocale();
+    const choix: { valeur: string; libelle: string; du: string; au: string }[] = [];
+    const toutes = [...fiche.mois.flatMap((m) => m.seances), ...fiche.seances];
+    if (toutes.some((s) => s.date === aujourdhui)) choix.push({ valeur: 'jour', libelle: 'La séance du jour', du: aujourdhui, au: aujourdhui });
+    if (fiche.type === 'Etude') {
+      const enCours = fiche.mois.filter((m) => m.commence).at(-1)?.numero;
+      const mois = [...fiche.mois].sort((a, b) => (a.numero === enCours ? -1 : b.numero === enCours ? 1 : a.numero - b.numero));
+      for (const m of mois.filter((m) => m.seances.length > 0)) {
+        choix.push({
+          valeur: `mois-${m.numero}`,
+          libelle: `Mois ${m.numero} (${m.seances.length} séances)${m.numero === enCours ? ' · en cours' : ''}`,
+          du: m.seances[0].date,
+          au: m.seances.at(-1)!.date,
+        });
+      }
+    } else if (fiche.seances.length > 0) {
+      const aVenir = fiche.seances.filter((s) => s.date >= aujourdhui);
+      const quatre = (aVenir.length > 0 ? aVenir : fiche.seances.slice(-4)).slice(0, 4);
+      choix.push({ valeur: 'prochaines', libelle: `${quatre.length} séances, du ${court(quatre[0].date)}`, du: quatre[0].date, au: quatre.at(-1)!.date });
+    }
+    return choix;
+  });
+
+  protected ouvrirLaFeuille(): void {
+    const choix = this.periodes().find((p) => p.valeur === this.periode());
+    const [du, au] = choix ? [choix.du, choix.au] : [this.du_(), this.au_()];
+    if (!du || !au) {
+      this.erreur.set('Choisissez la période');
+      return;
+    }
+    void this.router.navigate(['/feuille-d-appel', this.fiche().id], { queryParams: { du, au } });
+  }
   protected readonly date_ = signal('');
   protected readonly debut_ = signal('');
   protected readonly fin_ = signal('');
@@ -137,10 +213,13 @@ export class CarteDuCalendrier {
   protected readonly erreur = signal<string | null>(null);
   protected readonly changement = signal<ChangementDuCalendrier | null>(null);
 
-  /** Les heures et les créneaux proposés sont ceux du groupe. */
-  protected ouvrir(action: 'supplementaire' | 'horaire'): void {
+  /** Les heures et les créneaux proposés sont ceux du groupe ; la période proposée est la première. */
+  protected ouvrir(action: 'supplementaire' | 'horaire' | 'feuille'): void {
     const creneaux = this.fiche().creneaux;
     this.action.set(action);
+    this.periode.set(this.periodes()[0]?.valeur ?? 'dates');
+    this.du_.set('');
+    this.au_.set('');
     this.date_.set('');
     this.debut_.set(creneaux[0]?.debut ?? '');
     this.fin_.set(creneaux[0]?.fin ?? '');

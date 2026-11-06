@@ -56,7 +56,8 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         if (seance.Date > DateDeTunis.Aujourdhui(temps))
             return Refus(StatusCodes.Status409Conflict, PasEncoreOuvert);
 
-        var attendus = await AttendusAsync(seance);
+        // SEA-12 : les élèves en rattrapage sont à l'appel aussi, avec l'inscription de leur propre groupe.
+        var attendus = (await AttendusAsync(seance)).Concat((await EnRattrapageAsync(seance.Id)).Select(r => r.Attendu)).ToList();
         var absents = (saisie.Absents ?? []).Distinct().ToHashSet();
         if (absents.Any(id => attendus.All(a => a.Inscription.Id != id)))
             return Refus(StatusCodes.Status400BadRequest, PasAttendu);
@@ -72,6 +73,115 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
         return new IssueDeLAppel(await DecrireAsync(seance), StatusCodes.Status200OK, null);
+    }
+
+    // ----- Le rattrapage (SEA-12) -----
+
+    /// <summary>Les séances qu'un élève peut rattraper : celles de son groupe qui comptent, 8 semaines avant ou après.</summary>
+    private const int JoursAutourDeLaSeance = 56;
+
+    private const string InscriptionIntrouvable = "Inscription introuvable";
+    private const string DejaDansCeGroupe = "Cet élève est déjà dans ce groupe";
+    private const string PasLeMemeGroupe = "Le rattrapage se fait dans un groupe du même professeur, de la même matière et du même niveau";
+    private const string PasInscritCeJourLa = "Cet élève n'est pas inscrit dans son groupe à la date de cette séance";
+    private const string ChoisirLaSeanceRattrapee = "Choisissez la séance de son groupe qu'il rattrape";
+    private const string SeanceDejaRattrapee = "Cette séance est déjà rattrapée";
+    private const string DejaEnRattrapage = "Cet élève est déjà en rattrapage à cette séance";
+    private const string RattrapageIntrouvable = "Rattrapage introuvable";
+
+    /// <summary>
+    /// SEA-12 : les élèves qui peuvent venir en rattrapage à cette séance : inscrits ce jour-là dans un autre groupe ouvert
+    /// du même professeur, de la même matière et du même niveau, avec les séances de leur groupe qu'ils peuvent rattraper
+    /// (celles qui comptent, 8 semaines avant ou après, pas encore rattrapées). <c>null</c> si la séance n'est pas dans ce centre.
+    /// </summary>
+    public async Task<List<EleveRattrapable>?> RattrapablesAsync(Guid seanceId)
+    {
+        var seance = await contexte.Seances.SingleOrDefaultAsync(s => s.Id == seanceId);
+        if (seance is null)
+            return null;
+        var groupe = await contexte.Groupes.SingleAsync(g => g.Id == seance.GroupeId);
+        var groupes = await contexte.Groupes
+            .Where(g => g.Id != groupe.Id && g.FermeLe == null && g.ProfesseurId == groupe.ProfesseurId && g.MatiereId == groupe.MatiereId
+                && g.NiveauId == groupe.NiveauId)
+            .ToDictionaryAsync(g => g.Id);
+        var groupeIds = groupes.Keys.ToList();
+        var dejaLa = await contexte.Rattrapages.Where(r => r.SeanceId == seance.Id).Select(r => r.InscriptionId).ToListAsync();
+        var inscrits = await contexte.Inscriptions
+            .Where(i => groupeIds.Contains(i.GroupeId) && i.DebutLe <= seance.Date && (i.ArreteLe == null || i.ArreteLe >= seance.Date) && !dejaLa.Contains(i.Id))
+            .Join(contexte.Eleves, i => i.EleveId, e => e.Id, (i, e) => new { Inscription = i, Eleve = e })
+            .ToListAsync();
+        var (du, au) = (seance.Date.AddDays(-JoursAutourDeLaSeance), seance.Date.AddDays(JoursAutourDeLaSeance));
+        var seances = await contexte.Seances.QuiComptent()
+            .Where(s => groupeIds.Contains(s.GroupeId) && s.Date >= du && s.Date <= au)
+            .OrderBy(s => s.Date).ThenBy(s => s.Debut)
+            .ToListAsync();
+        var inscriptionIds = inscrits.Select(i => i.Inscription.Id).ToList();
+        var rattrapees = (await contexte.Rattrapages.Where(r => inscriptionIds.Contains(r.InscriptionId))
+            .Select(r => new { r.InscriptionId, r.SeanceRattrapeeId }).ToListAsync())
+            .ToLookup(r => r.InscriptionId, r => r.SeanceRattrapeeId);
+
+        return inscrits
+            .OrderBy(i => i.Eleve.Nom).ThenBy(i => i.Eleve.Prenom).ThenBy(i => i.Eleve.Id)
+            .Select(i => new EleveRattrapable(
+                i.Inscription.Id,
+                i.Eleve.Id,
+                i.Eleve.Prenom,
+                i.Eleve.Nom,
+                new GroupeDuRattrapage(i.Inscription.GroupeId, groupes[i.Inscription.GroupeId].Nom),
+                seances.Where(s => s.GroupeId == i.Inscription.GroupeId && s.Date >= i.Inscription.DebutLe
+                        && (i.Inscription.ArreteLe == null || s.Date <= i.Inscription.ArreteLe) && !rattrapees[i.Inscription.Id].Contains(s.Id))
+                    .Select(s => new SeanceARattraper(s.Id, s.Date, Heure(s.Debut), Heure(s.Fin)))
+                    .ToList()))
+            .ToList();
+    }
+
+    /// <summary>SEA-12 : l'élève vient à cette séance, à la place d'une séance précise de son groupe. Il paie toujours dans son groupe.</summary>
+    public async Task<IssueDeLAppel> AjouterUnRattrapageAsync(Guid seanceId, RattrapageSaisi saisie)
+    {
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM seances WHERE id = {seanceId} AND centre_id = {CentreId} FOR UPDATE");
+        var seance = await contexte.Seances.SingleOrDefaultAsync(s => s.Id == seanceId);
+        if (seance is null)
+            return Refus(StatusCodes.Status404NotFound, SeanceIntrouvable);
+        if (seance.AnnuleeLe is not null)
+            return Refus(StatusCodes.Status409Conflict, SeanceAnnulee);
+        var inscription = saisie.InscriptionId is { } inscriptionId ? await contexte.Inscriptions.SingleOrDefaultAsync(i => i.Id == inscriptionId) : null;
+        if (inscription is null)
+            return Refus(StatusCodes.Status404NotFound, InscriptionIntrouvable);
+        if (inscription.GroupeId == seance.GroupeId)
+            return Refus(StatusCodes.Status400BadRequest, DejaDansCeGroupe);
+        var accueil = await contexte.Groupes.SingleAsync(g => g.Id == seance.GroupeId);
+        var origine = await contexte.Groupes.SingleAsync(g => g.Id == inscription.GroupeId);
+        if (origine.ProfesseurId != accueil.ProfesseurId || origine.MatiereId != accueil.MatiereId || origine.NiveauId != accueil.NiveauId)
+            return Refus(StatusCodes.Status400BadRequest, PasLeMemeGroupe);
+        if (inscription.DebutLe > seance.Date || inscription.ArreteLe < seance.Date)
+            return Refus(StatusCodes.Status400BadRequest, PasInscritCeJourLa);
+        var rattrapee = saisie.SeanceRattrapeeId is { } rattrapeeId
+            ? await contexte.Seances.QuiComptent().SingleOrDefaultAsync(s => s.Id == rattrapeeId && s.GroupeId == inscription.GroupeId)
+            : null;
+        if (rattrapee is null)
+            return Refus(StatusCodes.Status400BadRequest, ChoisirLaSeanceRattrapee);
+        if (await contexte.Rattrapages.AnyAsync(r => r.SeanceId == seance.Id && r.InscriptionId == inscription.Id))
+            return Refus(StatusCodes.Status409Conflict, DejaEnRattrapage);
+        if (await contexte.Rattrapages.AnyAsync(r => r.InscriptionId == inscription.Id && r.SeanceRattrapeeId == rattrapee.Id))
+            return Refus(StatusCodes.Status409Conflict, SeanceDejaRattrapee);
+
+        contexte.Rattrapages.Add(new Rattrapage(seance.Id, inscription.Id, rattrapee.Id));
+        await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return new IssueDeLAppel(await DecrireAsync(seance), StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>SEA-12 : retire un rattrapage ajouté par erreur, avec son absence à cette séance s'il en avait une.</summary>
+    public async Task<IssueDeLAppel> RetirerUnRattrapageAsync(Guid seanceId, Guid rattrapageId)
+    {
+        var rattrapage = await contexte.Rattrapages.SingleOrDefaultAsync(r => r.Id == rattrapageId && r.SeanceId == seanceId);
+        if (rattrapage is null)
+            return Refus(StatusCodes.Status404NotFound, RattrapageIntrouvable);
+        contexte.Absences.RemoveRange(await contexte.Absences.Where(a => a.SeanceId == seanceId && a.InscriptionId == rattrapage.InscriptionId).ToListAsync());
+        contexte.Rattrapages.Remove(rattrapage);
+        await contexte.SaveChangesAsync();
+        return new IssueDeLAppel(await DecrireAsync(await contexte.Seances.SingleAsync(s => s.Id == seanceId)), StatusCodes.Status200OK, null);
     }
 
     /// <summary>SEA-11 : le message à un absent est ouvert ; il est marqué, pour ne pas l'envoyer deux fois.</summary>
@@ -122,8 +232,20 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
     {
         var groupe = await ContexteDuGroupeAsync(seance.GroupeId);
         var attendus = await AttendusAsync(seance);
+        var enRattrapage = await EnRattrapageAsync(seance.Id);
         var absences = await contexte.Absences.Where(a => a.SeanceId == seance.Id).ToDictionaryAsync(a => a.InscriptionId);
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
+        // SEA-12 : dans le groupe d'origine, la séance rattrapée ailleurs montre « rattrapée le 18/01 ».
+        var rattrapeesLe = await contexte.Rattrapages.Where(r => r.SeanceRattrapeeId == seance.Id)
+            .Join(contexte.Seances, r => r.SeanceId, s => s.Id, (r, s) => new { r.InscriptionId, s.Date })
+            .ToDictionaryAsync(r => r.InscriptionId, r => r.Date);
+
+        List<MessageWhatsApp> Messages(Eleve eleve, Absence? absence) => absence is null
+            ? []
+            : DestinatairesDeLEleve.De(eleve)
+                .Select(d => new MessageWhatsApp(d.Nom, TelephoneTunisien.Grouper(d.Chiffres),
+                    WhatsApp.Lien(d.Chiffres, TexteDeLAbsence(eleve, groupe.Matiere, seance, centre))))
+                .ToList();
 
         return new AppelDeLaSeance(
             seance.Id,
@@ -137,18 +259,31 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
             attendus.Select(a =>
             {
                 var absence = absences.GetValueOrDefault(a.Inscription.Id);
-                var messages = absence is null
-                    ? []
-                    : DestinatairesDeLEleve.De(a.Eleve)
-                        .Select(d => new MessageWhatsApp(d.Nom, TelephoneTunisien.Grouper(d.Chiffres),
-                            WhatsApp.Lien(d.Chiffres, TexteDeLAbsence(a.Eleve, groupe.Matiere, seance, centre))))
-                        .ToList();
-                return new EleveALAppel(a.Inscription.Id, a.Eleve.Id, a.Eleve.Prenom, a.Eleve.Nom, absence is not null, absence?.PrevenuLe, messages);
+                return new EleveALAppel(a.Inscription.Id, a.Eleve.Id, a.Eleve.Prenom, a.Eleve.Nom, absence is not null, absence?.PrevenuLe,
+                    Messages(a.Eleve, absence), rattrapeesLe.TryGetValue(a.Inscription.Id, out var le) ? le : null);
             }).ToList(),
             seance.AnnuleeLe is not null,
             seance.MotifDAnnulation,
-            seance.Nature.ToString());
+            seance.Nature.ToString(),
+            enRattrapage.Select(r =>
+            {
+                var absence = absences.GetValueOrDefault(r.Attendu.Inscription.Id);
+                return new EleveEnRattrapage(r.Rattrapage.Id, r.Attendu.Inscription.Id, r.Attendu.Eleve.Id, r.Attendu.Eleve.Prenom, r.Attendu.Eleve.Nom,
+                    r.GroupeDOrigine, r.SeanceRattrapee, absence is not null, absence?.PrevenuLe, Messages(r.Attendu.Eleve, absence));
+            }).ToList());
     }
+
+    /// <summary>SEA-12 : les élèves en rattrapage à cette séance, par nom puis prénom, avec leur groupe et la séance rattrapée.</summary>
+    private async Task<List<EnRattrapage>> EnRattrapageAsync(Guid seanceId) =>
+        (await contexte.Rattrapages.Where(r => r.SeanceId == seanceId)
+            .Join(contexte.Inscriptions, r => r.InscriptionId, i => i.Id, (r, i) => new { Rattrapage = r, Inscription = i })
+            .Join(contexte.Eleves, x => x.Inscription.EleveId, e => e.Id, (x, e) => new { x.Rattrapage, x.Inscription, Eleve = e })
+            .Join(contexte.Groupes, x => x.Inscription.GroupeId, g => g.Id, (x, g) => new { x.Rattrapage, x.Inscription, x.Eleve, Groupe = g.Nom })
+            .Join(contexte.Seances, x => x.Rattrapage.SeanceRattrapeeId, s => s.Id, (x, s) => new { x.Rattrapage, x.Inscription, x.Eleve, x.Groupe, s.Date })
+            .ToListAsync())
+        .Select(x => new EnRattrapage(x.Rattrapage, new Attendu(x.Inscription, x.Eleve), x.Groupe, x.Date))
+        .OrderBy(x => x.Attendu.Eleve.Nom).ThenBy(x => x.Attendu.Eleve.Prenom).ThenBy(x => x.Rattrapage.Id)
+        .ToList();
 
     /// <summary>
     /// « Bonjour, Adem Miled était absent à la séance de mathématiques du samedi 15/01/2028, de 10h à 12h. Centre Les
@@ -185,6 +320,8 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
     private static IssueDeLAppel Refus(int statut, string message) => new(null, statut, message);
 
     private sealed record Attendu(Inscription Inscription, Eleve Eleve);
+
+    private sealed record EnRattrapage(Rattrapage Rattrapage, Attendu Attendu, string GroupeDOrigine, DateOnly SeanceRattrapee);
 
     private sealed record ContexteDuGroupe(string Nom, string Type, string Matiere, string Professeur);
 }

@@ -17,6 +17,24 @@ public static class SeancesEndpoints
         seances.MapPut("/{id:guid}/appel", EnregistrerAsync);
         seances.MapPost("/{id:guid}/absences/{inscription:guid}/prevenu", PrevenirAsync);
 
+        // SEA-12 : le rattrapage.
+        seances.MapGet("/{id:guid}/rattrapages/possibles", async Task<Results<Ok<List<EleveRattrapable>>, JsonHttpResult<Avis>>> (Guid id, AppelsDuCentre appels) =>
+            await appels.RattrapablesAsync(id) is { } possibles
+                ? TypedResults.Ok(possibles)
+                : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, AppelsDuCentre.SeanceIntrouvable));
+        seances.MapPost("/{id:guid}/rattrapages", async (Guid id, RattrapageSaisi saisie, AppelsDuCentre appels) =>
+            RepondreAvecLAppel(await appels.AjouterUnRattrapageAsync(id, saisie)));
+        seances.MapDelete("/{id:guid}/rattrapages/{rattrapage:guid}", async (Guid id, Guid rattrapage, AppelsDuCentre appels) =>
+            RepondreAvecLAppel(await appels.RetirerUnRattrapageAsync(id, rattrapage)));
+
+        // SEA-08 : la feuille d'appel d'un groupe, pour une période.
+        api.MapGet("/groupes/{id:guid}/feuille-d-appel", async Task<Results<Ok<FeuilleDAppel>, JsonHttpResult<Avis>>> (
+            Guid id, DateOnly? du, DateOnly? au, FeuillesDAppel feuilles) =>
+        {
+            var issue = await feuilles.LireAsync(id, du, au);
+            return issue.Feuille is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Feuille);
+        });
+
         // SEA-03 à SEA-06 : changer le calendrier d'un groupe.
         seances.MapPost("/{id:guid}/annulation", async (Guid id, AnnulationSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
             CalendrierDesSeances calendrier) => Repondre(await calendrier.AnnulerAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
@@ -30,6 +48,9 @@ public static class SeancesEndpoints
             Repondre(await calendrier.ChangerLHoraireAsync(id, saisie)));
         return api;
     }
+
+    private static Results<Ok<AppelDeLaSeance>, JsonHttpResult<Avis>> RepondreAvecLAppel(IssueDeLAppel issue) =>
+        issue.Appel is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Appel);
 
     private static Results<Ok<ChangementDuCalendrier>, JsonHttpResult<Avis>> Repondre(IssueDuCalendrier issue) =>
         issue.Changement is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Changement);
@@ -80,6 +101,23 @@ public sealed record EleveALAppel(
     string Nom,
     bool Absent,
     DateTimeOffset? PrevenuLe,
+    List<MessageWhatsApp> Messages,
+    DateOnly? RattrapeeLe = null);
+
+/// <summary>
+/// SEA-12 : un élève en rattrapage à l'appel, à part : son groupe d'origine (il y paie), la séance qu'il rattrape, et son
+/// absence avec ses messages, comme les autres.
+/// </summary>
+public sealed record EleveEnRattrapage(
+    Guid RattrapageId,
+    Guid InscriptionId,
+    Guid EleveId,
+    string Prenom,
+    string Nom,
+    string GroupeDOrigine,
+    DateOnly SeanceRattrapee,
+    bool Absent,
+    DateTimeOffset? PrevenuLe,
     List<MessageWhatsApp> Messages);
 
 /// <summary>
@@ -98,7 +136,36 @@ public sealed record AppelDeLaSeance(
     List<EleveALAppel> Eleves,
     bool Annulee = false,
     string? MotifDAnnulation = null,
-    string Nature = "Prevue");
+    string Nature = "Prevue",
+    List<EleveEnRattrapage>? Rattrapages = null);
+
+/// <summary>SEA-12 : l'élève (son inscription dans son groupe) et la séance de son groupe qu'il rattrape.</summary>
+public sealed record RattrapageSaisi(Guid? InscriptionId, Guid? SeanceRattrapeeId);
+
+public sealed record GroupeDuRattrapage(Guid Id, string Nom);
+
+/// <summary>Une séance de son groupe qu'un élève peut rattraper.</summary>
+public sealed record SeanceARattraper(Guid Id, DateOnly Date, string Debut, string Fin);
+
+/// <summary>SEA-12 : un élève qui peut venir en rattrapage, son groupe, et les séances qu'il peut rattraper.</summary>
+public sealed record EleveRattrapable(Guid InscriptionId, Guid EleveId, string Prenom, string Nom, GroupeDuRattrapage Groupe, List<SeanceARattraper> Seances);
+
+/// <summary>SEA-08 : une colonne de la feuille d'appel : la date et l'heure « HH:mm » d'une séance.</summary>
+public sealed record SeanceDeLaFeuille(DateOnly Date, string Debut);
+
+/// <summary>SEA-08 : une ligne de la feuille d'appel. Ni téléphone, ni paiement.</summary>
+public sealed record EleveDeLaFeuille(string Nom, string Prenom);
+
+/// <summary>SEA-08 : la feuille d'appel d'un groupe pour une période : son en-tête, ses séances et ses élèves.</summary>
+public sealed record FeuilleDAppel(
+    string Centre,
+    string? Annee,
+    string Groupe,
+    string Matiere,
+    string? Niveau,
+    string Professeur,
+    List<SeanceDeLaFeuille> Seances,
+    List<EleveDeLaFeuille> Eleves);
 
 /// <summary>SEA-03 : le motif d'une annulation, « professeur absent ».</summary>
 public sealed record AnnulationSaisie(string? Motif);

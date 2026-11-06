@@ -52,6 +52,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
 
     public DbSet<Absence> Absences => Set<Absence>();
 
+    public DbSet<Rattrapage> Rattrapages => Set<Rattrapage>();
+
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;
 
