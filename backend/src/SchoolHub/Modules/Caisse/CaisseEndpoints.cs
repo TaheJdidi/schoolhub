@@ -24,6 +24,19 @@ public static class CaisseEndpoints
                 : TypedResults.Created($"/api/recus/{issue.Recu.Id}", issue.Recu);
         });
 
+        // CAI-08 : le rappel de paiement, et les élèves en rouge.
+        api.MapGet("/eleves/en-rouge", (RappelsDePaiement rappels) => rappels.EnRougeAsync());
+        api.MapGet("/eleves/{id:guid}/rappel", async Task<Results<Ok<RappelDePaiement>, JsonHttpResult<Avis>>> (Guid id, RappelsDePaiement rappels) =>
+        {
+            var issue = await rappels.LireAsync(id);
+            return issue.Rappel is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Rappel);
+        });
+        api.MapPost("/eleves/{id:guid}/rappel/envoye", async Task<Results<NoContent, JsonHttpResult<Avis>>> (Guid id, RappelsDePaiement rappels) =>
+        {
+            var issue = await rappels.NoterAsync(id);
+            return issue.Message is null ? TypedResults.NoContent() : ConnexionEndpoints.Refus(issue.Statut, issue.Message);
+        });
+
         var groupe = api.MapGroup("/recus");
         groupe.MapGet("", (DateOnly? jour, int? numero, string? eleve, RecusDuCentre recus) => recus.ListerAsync(jour, numero, eleve));
         groupe.MapGet("/{id:guid}", async Task<Results<Ok<RecuDecrit>, JsonHttpResult<Avis>>> (

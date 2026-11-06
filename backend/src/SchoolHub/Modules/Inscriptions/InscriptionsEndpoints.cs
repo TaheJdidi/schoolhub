@@ -176,7 +176,8 @@ public sealed record InscriptionDeLEleve(
     List<SommePayable> PayablesAvantSchoolHub,
     bool PeutRegrouperLeReste,
     DateOnly? ArreteLe,
-    decimal Report);
+    decimal Report,
+    string? Couleur = null);
 
 /// <summary>Une somme due à la première séance de l'élève : « Mois 3 (3 séances) », 30,000 TND.</summary>
 public sealed record SommeALArrivee(string Libelle, decimal Montant);
@@ -207,7 +208,8 @@ public sealed record AssuranceDeLEleve(string Annee, decimal Montant, DateOnly? 
 public sealed record LigneAPayer(Guid? InscriptionId, string Groupe, string Libelle, string Cle, decimal Montant, DateOnly DueLe);
 
 /// <summary>ELV-04 : ce que l'élève doit à ce jour, et le total.</summary>
-public sealed record APayer(List<LigneAPayer> Lignes, decimal Total);
+/// <summary>CAI-01 et CAI-08 : sa couleur (« AJour », « APayer », « Orange », « Rouge »), et la date de son dernier rappel de paiement.</summary>
+public sealed record APayer(List<LigneAPayer> Lignes, decimal Total, string Couleur = "AJour", DateTimeOffset? DernierRappelLe = null);
 
 /// <summary>Ce que le propriétaire envoie pour accorder un prix spécial : le montant (0 : gratuit) et la raison.</summary>
 public sealed record PrixSpecialSaisi(decimal? Montant, string? Raison);

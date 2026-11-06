@@ -5,7 +5,7 @@ Conception établie le 06/11/2026 pour Lassad et Taha. Elle ouvre l'épopée [Ca
 ## Le découpage de l'épopée
 
 1. **Encaisser et le reçu** (cette spec) : CAI-03 encaisser depuis la fiche, CAI-05 remettre le reçu, CAI-06 retrouver un reçu, CAI-07 annuler.
-2. **Couleurs, badge et relance** : CAI-01 la couleur d'un élève, CAI-02 le badge « groupe payé », CAI-08 relancer.
+2. **Couleurs, badge et rappel de paiement** : CAI-01 la couleur d'un élève, CAI-02 le badge « groupe payé », CAI-08 envoyer un rappel de paiement.
 3. **Encaissement groupé** : CAI-04.
 4. **La caisse du soir** : CAI-09 clôturer sa caisse, CAI-10 le contrôle des clôtures. La clôture ajoutera son refus à l'annulation d'un reçu (« Votre caisse est clôturée »).
 

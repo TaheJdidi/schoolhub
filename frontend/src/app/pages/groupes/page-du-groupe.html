@@ -11,6 +11,7 @@
         } @else if (fiche.termine) {
           <span class="pill muted">Terminé</span>
         }
+        <sh-badge-du-groupe [badge]="fiche.badge" />
       </h1>
       <p class="sub">{{ sousTitre() }}</p>
     </div>
@@ -92,13 +93,20 @@
       </div>
       @for (inscription of inscriptions(); track inscription.id) {
         <div class="eleve-inscrit">
-          <a [routerLink]="['/eleves', inscription.eleve.id]">{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</a>
+          <span class="nom-et-couleur">
+            <a [routerLink]="['/eleves', inscription.eleve.id]">{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</a>
+            <sh-pastille-de-couleur [couleur]="inscription.couleur" />
+          </span>
           <small>
             {{ modeCourt(inscription) }}@if (inscription.premiereSeance; as premiere) { · depuis le {{ date(premiere.date) }}}@if (
               inscription.arreteLe;
               as arreteLe
             ) { · inscription arrêtée le {{ date(arreteLe) }}}
           </small>
+          <!-- CAI-08 : un élève orange ou rouge reçoit un rappel de paiement. -->
+          @if (enRetard(inscription.couleur)) {
+            <sh-bouton-de-rappel [eleveId]="inscription.eleve.id" />
+          }
         </div>
       } @empty {
         <p class="aide">Aucun élève pour l'instant.</p>

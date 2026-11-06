@@ -14,6 +14,7 @@
     <section class="card carte a-payer">
       <h2 class="titre">À payer</h2>
       @if (aPayer(); as aPayer) {
+        <sh-pastille-de-couleur [couleur]="aPayer.couleur" />
         @for (ligne of aPayer.lignes; track $index) {
           <div class="ligne-a-payer">
             <span class="deux">
@@ -27,6 +28,12 @@
         }
         @if (aPayer.lignes.length > 0) {
           <p class="total">Total <b>{{ montant(aPayer.total) }} TND</b></p>
+        }
+        <!-- CAI-08 : un élève orange ou rouge reçoit un rappel de paiement. -->
+        @if (enRetard(aPayer.couleur)) {
+          <sh-bouton-de-rappel [eleveId]="fiche.id" [dernierRappelLe]="aPayer.dernierRappelLe" />
+        } @else if (aPayer.dernierRappelLe) {
+          <small class="aide">{{ rappelEnvoyeLe(aPayer.dernierRappelLe) }}</small>
         }
         <!-- CAI-03 : encaisser ce qui est dû, ou payer d'avance. -->
         <div class="actions">

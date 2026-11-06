@@ -57,7 +57,7 @@ Chaque action ci-dessous écrit une ligne au journal : **qui, quoi, quand**, ave
 ## Messages
 
 - **WhatsApp** : la plateforme prépare un lien `wa.me` avec le texte déjà écrit ; la secrétaire l'ouvre et l'envoie depuis le WhatsApp du centre. Rien ne part tout seul.
-- **Les destinataires** d'un message sur un élève dépendent de son âge. La règle vaut pour tous les messages (séance annulée, déplacée ou ajoutée, changement d'horaire, absence, relance, reçu, confirmation d'inscription), par WhatsApp comme par email :
+- **Les destinataires** d'un message sur un élève dépendent de son âge. La règle vaut pour tous les messages (séance annulée, déplacée ou ajoutée, changement d'horaire, absence, rappel de paiement, reçu, confirmation d'inscription), par WhatsApp comme par email :
 
   | Élève | Destinataires | Exemple |
   |---|---|---|

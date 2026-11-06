@@ -10,10 +10,12 @@ import { EleveTrouve, nombreDEleves } from './eleve';
  * ELV-01 et ELV-02 : la page « Élèves ». La liste se charge une fois ; « Filtrer la liste » utilise la même recherche
  * que l'en-tête, sur le serveur, après une courte pause. Un filtre vide remet toute la liste.
  */
+import { PastilleDeCouleur } from '../caisse/paiement';
+
 @Component({
   selector: 'sh-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, PastilleDeCouleur],
   template: `
     <div class="pagehead">
       <div>
@@ -32,7 +34,7 @@ import { EleveTrouve, nombreDEleves } from './eleve';
         @for (eleve of visibles(); track eleve.id) {
           <a class="ligne-eleve" [routerLink]="['/eleves', eleve.id]">
             <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-            <small>{{ eleve.niveau }}</small>
+            <small>{{ eleve.niveau }} <sh-pastille-de-couleur [couleur]="eleve.couleur" /></small>
           </a>
         } @empty {
           @if (erreur(); as erreur) {

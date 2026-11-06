@@ -299,6 +299,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
 
+                    b.Property<DateTimeOffset?>("DernierRappelLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dernier_rappel_le");
+
                     b.Property<string>("EmailEleve")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")

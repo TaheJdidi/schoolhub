@@ -9,15 +9,17 @@ import { NombreDeDemandes } from '../../socle/nombre-de-demandes';
 import { Session } from '../../socle/session/session';
 import { heure } from '../groupes/groupe';
 import { AppelARecopier } from '../seances/appel';
+import { BoutonDeRappel, EleveEnRouge } from '../caisse/paiement';
+import { ecrireUnMontant } from '../../socle/montants';
 
 /**
- * L'accueil, avec le nombre de demandes d'inscription à traiter (DEM-03) et les appels à recopier (SEA-09). Les séances
- * du jour, la caisse et la bibliothèque viendront avec SEA-01.
+ * L'accueil, avec le nombre de demandes d'inscription à traiter (DEM-03), les appels à recopier (SEA-09) et les élèves
+ * en rouge (CAI-08). Les séances du jour, la caisse et la bibliothèque viendront avec SEA-01.
  */
 @Component({
   selector: 'sh-aujourdhui',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, BoutonDeRappel],
   template: `
     <div class="pagehead">
       <div>
@@ -47,6 +49,21 @@ import { AppelARecopier } from '../seances/appel';
           }
         </section>
       }
+      <!-- CAI-08 : les élèves en rouge, avec ce qu'ils doivent, et leur rappel de paiement. -->
+      @if (enRouge().length > 0) {
+        <section class="card recopier" aria-labelledby="titre-en-rouge">
+          <h2 id="titre-en-rouge" class="titre">Élèves en rouge · {{ enRouge().length }}</h2>
+          @for (eleve of enRouge(); track eleve.id) {
+            <div class="ligne en-rouge">
+              <span class="deux">
+                <a [routerLink]="['/eleves', eleve.id]"><b>{{ eleve.prenom }} {{ eleve.nom }}</b></a>
+                <small>{{ eleve.dues.join(', ') }} · {{ montant(eleve.total) }} TND</small>
+              </span>
+              <sh-bouton-de-rappel [eleveId]="eleve.id" [dernierRappelLe]="eleve.dernierRappelLe" />
+            </div>
+          }
+        </section>
+      }
       @if (erreur(); as erreur) {
         <p class="note bad" role="alert">{{ erreur }}</p>
       }
@@ -65,6 +82,8 @@ import { AppelARecopier } from '../seances/appel';
     .deux b { font-weight: 500; overflow-wrap: anywhere; }
     .deux small { color: var(--ink-2); font-size: 12.5px; }
     .note { margin: 0; }
+    .en-rouge { align-items: flex-start; flex-wrap: wrap; }
+    .en-rouge a { color: var(--ink); text-decoration: none; }
   `,
 })
 export class Aujourdhui implements OnInit {
@@ -74,11 +93,21 @@ export class Aujourdhui implements OnInit {
   protected readonly demandes = inject(NombreDeDemandes).aTraiter;
   protected readonly heure = heure;
   protected readonly aRecopier = signal<AppelARecopier[]>([]);
+  protected readonly enRouge = signal<EleveEnRouge[]>([]);
+  protected readonly montant = ecrireUnMontant;
   protected readonly erreur = signal<string | null>(null);
 
+  /** Chaque liste s'affiche dès qu'elle arrive : l'une n'attend pas l'autre. */
   async ngOnInit(): Promise<void> {
+    await Promise.all([
+      this.charger('/api/seances/a-recopier', (liste: AppelARecopier[]) => this.aRecopier.set(liste)),
+      this.charger('/api/eleves/en-rouge', (liste: EleveEnRouge[]) => this.enRouge.set(liste)),
+    ]);
+  }
+
+  private async charger<T>(adresse: string, montrer: (liste: T[]) => void): Promise<void> {
     try {
-      this.aRecopier.set(await firstValueFrom(this.http.get<AppelARecopier[]>('/api/seances/a-recopier')));
+      montrer(await firstValueFrom(this.http.get<T[]>(adresse)));
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }

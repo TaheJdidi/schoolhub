@@ -29,6 +29,8 @@ export interface InscriptionDeLEleve {
   arreteLe: string | null;
   /** ELV-09 : la valeur des séances payées et pas suivies dans l'ancien groupe, déduite ici. */
   report: number;
+  /** CAI-01 : « AJour », « APayer », « Orange » ou « Rouge » ; vide pour un prix spécial à 0 TND. */
+  couleur?: string | null;
 }
 
 /** Une somme due à la première séance de l'élève. */
@@ -91,6 +93,10 @@ export interface LigneAPayer {
 export interface APayer {
   lignes: LigneAPayer[];
   total: number;
+  /** CAI-01 : la pire couleur de l'élève. */
+  couleur?: string;
+  /** CAI-08 : la date de son dernier rappel de paiement. */
+  dernierRappelLe?: string | null;
 }
 
 /** Le texte de la capacité atteinte, sur la page comme dans la réponse du serveur. */

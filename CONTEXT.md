@@ -150,9 +150,9 @@ _Avoid_ : versement, règlement
 Somme qu'un élève devait payer et n'a pas encore payée. Elle reste une perte pour le centre seul : le professeur reçoit sa part quand même.
 _Avoid_ : dette, retard
 
-**Relance** :
-Message WhatsApp préparé par la plateforme pour un élève en orange ou en rouge, et pour son parent s'il est mineur, avec ce qu'il doit. La date de la dernière relance reste visible, pour ne pas relancer deux fois.
-_Avoid_ : rappel, réclamation
+**Rappel de paiement** :
+Message WhatsApp préparé par la plateforme pour un élève en orange ou en rouge, et pour son parent s'il est mineur, avec ce qu'il doit. La date du dernier rappel reste visible, pour ne pas l'envoyer deux fois.
+_Avoid_ : relance, réclamation
 
 **Présence** :
 Statut d'un élève à une séance : présent ou absent.

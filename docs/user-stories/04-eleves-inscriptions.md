@@ -58,7 +58,7 @@ En tant que secrétaire, je veux voir sur une seule page tout ce qui concerne un
 - L'assurance de l'année : payée, à payer, dispensée, déjà payée avant SchoolHub, ou sans objet (aucune Étude).
 - Ses présences par groupe, depuis le début : P présent, A absent, ? appel à faire, et ses rattrapages.
 - Ses reçus : numéro, date, montant, et la mention « annulé » s'il y a lieu.
-- Ses contacts, et la date de la dernière relance (CAI-08).
+- Ses contacts, et la date du dernier rappel de paiement (CAI-08).
 - Un élève sans inscription montre « Aucune inscription : cet élève vient seulement à la bibliothèque », avec ses entrées.
 
 Maquette : fiche élève.

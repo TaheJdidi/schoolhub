@@ -149,6 +149,7 @@
                 <b>{{ groupe.nom }}</b>
                 <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
                 <small>{{ eleves(groupe) }}</small>
+                <sh-badge-du-groupe [badge]="groupe.badge" />
               </a>
             } @empty {
               <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>

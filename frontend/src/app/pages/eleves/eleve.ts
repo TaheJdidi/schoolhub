@@ -26,6 +26,8 @@ export interface EleveTrouve {
   prenom: string;
   nom: string;
   niveau: string;
+  /** CAI-01 : sa couleur, la pire de ses inscriptions. */
+  couleur?: string | null;
 }
 
 /** Le rang du premier niveau d'office où l'élève a son propre téléphone et son email. */

@@ -55,6 +55,11 @@ public sealed class Eleve : IAppartientAuCentre
     /// <summary>« hedi ben salah » : le prénom et le nom sans accents, en minuscules, pour la recherche (ELV-01).</summary>
     public string NomDeRecherche { get; private set; }
 
+    /// <summary>CAI-08 : le moment où le dernier rappel de paiement a été ouvert, pour ne pas l'envoyer deux fois.</summary>
+    public DateTimeOffset? DernierRappelLe { get; private set; }
+
+    internal void NoterUnRappel(DateTimeOffset maintenant) => DernierRappelLe = maintenant;
+
     /// <summary>La nouvelle fiche, déjà vérifiée.</summary>
     [MemberNotNull(nameof(Prenom), nameof(Nom), nameof(NomDeRecherche))]
     public void Modifier(Coordonnees coordonnees)

@@ -15,7 +15,12 @@ public static class GroupesEndpoints
             (await groupes.MatieresAsync()).Select(m => new MatiereDuCentre(m.Id, m.Nom)).ToList());
 
         var groupe = api.MapGroup("/groupes");
-        groupe.MapGet("", async (GroupesDuCentre groupes) => await groupes.ListerAsync());
+        // CAI-02 : chaque groupe avec son badge « groupe payé », ses rappels à envoyer ou ses élèves à payer.
+        groupe.MapGet("", async (GroupesDuCentre groupes, SchoolHub.Modules.Inscriptions.InscriptionsDuCentre inscriptions) =>
+        {
+            var badges = await inscriptions.BadgesAsync();
+            return (await groupes.ListerAsync()).Select(g => g with { Badge = badges.GetValueOrDefault(g.Id) }).ToList();
+        });
         groupe.MapPost("", CreerAsync);
         groupe.MapGet("/{id:guid}", LireAsync);
         groupe.MapPut("/{id:guid}", ModifierAsync);
@@ -59,11 +64,12 @@ public static class GroupesEndpoints
             : TypedResults.Created($"/api/groupes/{issue.Fiche.Id}", issue.Fiche);
     }
 
-    private static async Task<Results<Ok<FicheDuGroupe>, JsonHttpResult<Avis>>> LireAsync(Guid id, GroupesDuCentre groupes)
+    private static async Task<Results<Ok<FicheDuGroupe>, JsonHttpResult<Avis>>> LireAsync(Guid id, GroupesDuCentre groupes,
+        SchoolHub.Modules.Inscriptions.InscriptionsDuCentre inscriptions)
     {
         var fiche = await groupes.LireAsync(id);
         if (fiche is not null)
-            return TypedResults.Ok(fiche);
+            return TypedResults.Ok(fiche with { Badge = (await inscriptions.BadgesAsync([id])).GetValueOrDefault(id) });
 
         var refus = GroupesDuCentre.GroupeIntrouvable;
         return ConnexionEndpoints.Refus(refus.Statut, refus.Message!);
@@ -124,7 +130,8 @@ public sealed record ResumeDuGroupe(
     int? Capacite,
     int Eleves,
     bool Termine,
-    bool Ferme);
+    bool Ferme,
+    SchoolHub.Modules.Inscriptions.BadgeDuGroupe? Badge = null);
 
 /// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm », quelle que soit la langue du serveur.</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)
@@ -210,4 +217,5 @@ public sealed record FicheDuGroupe(
     List<TrancheDuGroupe> Tranches,
     DateOnly? FermeLe,
     string? MotifDeFermeture,
-    List<SeanceHorsCompte>? HorsCompte = null);
+    List<SeanceHorsCompte>? HorsCompte = null,
+    SchoolHub.Modules.Inscriptions.BadgeDuGroupe? Badge = null);

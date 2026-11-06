@@ -24,10 +24,12 @@ const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
  * Le formulaire d'ajout ou de modification remplace la fiche ; un téléphone déjà pris donne un avertissement orange.
  * Une seule action à la fois : pendant un envoi, les boutons sont bloqués.
  */
+import { BadgeDuGroupeComponent } from '../caisse/paiement';
+
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })

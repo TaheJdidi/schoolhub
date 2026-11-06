@@ -10,7 +10,13 @@ public static class ElevesEndpoints
     public static IEndpointRouteBuilder MapEleves(this IEndpointRouteBuilder api)
     {
         var groupe = api.MapGroup("/eleves");
-        groupe.MapGet("", (string? recherche, ElevesDuCentre eleves) => eleves.ListerAsync(recherche));
+        // CAI-01 : chaque élève avec sa couleur, la pire de ses inscriptions.
+        groupe.MapGet("", async (string? recherche, ElevesDuCentre eleves, SchoolHub.Modules.Inscriptions.InscriptionsDuCentre inscriptions) =>
+        {
+            var trouves = await eleves.ListerAsync(recherche);
+            var situations = await inscriptions.SituationsAsync(trouves.Select(e => e.Id).ToList());
+            return trouves.Select(e => e with { Couleur = situations[e.Id].Couleur.ToString() }).ToList();
+        });
         groupe.MapPost("", AjouterAsync);
         groupe.MapGet("/{id:guid}", LireAsync);
         groupe.MapPut("/{id:guid}", ModifierAsync);
@@ -101,4 +107,4 @@ public sealed record FicheDeLEleve(
 public sealed record EnregistrementDeLEleve(FicheDeLEleve Eleve, string? Avertissement);
 
 /// <summary>Un élève dans la liste ou la recherche : son nom et le nom de son niveau.</summary>
-public sealed record EleveTrouve(Guid Id, string Prenom, string Nom, string Niveau);
+public sealed record EleveTrouve(Guid Id, string Prenom, string Nom, string Niveau, string? Couleur = null);

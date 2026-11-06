@@ -41,6 +41,8 @@ export interface ResumeDuGroupe {
   termine: boolean;
   /** Un groupe fermé (GRP-08) va aussi dans « Anciens groupes ». */
   ferme: boolean;
+  /** CAI-02 : « Groupe payé », les rappels à envoyer ou les élèves à payer. */
+  badge?: { etat: 'Paye' | 'Rappels' | 'APayer'; nombre: number } | null;
 }
 
 export interface SeanceDuGroupe {
@@ -117,6 +119,8 @@ export interface FicheDuGroupe {
   motifDeFermeture: string | null;
   /** SEA-02 : les séances annulées et supplémentaires, qui ne comptent pas. */
   horsCompte?: SeanceHorsCompte[];
+  /** CAI-02 : « Groupe payé », les rappels à envoyer ou les élèves à payer. */
+  badge?: { etat: 'Paye' | 'Rappels' | 'APayer'; nombre: number } | null;
 }
 
 /** SEA-02 : une séance annulée (avec son motif et la date de son remplacement) ou supplémentaire. */

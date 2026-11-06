@@ -10,6 +10,7 @@ import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
 import { CarteDuCalendrier } from '../seances/carte-du-calendrier';
+import { BadgeDuGroupeComponent, BoutonDeRappel, enRetard, PastilleDeCouleur } from '../caisse/paiement';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
@@ -48,7 +49,7 @@ const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier],
+  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -63,6 +64,7 @@ export class PageDuGroupe implements OnInit {
   protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
   protected readonly heure = heure;
   protected readonly montant = ecrireUnMontant;
+  protected readonly enRetard = enRetard;
 
   protected readonly fiche = signal<FicheDuGroupe | null>(null);
   protected readonly introuvable = signal(false);

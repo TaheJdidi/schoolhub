@@ -16,7 +16,7 @@ namespace SchoolHub.Modules.Inscriptions;
 /// groupe d'un autre centre est « introuvable ». L'inscription dit ce que l'élève paiera à sa première séance, prévient
 /// d'un groupe complet sans bloquer, et prépare le message WhatsApp de confirmation.
 /// </summary>
-public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvider temps, CentreCourant centreCourant, JournalDuCentre journal)
+public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvider temps, CentreCourant centreCourant, JournalDuCentre journal)
 {
     /// <summary>La taille de la colonne d'une raison : prix spécial, dispense.</summary>
     public const int LongueurMaximaleDUneRaison = 200;
@@ -371,7 +371,9 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer, DueLe: { } dueLe } assurance } && dueLe <= aujourdhui
             && assurance.Montant > 0)
             lignes.Add(new LigneAPayer(null, "Assurance", $"Assurance {assurance.Annee}", Reglement.CleDeLAssurance, assurance.Montant, dueLe));
-        return new APayer(lignes, lignes.Sum(l => l.Montant));
+        var situation = (await SituationsAsync([eleveId]))[eleveId];
+        var dernierRappel = await contexte.Eleves.Where(e => e.Id == eleveId).Select(e => e.DernierRappelLe).SingleAsync();
+        return new APayer(lignes, lignes.Sum(l => l.Montant), situation.Couleur.ToString(), dernierRappel);
     }
 
     /// <summary>
@@ -833,7 +835,8 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 e.Sommes.Where(s => PayableAvantSchoolHub(e, s)).Select(s => new SommePayable(s.Cle, s.Libelle, s.Montant)).ToList(),
                 ATrancheAVenir(e, aujourdhui),
                 i.ArreteLe,
-                e.Conditions.Report);
+                e.Conditions.Report,
+                CouleurDe(e, aujourdhui)?.ToString());
         }).ToList();
     }
 

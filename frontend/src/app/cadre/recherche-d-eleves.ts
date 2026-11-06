@@ -5,6 +5,7 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../socle/erreurs';
 import { Icone } from '../socle/icone';
+import { PastilleDeCouleur } from '../pages/caisse/paiement';
 
 /** La pause après la frappe avant de chercher, en millisecondes : une requête par mot tapé, pas par lettre. */
 export const DELAI_DE_RECHERCHE = new InjectionToken<number>('DELAI_DE_RECHERCHE', { factory: () => 250 });
@@ -15,6 +16,8 @@ interface EleveTrouve {
   prenom: string;
   nom: string;
   niveau: string;
+  /** CAI-01 : sa couleur. */
+  couleur?: string | null;
 }
 
 const CARACTERES_AU_MOINS = 2;
@@ -29,7 +32,7 @@ const RESULTATS_AU_PLUS = 8;
 @Component({
   selector: 'sh-recherche-d-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icone],
+  imports: [RouterLink, Icone, PastilleDeCouleur],
   host: { '(document:pointerdown)': 'toucher($event)' },
   template: `
     <div class="recherche" (keydown.escape)="fermer()">
@@ -47,7 +50,7 @@ const RESULTATS_AU_PLUS = 8;
           @for (eleve of resultats(); track eleve.id) {
             <a class="resultat" [routerLink]="['/eleves', eleve.id]" (click)="choisir()">
               <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-              <small>{{ eleve.niveau }}</small>
+              <small>{{ eleve.niveau }} <sh-pastille-de-couleur [couleur]="eleve.couleur" /></small>
             </a>
           } @empty {
             <p class="vide">{{ erreur() ?? 'Aucun élève trouvé' }}</p>

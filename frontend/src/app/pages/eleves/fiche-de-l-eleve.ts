@@ -30,14 +30,20 @@ type Action =
  * aucune inscription. L'avertissement « Doublon possible » d'une création arrive par l'état de la navigation. La page suit
  * l'adresse : la recherche de l'en-tête mène d'une fiche à une autre sans recréer la page.
  */
+import { BoutonDeRappel, enRetard, PastilleDeCouleur, rappelEnvoyeLe } from '../caisse/paiement';
+
 @Component({
   selector: 'sh-page-de-l-eleve',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormulaireDeLEleve, RouterLink],
+  imports: [FormulaireDeLEleve, RouterLink, PastilleDeCouleur, BoutonDeRappel],
   templateUrl: './fiche-de-l-eleve.html',
   styleUrl: './eleves.css',
 })
 export class PageDeLEleve implements OnInit {
+  /** CAI-08 : un élève orange ou rouge reçoit un rappel de paiement ; la date du dernier rappel reste visible. */
+  protected readonly enRetard = enRetard;
+  protected readonly rappelEnvoyeLe = rappelEnvoyeLe;
+
   private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

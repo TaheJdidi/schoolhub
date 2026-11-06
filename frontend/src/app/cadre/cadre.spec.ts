@@ -30,6 +30,7 @@ describe('le cadre', () => {
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
+    http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
     http.verify();
   });
 

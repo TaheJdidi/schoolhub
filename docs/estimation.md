@@ -161,7 +161,7 @@ La date de fin dépend des heures que Taha et Lassad y mettent **ensemble** chaq
 | CAI-05 · Remettre le reçu | 2 | 3 |
 | CAI-06 · Retrouver un reçu | 1 | 1,5 |
 | CAI-07 · Annuler un reçu | 1 | 2 |
-| CAI-08 · Relancer un élève | 0,5 | 1 |
+| CAI-08 · Envoyer un rappel de paiement | 0,5 | 1 |
 | CAI-09 · Clôturer sa caisse | 2 | 3 |
 | CAI-10 · Contrôler les clôtures | 1 | 1,5 |
 | **Total** | **15,5** | **25** |

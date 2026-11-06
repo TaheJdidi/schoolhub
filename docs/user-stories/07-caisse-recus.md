@@ -21,14 +21,14 @@ En tant que secrétaire, je veux voir d'un coup d'œil qui est en retard de paie
 
 Maquette : fiche groupe (pastilles) et fiche élève.
 
-### CAI-02 · Voir le badge « groupe payé » et les élèves à relancer
+### CAI-02 · Voir le badge « groupe payé » et les rappels à envoyer
 
-En tant que secrétaire, je veux savoir si tout un groupe a payé, afin de repérer les groupes à relancer.
+En tant que secrétaire, je veux savoir si tout un groupe a payé, afin de repérer les groupes où envoyer des rappels de paiement.
 
 **Critères d'acceptation**
 
 - Le badge « Groupe payé » s'affiche quand tous les élèves encore inscrits ont payé ce qui est dû à ce jour. Un élève à 0 TND compte comme payé ; un élève en rattrapage ne compte pas.
-- Sinon, le badge dit « 3 à relancer » (élèves orange ou rouges), ou « 2 à payer aujourd'hui ».
+- Sinon, le badge dit « 3 rappels à envoyer » (élèves orange ou rouges), ou « 2 à payer aujourd'hui ».
 - Le badge apparaît sur le cadre du groupe (GRP-02), sur sa fiche et sur l'accueil.
 
 Maquette : Professeurs (cadres des groupes) et fiche groupe.
@@ -108,17 +108,17 @@ En tant que secrétaire, je veux annuler un reçu fait par erreur, afin de corri
 
 Maquette : Reçu → Annuler ce reçu.
 
-### CAI-08 · Relancer un élève
+### CAI-08 · Envoyer un rappel de paiement
 
-En tant que secrétaire, je veux relancer un élève en retard et, s'il est mineur, son parent, sans réécrire le message, afin de récupérer les impayés.
+En tant que secrétaire, je veux envoyer un rappel de paiement à un élève en retard et, s'il est mineur, à son parent, sans réécrire le message, afin de récupérer les impayés.
 
 **Critères d'acceptation**
 
-- « Relancer » apparaît sur chaque élève orange ou rouge : sur sa fiche, dans la liste du groupe et dans « Élèves en rouge » de l'accueil.
-- « Relancer » prépare un message pour chacun de ses [destinataires](00-exigences-communes.md#messages), déjà écrit : « Bonjour, il reste à payer pour Adem Miled : Mois 3 de mathématiques, 40,000 TND. Centre Les Jasmins. »
-- La date de la dernière relance s'affiche, « relancé le 12/10 », pour ne pas relancer deux fois.
+- « Envoyer un rappel » apparaît sur chaque élève orange ou rouge : sur sa fiche, dans la liste du groupe et dans « Élèves en rouge » de l'accueil.
+- « Envoyer un rappel » prépare un message pour chacun de ses [destinataires](00-exigences-communes.md#messages), déjà écrit : « Bonjour, il reste à payer pour Adem Miled : Mois 3 de mathématiques, 40,000 TND. Centre Les Jasmins. »
+- La date du dernier rappel s'affiche, « rappel envoyé le 12/10 », pour ne pas l'envoyer deux fois.
 
-Maquette : fiche groupe (« à relancer ») et Aujourd'hui (« Élèves en rouge »).
+Maquette : fiche groupe (« rappels à envoyer ») et Aujourd'hui (« Élèves en rouge »).
 
 ### CAI-09 · Clôturer sa caisse le soir
 

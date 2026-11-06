@@ -30,6 +30,7 @@ describe("les adresses de l'application", () => {
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
+    http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
     http.verify();
   });
 
@@ -299,6 +300,20 @@ describe("les adresses de l'application", () => {
     expect(texte()).toContain('Mathématiques · Groupe Samedi 10h → 12h');
     expect(texte()).toContain('Karim Ben Salah · sam. 20/11, 10h → 12h');
     expect((harness.fixture.nativeElement as HTMLElement).querySelector('a[href="/professeurs/groupes/g1/appel/s1"]')?.textContent).toContain('Recopier');
+  });
+
+  it("l'accueil montre les élèves en rouge, avec leur rappel de paiement", async () => {
+    await ouvrir('/aujourdhui', AMIRA);
+    http.expectOne('/api/eleves/en-rouge').flush([
+      { id: 'e1', prenom: 'Adem', nom: 'Miled', dues: ['Mois 3 de mathématiques', 'assurance 2027-2028'], total: 60, dernierRappelLe: '2027-10-12T09:00:00+00:00' },
+    ]);
+
+    await vi.waitFor(() => expect(texte()).toContain('Élèves en rouge · 1'));
+    expect(texte()).toContain('Mois 3 de mathématiques, assurance 2027-2028 · 60,000 TND');
+    expect(texte()).toContain('rappel envoyé le 12/10');
+    expect([...(harness.fixture.nativeElement as HTMLElement).querySelectorAll('main button')].map((b) => b.textContent?.trim())).toContain(
+      'Envoyer un rappel',
+    );
   });
 
   it("l'accueil montre les demandes à traiter", async () => {
