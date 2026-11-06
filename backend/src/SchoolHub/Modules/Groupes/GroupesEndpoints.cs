@@ -137,17 +137,19 @@ public sealed record ProfesseurDuGroupe(Guid Id, string Prenom, string Nom);
 
 public sealed record NiveauDuGroupe(Guid Id, string Nom);
 
-public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string Fin)
+/// <summary>Une séance d'Étude ; <see cref="AppelFait"/> dit si son appel est enregistré (SEA-02, SEA-07).</summary>
+public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string Fin, bool AppelFait = false)
 {
     public static SeanceDuGroupe De(Seance seance) =>
-        new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture));
+        new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture),
+            seance.AppelFaitLe is not null);
 }
 
 /// <summary>
 /// Une séance de Révision ou de Formation, avec son numéro (à partir de la première séance dans SchoolHub) et, pour une
 /// Révision, son prix.
 /// </summary>
-public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string Debut, string Fin, decimal? Prix)
+public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string Debut, string Fin, decimal? Prix, bool AppelFait = false)
 {
     public static SeanceNumerotee De(Seance seance, int numero, IReadOnlyList<decimal>? prixDesSeances) => new(
         seance.Id,
@@ -155,7 +157,8 @@ public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string 
         seance.Date,
         seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture),
         seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture),
-        prixDesSeances?[numero - 1]);
+        prixDesSeances?[numero - 1],
+        seance.AppelFaitLe is not null);
 }
 
 /// <summary>Une tranche d'une Formation : son montant, et la séance où elle est due.</summary>

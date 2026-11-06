@@ -68,6 +68,7 @@ public enum ActionDuJournal
     PayeAvantSchoolHub,
     InscriptionArretee,
     ChangementDeGroupe,
+    PresenceCorrigee,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

@@ -112,14 +112,20 @@
         <div class="mois">
           <div class="entete-mois">
             <b>Mois {{ mois.numero }}</b>
+            <small class="numeros">{{ numerosDuMois(mois.numero, mois.seances.length) }}</small>
             <span class="prix">{{ montant(mois.prix) }} TND</span>
-            @if (mois.commence) {
+            @if (mois.numero === moisEnCours()) {
+              <span class="pill ok">En cours</span>
+            } @else if (mois.commence) {
               <span class="pill info">Commencé</span>
             }
           </div>
           <div class="seances">
             @for (seance of mois.seances; track seance.id) {
-              <span class="seance">{{ jourDeSeance(seance.date) }}</span>
+              <a class="seance" [class.a-faire]="etat(seance) === 'appel à faire'" [class.fait]="etat(seance) === 'appel fait'"
+                [routerLink]="['/professeurs/groupes', fiche.id, 'appel', seance.id]">
+                {{ jourDeSeance(seance.date) }} <small>{{ etat(seance) }}</small>
+              </a>
             }
           </div>
         </div>
@@ -128,16 +134,20 @@
     } @else {
       <section class="card carte">
         <h2 class="titre">Les séances</h2>
+        @if (avancement()) {
+          <p class="aide avancement">{{ avancement() }}</p>
+        }
         <div class="liste-seances">
           @for (seance of fiche.seances; track seance.id) {
-            <div class="seance-numerotee">
+            <a class="seance-numerotee" [routerLink]="['/professeurs/groupes', fiche.id, 'appel', seance.id]">
               <b>Séance {{ seance.numero }}</b>
               <span>{{ jourDeSeance(seance.date) }}</span>
               <span>{{ heure(seance.debut) }} → {{ heure(seance.fin) }}</span>
               @if (seance.prix !== null) {
                 <span class="prix">{{ montant(seance.prix) }} TND</span>
               }
-            </div>
+              <small class="etat">{{ etat(seance) }}</small>
+            </a>
           }
         </div>
       </section>

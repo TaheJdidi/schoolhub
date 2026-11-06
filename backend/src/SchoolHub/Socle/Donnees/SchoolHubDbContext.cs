@@ -7,6 +7,7 @@ using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
 using SchoolHub.Modules.Professeurs;
+using SchoolHub.Modules.Seances;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Journal;
@@ -48,6 +49,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<Reglement> Reglements => Set<Reglement>();
 
     public DbSet<DemandeDInscription> DemandesDInscription => Set<DemandeDInscription>();
+
+    public DbSet<Absence> Absences => Set<Absence>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

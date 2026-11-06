@@ -417,6 +417,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("AppelFaitLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("appel_fait_le");
+
                     b.Property<Guid>("CentreId")
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
@@ -692,6 +696,45 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasDatabaseName("ix_professeurs_centre_id");
 
                     b.ToTable("professeurs", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Seances.Absence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<Guid>("InscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inscription_id");
+
+                    b.Property<DateTimeOffset?>("PrevenuLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("prevenu_le");
+
+                    b.Property<Guid>("SeanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seance_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_absences");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_absences_centre_id");
+
+                    b.HasIndex("InscriptionId")
+                        .HasDatabaseName("ix_absences_inscription_id");
+
+                    b.HasIndex("SeanceId", "InscriptionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_absences_seance_id_inscription_id");
+
+                    b.ToTable("absences", (string)null);
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>
@@ -1363,6 +1406,30 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_professeurs_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Seances.Absence", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absences_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Inscriptions.Inscription", null)
+                        .WithMany()
+                        .HasForeignKey("InscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_absences_inscriptions_inscription_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Seance", null)
+                        .WithMany()
+                        .HasForeignKey("SeanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_absences_seances_seance_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Centres.AnneeScolaire", b =>

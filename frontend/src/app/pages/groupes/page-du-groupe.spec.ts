@@ -129,8 +129,10 @@ describe('la fiche d’un groupe', () => {
     expect(mois).toHaveLength(2);
     expect(mois[0].textContent).toContain('Mois 1');
     expect(mois[0].textContent).toContain('40,000 TND');
-    expect(mois[0].querySelector('.pill')?.textContent?.trim()).toBe('Commencé');
-    expect([...mois[0].querySelectorAll('.seance')].map((s) => s.textContent?.trim())).toEqual([
+    // SEA-02 : le dernier Mois commencé est le Mois en cours.
+    expect(mois[0].querySelector('.pill')?.textContent?.trim()).toBe('En cours');
+    expect(mois[0].textContent).toContain('séances 1 à 4');
+    expect([...mois[0].querySelectorAll('.seance')].map((s) => s.firstChild?.textContent?.trim())).toEqual([
       'sam. 18/09',
       'sam. 25/09',
       'sam. 02/10',
@@ -258,13 +260,34 @@ describe('la fiche d’un groupe', () => {
       { montant: 100, seance: 9 },
     ],
   };
-  // Chaque élément d'une ligne est lu à part : l'écran les sépare par la mise en page, pas par des espaces.
+  // Chaque élément d'une ligne est lu à part : l'écran les sépare par la mise en page, pas par des espaces. L'état de la
+  // séance (SEA-02) dépend du jour : il a son propre test.
   const lignes = (selecteur: string) =>
     [...page.querySelectorAll(selecteur)].map((ligne) =>
       ligne.children.length > 0
-        ? [...ligne.children].map((morceau) => morceau.textContent?.trim()).join(' ')
+        ? [...ligne.children].filter((morceau) => !morceau.classList.contains('etat')).map((morceau) => morceau.textContent?.trim()).join(' ')
         : ligne.textContent?.replace(/\s+/g, ' ').trim(),
     );
+
+  describe("l'état des séances (SEA-02), le samedi 27/05/2028", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2028, 4, 27, 9, 0));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("montre l'avancement d'une Révision et l'état de chaque séance, avec un lien vers son appel", async () => {
+      await ouvrir({ ...REVISION, seances: REVISION.seances.map((s, i) => ({ ...s, appelFait: i === 0 })) });
+
+      expect(page.querySelector('.avancement')?.textContent).toContain('Séance 2 sur 3');
+      expect([...page.querySelectorAll('.seance-numerotee .etat')].map((e) => e.textContent?.trim())).toEqual([
+        'appel fait',
+        'appel à faire',
+        'à venir',
+      ]);
+      expect(page.querySelector('.seance-numerotee')?.getAttribute('href')).toBe(`/professeurs/groupes/${REVISION.id}/appel/${REVISION.seances[0].id}`);
+    });
+  });
 
   it('montre une Révision, ses séances et leur prix', async () => {
     await ouvrir(REVISION);

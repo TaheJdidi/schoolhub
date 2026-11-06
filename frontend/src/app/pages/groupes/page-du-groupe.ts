@@ -9,7 +9,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
-import { dateDuJourLocale, eleves, FicheDuGroupe, heure, TYPES } from './groupe';
+import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
 
@@ -109,6 +109,30 @@ export class PageDuGroupe implements OnInit {
   protected readonly horaire = computed(
     () => this.fiche()?.creneaux.map((c) => `${c.jour} de ${heure(c.debut)} à ${heure(c.fin)}`).join(', ') ?? '',
   );
+
+  /** SEA-02 : le jour, pour l'état des séances. */
+  protected readonly aujourdhui = dateDuJourLocale();
+
+  /** SEA-02 : « à venir », « appel fait » ou « appel à faire ». */
+  protected readonly etat = (seance: { date: string; appelFait?: boolean }) => etatDeLaSeance(seance, this.aujourdhui);
+
+  /** SEA-02 : le Mois en cours d'une Étude, le dernier qui a commencé. */
+  protected readonly moisEnCours = computed(() => this.fiche()?.mois.filter((m) => m.commence).at(-1)?.numero ?? null);
+
+  /** SEA-02 : « Séance 2 sur 3 » pour une Révision ou une Formation, d'après les séances déjà passées ou du jour. */
+  protected readonly avancement = computed(() => {
+    const fiche = this.fiche();
+    if (!fiche || fiche.type === 'Etude' || fiche.seances.length === 0) return '';
+    const passees = fiche.seances.filter((s) => s.date <= this.aujourdhui);
+    const total = fiche.nombreDeSeances ?? fiche.seances.at(-1)!.numero;
+    return passees.length === 0 ? `Pas encore commencé · ${total} séances` : `Séance ${passees.at(-1)!.numero} sur ${total}`;
+  });
+
+  /** « séances 9 à 12 » : les numéros des séances d'un Mois. */
+  protected numerosDuMois(numero: number, nombre: number): string {
+    const premiere = (numero - 1) * 4 + 1;
+    return nombre === 1 ? `séance ${premiere}` : `séances ${premiere} à ${premiere + nombre - 1}`;
+  }
 
   private get id(): string {
     return this.route.snapshot.paramMap.get('id') ?? '';

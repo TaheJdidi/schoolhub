@@ -25,9 +25,10 @@ describe("les adresses de l'application", () => {
     harness = await RouterTestingHarness.create();
   });
 
-  // Le cadre relit le nombre de demandes à traiter à chaque page.
+  // Le cadre relit le nombre de demandes à traiter à chaque page ; l'accueil lit les appels à recopier.
   afterEach(() => {
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
+    http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.verify();
   });
 
@@ -237,6 +238,35 @@ describe("les adresses de l'application", () => {
     expect(titre()).toBe("Demande d'inscription · SchoolHub");
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/demandes"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it("une secrétaire fait l'appel sur /professeurs/groupes/g1/appel/s1, avec « Professeurs » allumé", async () => {
+    await ouvrir('/professeurs/groupes/g1/appel/s1', AMIRA);
+    (await vi.waitFor(() => http.expectOne('/api/seances/s1/appel'))).flush({ message: 'Séance introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Cette séance n'existe pas."));
+
+    expect(titre()).toBe('Appel · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it("l'accueil montre les appels à recopier", async () => {
+    await ouvrir('/aujourdhui', AMIRA);
+    http.expectOne('/api/seances/a-recopier').flush([
+      {
+        seanceId: 's1',
+        date: '2027-11-20',
+        debut: '10:00',
+        fin: '12:00',
+        groupe: { id: 'g1', nom: 'Groupe Samedi 10h → 12h', type: 'Etude', matiere: 'Mathématiques' },
+        professeur: 'Karim Ben Salah',
+      },
+    ]);
+
+    await vi.waitFor(() => expect(texte()).toContain('Appels à recopier · 1'));
+    expect(texte()).toContain('Mathématiques · Groupe Samedi 10h → 12h');
+    expect(texte()).toContain('Karim Ben Salah · sam. 20/11, 10h → 12h');
+    expect((harness.fixture.nativeElement as HTMLElement).querySelector('a[href="/professeurs/groupes/g1/appel/s1"]')?.textContent).toContain('Recopier');
   });
 
   it("l'accueil montre les demandes à traiter", async () => {

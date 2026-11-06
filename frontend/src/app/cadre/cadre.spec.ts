@@ -28,6 +28,7 @@ describe('le cadre', () => {
   afterEach(() => {
     const http = TestBed.inject(HttpTestingController);
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
+    http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.verify();
   });
 

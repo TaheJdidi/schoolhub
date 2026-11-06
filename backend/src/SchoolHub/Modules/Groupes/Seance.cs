@@ -29,6 +29,12 @@ public sealed class Seance : IAppartientAuCentre
     public TimeOnly Debut { get; private set; }
 
     public TimeOnly Fin { get; private set; }
+
+    /// <summary>SEA-07 : le moment où l'appel a été enregistré la première fois ; <c>null</c> : « appel à faire ».</summary>
+    public DateTimeOffset? AppelFaitLe { get; private set; }
+
+    /// <summary>SEA-07 : la séance passe à « appel fait ». Une correction (SEA-10) garde le premier moment.</summary>
+    internal void MarquerLAppelFait(DateTimeOffset maintenant) => AppelFaitLe ??= maintenant;
 }
 
 internal sealed class SeanceConfiguration : IEntityTypeConfiguration<Seance>

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
+using SchoolHub.Modules.Seances;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Dates;
 using SchoolHub.Socle.Comptes;
@@ -745,14 +746,21 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id).ToList());
         var reglements = (await contexte.Reglements.Where(r => inscriptionIds.Contains(r.InscriptionId)).ToListAsync())
             .ToLookup(r => r.InscriptionId!.Value);
+        var ids = inscriptions.Select(i => i.Id).ToList();
+        var absences = (await contexte.Absences.Where(a => ids.Contains(a.InscriptionId)).Select(a => new { a.InscriptionId, a.SeanceId }).ToListAsync())
+            .ToLookup(a => a.InscriptionId, a => a.SeanceId);
 
         return inscriptions.Select(i =>
         {
             var groupe = groupes[i.GroupeId];
             var duGroupe = seances.GetValueOrDefault(i.GroupeId) ?? [];
             var regles = reglements[i.Id].ToList();
+            // SEA-07 : le numéro de chaque séance manquée, compté comme les autres séances du groupe.
+            var absentA = absences[i.Id].ToHashSet();
+            var manquees = duGroupe.Select((s, rang) => (s.Id, Numero: groupe.PremiereSeance + rang))
+                .Where(s => absentA.Contains(s.Id)).Select(s => s.Numero).ToHashSet();
             var conditions = new ConditionsDeLInscription(i.Mode, i.DebutLe, i.PrixSpecial, regles.ToDictionary(r => r.Cle, r => r.Montant), i.ResteRegroupeLe,
-                i.ArreteLe, 0m, regles.ToDictionary(r => r.Cle, r => r.PartDuReport));
+                i.ArreteLe, 0m, regles.ToDictionary(r => r.Cle, r => r.PartDuReport), manquees);
             var calendrier = Calendrier(groupe, duGroupe);
             return new Echeance(i, groupe, duGroupe, Echeancier.Calculer(calendrier, conditions),
                 regles.ToDictionary(r => r.Cle, r => r.Origine), calendrier, conditions);

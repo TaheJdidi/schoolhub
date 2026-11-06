@@ -44,7 +44,8 @@ public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateO
 /// <summary>
 /// Ce que l'inscription ajoute au calendrier du groupe : son mode, sa première séance, son prix spécial (ELV-05), ses
 /// règlements par clé, la date où la secrétaire a regroupé le reste d'une Formation (ELV-10), le dernier jour compté
-/// d'une inscription arrêtée (ELV-08), et le report venu d'un ancien groupe (ELV-09).
+/// d'une inscription arrêtée (ELV-08), le report venu d'un ancien groupe (ELV-09), et les numéros des séances où l'élève
+/// était absent (SEA-07).
 /// </summary>
 public sealed record ConditionsDeLInscription(
     ModeDeTarification Mode,
@@ -54,7 +55,8 @@ public sealed record ConditionsDeLInscription(
     DateOnly? ResteRegroupeLe = null,
     DateOnly? ArreteLe = null,
     decimal Report = 0m,
-    IReadOnlyDictionary<string, decimal>? PartsDuReport = null);
+    IReadOnlyDictionary<string, decimal>? PartsDuReport = null,
+    IReadOnlySet<int>? SeancesManquees = null);
 
 /// <summary>
 /// ELV-03 : toutes les sommes qu'une inscription doit, depuis la première séance de l'élève, sans base de données.
@@ -111,6 +113,9 @@ public static class Echeancier
             .Select(somme => somme with { Reglee = somme.Reglee || reglements.ContainsKey(somme.Cle) })
             // ELV-08 : après le dernier jour compté, plus rien n'est dû ; ce qui est payé reste payé, sans remboursement.
             .Where(somme => somme.Reglee || conditions.ArreteLe is not { } arreteLe || somme.Date <= arreteLe)
+            // SEA-07 : une Révision payée à la séance ne doit pas une séance manquée (ticket 02, Q15) ; payée, elle le reste.
+            .Where(somme => somme.Reglee || conditions.Mode != ModeDeTarification.ALaSeance
+                || conditions.SeancesManquees is not { } manquees || !manquees.Contains(somme.Seance))
             .OrderBy(s => s.Date).ThenBy(s => s.Seance)
             .ToList();
 

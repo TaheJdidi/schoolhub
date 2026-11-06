@@ -1,9 +1,19 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { messageDErreur } from '../../socle/erreurs';
+import { FRANCAIS } from '../../socle/francais';
 import { NombreDeDemandes } from '../../socle/nombre-de-demandes';
 import { Session } from '../../socle/session/session';
+import { heure } from '../groupes/groupe';
+import { AppelARecopier } from '../seances/appel';
 
-/** L'accueil, avec le nombre de demandes d'inscription à traiter (DEM-03). Les séances du jour viendront avec SEA-01. */
+/**
+ * L'accueil, avec le nombre de demandes d'inscription à traiter (DEM-03) et les appels à recopier (SEA-09). Les séances
+ * du jour, la caisse et la bibliothèque viendront avec SEA-01.
+ */
 @Component({
   selector: 'sh-aujourdhui',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -15,20 +25,67 @@ import { Session } from '../../socle/session/session';
         <p class="sub">Les séances du jour s'afficheront ici.</p>
       </div>
     </div>
-    @if (demandes(); as nombre) {
-      <a class="card demandes" routerLink="/demandes">
-        <b>{{ nombre === 1 ? '1 demande d’inscription à traiter' : nombre + ' demandes d’inscription à traiter' }}</b>
-        <small>Voir les demandes</small>
-      </a>
-    }
+    <div class="blocs">
+      @if (demandes(); as nombre) {
+        <a class="card demandes" routerLink="/demandes">
+          <b>{{ nombre === 1 ? '1 demande d’inscription à traiter' : nombre + ' demandes d’inscription à traiter' }}</b>
+          <small>Voir les demandes</small>
+        </a>
+      }
+      @if (aRecopier().length > 0) {
+        <section class="card recopier" aria-labelledby="titre-a-recopier">
+          <h2 id="titre-a-recopier" class="titre">Appels à recopier · {{ aRecopier().length }}</h2>
+          <p class="aide">Les séances passées sans appel : recopiez les feuilles dès leur retour.</p>
+          @for (seance of aRecopier(); track seance.seanceId) {
+            <div class="ligne">
+              <span class="deux">
+                <b>{{ seance.groupe.matiere }} · {{ seance.groupe.nom }}</b>
+                <small>{{ seance.professeur }} · {{ jour(seance.date) }}, {{ heure(seance.debut) }} → {{ heure(seance.fin) }}</small>
+              </span>
+              <a class="btn" [routerLink]="['/professeurs/groupes', seance.groupe.id, 'appel', seance.seanceId]">Recopier</a>
+            </div>
+          }
+        </section>
+      }
+      @if (erreur(); as erreur) {
+        <p class="note bad" role="alert">{{ erreur }}</p>
+      }
+    </div>
   `,
   styles: `
+    .blocs { display: grid; gap: 16px; max-width: 720px; }
     .demandes { display: grid; gap: 2px; padding: 14px 16px; color: var(--ink); text-decoration: none; max-width: 420px; }
     .demandes:hover { background: var(--sunk); }
     .demandes small { color: var(--accent); }
+    .recopier { display: grid; gap: 8px; padding: 16px; }
+    .titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
+    .aide { margin: 0; color: var(--ink-2); }
+    .ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+    .deux { display: grid; min-width: 0; }
+    .deux b { font-weight: 500; overflow-wrap: anywhere; }
+    .deux small { color: var(--ink-2); font-size: 12.5px; }
+    .note { margin: 0; }
   `,
 })
-export class Aujourdhui {
+export class Aujourdhui implements OnInit {
+  private readonly http = inject(HttpClient);
+
   protected readonly session = inject(Session);
   protected readonly demandes = inject(NombreDeDemandes).aTraiter;
+  protected readonly heure = heure;
+  protected readonly aRecopier = signal<AppelARecopier[]>([]);
+  protected readonly erreur = signal<string | null>(null);
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.aRecopier.set(await firstValueFrom(this.http.get<AppelARecopier[]>('/api/seances/a-recopier')));
+    } catch (erreur) {
+      this.erreur.set(messageDErreur(erreur));
+    }
+  }
+
+  /** « sam. 20/11 ». */
+  protected jour(date: string): string {
+    return formatDate(date, 'EEE dd/MM', FRANCAIS);
+  }
 }

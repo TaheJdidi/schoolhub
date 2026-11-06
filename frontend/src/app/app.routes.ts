@@ -29,6 +29,7 @@ const formulairePublic = () => import('./pages/inscription-publique/formulaire-p
 const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((module) => module.PageDeLEleve);
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 const pageDeLaDemande = () => import('./pages/demandes/page-de-la-demande').then((module) => module.PageDeLaDemande);
+const pageDeLAppel = () => import('./pages/seances/page-de-l-appel').then((module) => module.PageDeLAppel);
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
@@ -79,6 +80,8 @@ export const routes: Routes = [
       // Les groupes s'ouvrent sous la page Professeurs : le menu garde « Professeurs » allumé.
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
       { path: 'professeurs/groupes/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'groupe' }, title: titre('Inscription') },
+      // SEA-07 : l'appel d'une séance, sous son groupe.
+      { path: 'professeurs/groupes/:id/appel/:seance', loadComponent: pageDeLAppel, title: titre('Appel') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
       { path: 'eleves/nouveau', component: NouvelEleve, title: titre('Nouvel élève') },

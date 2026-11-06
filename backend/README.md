@@ -88,6 +88,8 @@ src/SchoolHub/
     │                      séance, même arrivé en cours de route), le message de confirmation ;
     │                      « À payer », les règlements (payé avant SchoolHub), le prix spécial,
     │                      la dispense, le reste d'une Formation, l'arrêt et le changement de groupe
+    ├── Seances/           l'appel : les absences (présent sauf absent), « appel fait », la correction
+    │                      au journal, le message aux absents, les appels à recopier
     ├── Demandes/          les demandes d'inscription : le formulaire public (sans compte, 5 envois
     │                      par heure et par adresse, champ piège), son lien et son QR code ; la liste,
     │                      l'enregistrement comme élève inscrit (tout ou rien) et le refus

@@ -49,6 +49,8 @@ export interface SeanceDuGroupe {
   date: string;
   debut: string;
   fin: string;
+  /** SEA-02 : l'appel de la séance est enregistré. */
+  appelFait?: boolean;
 }
 
 /** Un Mois de 4 séances : il a commencé quand sa séance 1 a eu lieu. */
@@ -67,6 +69,14 @@ export interface SeanceNumerotee {
   debut: string;
   fin: string;
   prix: number | null;
+  /** SEA-02 : l'appel de la séance est enregistré. */
+  appelFait?: boolean;
+}
+
+/** SEA-02 : l'état d'une séance, d'après sa date et son appel. */
+export function etatDeLaSeance(seance: { date: string; appelFait?: boolean }, aujourdhui: string): 'à venir' | 'appel fait' | 'appel à faire' {
+  if (seance.appelFait) return 'appel fait';
+  return seance.date > aujourdhui ? 'à venir' : 'appel à faire';
 }
 
 /** Une tranche d'une Formation : son montant, dû à une séance. */
