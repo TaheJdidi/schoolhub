@@ -7,10 +7,19 @@ using SchoolHub.Socle.Comptes;
 
 namespace SchoolHub.Modules.Demandes;
 
-/// <summary>Où en est une demande : à traiter ; l'étape 2 ajoutera « inscrite » et « refusée » (DEM-04, DEM-05).</summary>
+/// <summary>Où en est une demande : à traiter, puis inscrite (DEM-04) ou refusée (DEM-05). Une demande traitée le reste.</summary>
 public enum EtatDeLaDemande
 {
     ATraiter,
+    Inscrite,
+    Refusee,
+}
+
+/// <summary>DEM-05 : pourquoi la secrétaire refuse une demande.</summary>
+public enum MotifDuRefus
+{
+    Doublon,
+    FausseDemande,
 }
 
 /// <summary>
@@ -82,8 +91,33 @@ public sealed class DemandeDInscription : IAppartientAuCentre
 
     public EtatDeLaDemande Etat { get; private set; } = EtatDeLaDemande.ATraiter;
 
+    /// <summary>DEM-05 : le motif d'une demande refusée.</summary>
+    public MotifDuRefus? Motif { get; private set; }
+
+    /// <summary>DEM-04 : l'élève inscrit depuis cette demande, nouvelle fiche ou fiche existante.</summary>
+    public Guid? EleveId { get; private set; }
+
+    /// <summary>Le moment où la demande a été inscrite ou refusée.</summary>
+    public DateTimeOffset? TraiteeLe { get; private set; }
+
     /// <summary>Le groupe préféré de chaque matière demandée, dans l'ordre du formulaire.</summary>
     public IReadOnlyList<GroupeDeLaDemande> GroupesPreferes => _groupesPreferes;
+
+    /// <summary>DEM-04 : la demande devient l'inscription de cet élève.</summary>
+    internal void Inscrire(Guid eleveId, DateTimeOffset maintenant)
+    {
+        Etat = EtatDeLaDemande.Inscrite;
+        EleveId = eleveId;
+        TraiteeLe = maintenant;
+    }
+
+    /// <summary>DEM-05 : la demande sort des demandes à traiter, avec son motif.</summary>
+    internal void Refuser(MotifDuRefus motif, DateTimeOffset maintenant)
+    {
+        Etat = EtatDeLaDemande.Refusee;
+        Motif = motif;
+        TraiteeLe = maintenant;
+    }
 }
 
 /// <summary>Le groupe préféré pour une matière d'une demande ; il fait partie de sa demande.</summary>
@@ -108,7 +142,9 @@ internal sealed class DemandeDInscriptionConfiguration : IEntityTypeConfiguratio
         demande.Property(d => d.Etablissement).HasMaxLength(Eleve.LongueurMaximaleDeLEtablissement);
         demande.Property(d => d.Amis).HasMaxLength(DemandeDInscription.LongueurMaximaleDesAmis);
         demande.Property(d => d.Etat).HasConversion<string>().HasMaxLength(20);
+        demande.Property(d => d.Motif).HasConversion<string>().HasMaxLength(20);
         demande.HasOne<Niveau>().WithMany().HasForeignKey(d => d.NiveauId).OnDelete(DeleteBehavior.Restrict);
+        demande.HasOne<Eleve>().WithMany().HasForeignKey(d => d.EleveId).OnDelete(DeleteBehavior.Restrict);
         demande.HasIndex(d => new { d.Etat, d.RecueLe });
 
         demande.OwnsMany(d => d.GroupesPreferes, groupe =>

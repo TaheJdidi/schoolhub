@@ -119,6 +119,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
 
+                    b.Property<Guid?>("EleveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eleve_id");
+
                     b.Property<string>("EmailEleve")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
@@ -143,6 +147,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.Property<bool>("Majeur")
                         .HasColumnType("boolean")
                         .HasColumnName("majeur");
+
+                    b.Property<string>("Motif")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("motif");
 
                     b.Property<Guid>("NiveauId")
                         .HasColumnType("uuid")
@@ -180,11 +189,18 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("telephone_parent");
 
+                    b.Property<DateTimeOffset?>("TraiteeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("traitee_le");
+
                     b.HasKey("Id")
                         .HasName("pk_demandes_d_inscription");
 
                     b.HasIndex("CentreId")
                         .HasDatabaseName("ix_demandes_d_inscription_centre_id");
+
+                    b.HasIndex("EleveId")
+                        .HasDatabaseName("ix_demandes_d_inscription_eleve_id");
 
                     b.HasIndex("NiveauId")
                         .HasDatabaseName("ix_demandes_d_inscription_niveau_id");
@@ -1015,6 +1031,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_demandes_d_inscription_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
+                        .WithMany()
+                        .HasForeignKey("EleveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_demandes_d_inscription_eleves_eleve_id");
 
                     b.HasOne("SchoolHub.Socle.Centres.Niveau", null)
                         .WithMany()

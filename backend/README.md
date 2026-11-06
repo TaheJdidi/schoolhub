@@ -89,7 +89,8 @@ src/SchoolHub/
     │                      « À payer », les règlements (payé avant SchoolHub), le prix spécial,
     │                      la dispense, le reste d'une Formation, l'arrêt et le changement de groupe
     ├── Demandes/          les demandes d'inscription : le formulaire public (sans compte, 5 envois
-    │                      par heure et par adresse, champ piège), son lien et son QR code
+    │                      par heure et par adresse, champ piège), son lien et son QR code ; la liste,
+    │                      l'enregistrement comme élève inscrit (tout ou rien) et le refus
     └── Groupes/           les groupes d'Étude, de Révision et de Formation (tranches), déjà en
                            cours ou non ; leurs créneaux, séances et prix ; les matières ; le
                            calendrier (Mois, numéros et prix des séances, « terminé » se calculent)

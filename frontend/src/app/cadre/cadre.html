@@ -25,6 +25,9 @@
       <a class="nav" [routerLink]="'/' + entree.chemin" routerLinkActive ariaCurrentWhenActive="page">
         <sh-icone [nom]="entree.icone" />
         <span>{{ entree.libelle }}</span>
+        @if (entree.chemin === 'demandes' && demandesATraiter()) {
+          <span class="compte" [attr.aria-label]="demandesATraiter() + ' à traiter'">{{ demandesATraiter() }}</span>
+        }
       </a>
     }
     <sh-bouton-de-deconnexion class="fin" />

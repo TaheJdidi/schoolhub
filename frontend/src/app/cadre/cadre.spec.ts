@@ -24,8 +24,12 @@ describe('le cadre', () => {
     harness = await RouterTestingHarness.create();
   });
 
-  // La personne est déjà connue : aucune requête ne part.
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+  // La personne est déjà connue : seul le nombre de demandes à traiter est relu, à chaque page.
+  afterEach(() => {
+    const http = TestBed.inject(HttpTestingController);
+    http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
+    http.verify();
+  });
 
   async function ouvrir(adresse: string, moi: Moi): Promise<HTMLElement> {
     TestBed.inject(Session).connaitre(moi);
@@ -101,6 +105,21 @@ describe('le cadre', () => {
     expect(menu.querySelectorAll('a')).toHaveLength(13);
     expect(menu.textContent).toContain('Propriétaire');
     expect(menu.querySelector('a[href="/parametres"]')).not.toBeNull();
+  });
+
+  it("montre le nombre de demandes d'inscription à traiter, relu à chaque page", async () => {
+    const page = await ouvrir('/caisse', AMIRA);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/demandes/nombre').flush({ aTraiter: 3 });
+
+    const lien = page.querySelector('.rail a[href="/demandes"]') as HTMLElement;
+    await vi.waitFor(() => expect(lien.querySelector('.compte')?.textContent?.trim()).toBe('3'));
+    expect(lien.querySelector('.compte')?.getAttribute('aria-label')).toBe('3 à traiter');
+
+    await harness.navigateByUrl('/bibliotheque');
+    http.expectOne('/api/demandes/nombre').flush({ aTraiter: 0 });
+
+    await vi.waitFor(() => expect(lien.querySelector('.compte')).toBeNull());
   });
 
   it('marque la page en cours dans le menu', async () => {

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using QRCoder;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
+using SchoolHub.Modules.Inscriptions;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
@@ -13,7 +14,10 @@ using SchoolHub.Socle.Emails;
 
 namespace SchoolHub.Modules.Demandes;
 
-/// <summary>DEM-01 et DEM-02 : le formulaire public, ouvert à tous, et son lien, pour les personnes connectées.</summary>
+/// <summary>
+/// DEM-01 et DEM-02 : le formulaire public, ouvert à tous, et son lien, pour les personnes connectées. DEM-03 à DEM-05 :
+/// la liste des demandes, leur enregistrement comme élève inscrit et leur refus.
+/// </summary>
 public static class DemandesEndpoints
 {
     /// <summary>La limite d'essais du formulaire public : 30 envois par heure et par adresse, acceptés ou refusés (DEM-01).</summary>
@@ -63,7 +67,36 @@ public static class DemandesEndpoints
             using var donnees = generateur.CreateQrCode(await LienAsync(contexte, centre, options.Value), QRCodeGenerator.ECCLevel.Q);
             return TypedResults.File(new PngByteQRCode(donnees).GetGraphic(12), "image/png");
         });
+
+        // DEM-03 à DEM-05 : traiter les demandes, pour toute personne connectée du centre.
+        demandes.MapGet("", (bool? traitees, DemandesDuCentre demandesDuCentre) => demandesDuCentre.ListerAsync(traitees ?? false));
+        demandes.MapGet("/nombre", async (DemandesDuCentre demandesDuCentre) => new NombreDeDemandes(await demandesDuCentre.CompterAsync()));
+        demandes.MapGet("/{id:guid}", LireUneDemandeAsync);
+        demandes.MapPost("/{id:guid}/inscription", EnregistrerAsync);
+        demandes.MapPost("/{id:guid}/refus", RefuserAsync);
         return api;
+    }
+
+    private static async Task<Results<Ok<DetailDeLaDemande>, JsonHttpResult<Avis>>> LireUneDemandeAsync(Guid id, DemandesDuCentre demandes) =>
+        await demandes.LireAsync(id) is { } detail
+            ? TypedResults.Ok(detail)
+            : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, DemandesDuCentre.DemandeIntrouvable);
+
+    private static async Task<Results<Created<DemandeEnregistree>, JsonHttpResult<Avis>>> EnregistrerAsync(
+        Guid id,
+        DemandeAEnregistrer saisie,
+        DemandesDuCentre demandes)
+    {
+        var issue = await demandes.EnregistrerAsync(id, saisie);
+        return issue.Enregistree is null
+            ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!)
+            : TypedResults.Created($"/api/eleves/{issue.Enregistree.Eleve.Id}", issue.Enregistree);
+    }
+
+    private static async Task<Results<NoContent, JsonHttpResult<Avis>>> RefuserAsync(Guid id, RefusSaisi saisie, DemandesDuCentre demandes)
+    {
+        var issue = await demandes.RefuserAsync(id, saisie);
+        return issue.Message is null ? TypedResults.NoContent() : ConnexionEndpoints.Refus(issue.Statut, issue.Message);
     }
 
     /// <summary>« https://app.schoolhub.tn/inscription/les-jasmins » : l'adresse de l'application et le code du centre.</summary>
@@ -126,3 +159,85 @@ public sealed record LienPublic(string Lien);
 
 /// <summary>La réponse d'un envoi : le prénom, pour « Demande envoyée. Merci Adem ! ».</summary>
 public sealed record DemandeRecue(string Prenom);
+
+/// <summary>DEM-03 : le nombre de demandes à traiter, pour le menu et l'accueil.</summary>
+public sealed record NombreDeDemandes(int ATraiter);
+
+/// <summary>Une matière demandée, avec le professeur et l'horaire du groupe préféré : « Mathématiques (samedi 10h) ».</summary>
+public sealed record MatiereDemandee(string Matiere, string Professeur, List<CreneauDuGroupe> Creneaux);
+
+/// <summary>
+/// DEM-03 : une demande dans la liste. <see cref="Etat"/> vaut « ATraiter », « Inscrite » ou « Refusee » ;
+/// <see cref="Motif"/>, « Doublon » ou « FausseDemande » pour une demande refusée.
+/// </summary>
+public sealed record DemandeDeLaListe(
+    Guid Id,
+    string Prenom,
+    string Nom,
+    NiveauDeLEleve Niveau,
+    List<MatiereDemandee> Matieres,
+    string? Amis,
+    DateTimeOffset RecueLe,
+    bool DoublonPossible,
+    string Etat,
+    string? Motif,
+    DateTimeOffset? TraiteeLe);
+
+/// <summary>
+/// DEM-04 : un groupe où inscrire l'élève pour une matière : ses élèves et sa capacité, les modes à choisir (vide s'il n'y
+/// a pas de choix), sa prochaine séance (la première de l'élève), et les amis cités déjà inscrits.
+/// </summary>
+public sealed record GroupeProposeALaDemande(
+    Guid Id,
+    string Nom,
+    string Type,
+    string Professeur,
+    List<CreneauDuGroupe> Creneaux,
+    int Eleves,
+    int? Capacite,
+    List<string> Modes,
+    int NombreDeTranches,
+    SeanceDeDebut PremiereSeance,
+    List<string> Amis);
+
+/// <summary>Une matière demandée : le groupe préféré, et les groupes où l'inscrire (le préféré en tête, s'il est encore proposé).</summary>
+public sealed record MatiereDeLaDemande(string Matiere, Guid GroupePrefere, List<GroupeProposeALaDemande> Groupes);
+
+/// <summary>DEM-04 : une demande ouverte, sa fiche telle qu'envoyée, les fiches qui lui ressemblent, et ses matières.</summary>
+public sealed record DetailDeLaDemande(
+    Guid Id,
+    string Prenom,
+    string Nom,
+    NiveauDeLEleve Niveau,
+    bool Majeur,
+    string? TelephoneParent,
+    string? EmailParent,
+    string? TelephoneEleve,
+    string? EmailEleve,
+    string? Etablissement,
+    string? Amis,
+    DateTimeOffset RecueLe,
+    string Etat,
+    string? Motif,
+    DateTimeOffset? TraiteeLe,
+    Guid? EleveId,
+    List<EleveTrouve> FichesSemblables,
+    bool AutreDemandeSemblable,
+    List<MatiereDeLaDemande> Matieres);
+
+/// <summary>Un groupe choisi pour une matière, et son mode quand le groupe offre un choix.</summary>
+public sealed record GroupeChoisi(Guid? GroupeId, string? Mode);
+
+/// <summary>DEM-04 : l'élève (une fiche existante, ou la fiche vérifiée de la demande) et les groupes choisis.</summary>
+public sealed record DemandeAEnregistrer(Guid? EleveId, FicheSaisieDeLEleve? Fiche, List<GroupeChoisi>? Groupes);
+
+/// <summary>DEM-04 : l'élève inscrit, ses inscriptions, les avertissements, et le message de confirmation pour ses destinataires.</summary>
+public sealed record DemandeEnregistree(
+    EleveInscrit Eleve,
+    List<EnregistrementDeLInscription> Inscriptions,
+    string? Avertissement,
+    string Texte,
+    List<MessageWhatsApp> Messages);
+
+/// <summary>DEM-05 : le motif du refus, « Doublon » ou « FausseDemande ».</summary>
+public sealed record RefusSaisi(string? Motif);

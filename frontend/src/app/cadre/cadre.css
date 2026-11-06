@@ -1,4 +1,4 @@
-/* Le cadre de la maquette (.shell), sur toute la fenêtre. */
+/* Le cadre de la maquette (.shell), sur toute la fenÃªtre. */
 .shell{display:grid;grid-template-columns:212px minmax(0,1fr);grid-template-rows:auto 1fr;min-height:100dvh;background:var(--surface)}
 .top{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
 .brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
@@ -25,16 +25,17 @@
 .tab{display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--ink-3);padding:4px 10px;border-radius:8px;text-decoration:none}
 .tab[aria-current="page"]{color:var(--accent)}
 
-/* Sur téléphone : le menu devient les onglets en bas, et l'en-tête montre le centre et la date. */
+/* Sur tÃ©lÃ©phone : le menu devient les onglets en bas, et l'en-tÃªte montre le centre et la date. */
 @media (max-width: 760px){
   .shell{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto}
   .rail{display:none}
   .tabbar{display:flex;position:sticky;bottom:0}
   .top{gap:10px;padding:10px 12px;flex-wrap:wrap}
-  /* Sur un téléphone, la recherche passe sous le nom du centre, sur toute la largeur. */
+  /* Sur un tÃ©lÃ©phone, la recherche passe sous le nom du centre, sur toute la largeur. */
   .recherche{order:3;flex-basis:100%;max-width:none}
   .bt,.who .date,.un{display:none}
   .lieu{display:grid}
   .logo{width:32px;height:32px}
   .main{padding:16px 14px 22px}
 }
+.compte{margin-left:auto;min-width:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:600;line-height:20px;text-align:center}

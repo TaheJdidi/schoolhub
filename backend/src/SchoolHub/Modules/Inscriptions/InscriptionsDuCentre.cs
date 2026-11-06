@@ -57,7 +57,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private const string ChoisirLeMode = "Choisissez le mode de tarification";
     private const string ModeQuiNeConvientPas = "Ce mode de tarification ne convient pas à ce groupe";
     private const string ChoisirLaPremiereSeance = "Choisissez la première séance";
-    private const string PasDeSeanceCeJourLa = "Ce groupe n'a pas de séance ce jour-là";
+    internal const string PasDeSeanceCeJourLa = "Ce groupe n'a pas de séance ce jour-là";
     private const string CapaciteAtteinte = "Ce groupe a atteint sa capacité. L'inscription reste possible.";
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
@@ -65,14 +65,15 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     /// <summary>
     /// Inscrit l'élève, dans l'ordre des vérifications de la spec : le premier refus donne la réponse, et rien n'est
     /// enregistré. La ligne de l'élève reste verrouillée jusqu'à la fin : deux inscriptions du même élève, venues de deux
-    /// onglets, passent l'une après l'autre, et la seconde voit la première (et son assurance).
+    /// onglets, passent l'une après l'autre, et la seconde voit la première (et son assurance). Dans une transaction déjà
+    /// ouverte (une demande d'inscription, DEM-04), l'inscription en fait partie : c'est l'appelant qui la valide.
     /// </summary>
     public async Task<IssueDInscription> InscrireAsync(InscriptionSaisie demande)
     {
         if (demande.EleveId is not { } eleveId)
             return Refus(StatusCodes.Status400BadRequest, ChoisirLEleve);
 
-        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        await using var transaction = contexte.Database.CurrentTransaction is null ? await contexte.Database.BeginTransactionAsync() : null;
         var eleve = await EleveVerrouilleAsync(eleveId);
         if (eleve is null)
             return Refus(StatusCodes.Status404NotFound, EleveIntrouvable);
@@ -93,11 +94,32 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var centre = await contexte.Centres.SingleAsync(c => c.Id == CentreId);
         var assurance = await AssuranceALArriveeAsync(eleveId, groupe, centre, debutLe);
         await contexte.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null)
+            await transaction.CommitAsync();
 
         return new IssueDInscription(await EnregistrementAsync(eleve, inscription, groupe, seances, assurance, avertissement, centre),
             StatusCodes.Status201Created, null);
     }
+
+    /// <summary>
+    /// DEM-04 : le message de confirmation d'une demande inscrite dans plusieurs groupes, un groupe par ligne :
+    /// « Bonjour, l'inscription d'Adem Miled est enregistrée. » ; « • Mathématiques avec Karim Ben Salah, Groupe Samedi
+    /// 10h → 12h : première séance le samedi 04/12/2027 à 10h. » ; puis la signature du centre.
+    /// </summary>
+    internal static string TexteDeConfirmation(Eleve eleve, IEnumerable<InscriptionDeLEleve> inscriptions, Centre centre)
+    {
+        var lignes = inscriptions
+            .Where(i => i.PremiereSeance is not null)
+            .Select(i => $"• {i.Groupe.Matiere} avec {i.Professeur}, {i.Groupe.Nom} : première séance le "
+                + $"{Jours.De(i.PremiereSeance!.Date.DayOfWeek).ToString().ToLowerInvariant()} {SaisieDuGroupe.EcrireUneDate(i.PremiereSeance.Date)} "
+                + $"à {CalendrierDuGroupe.Heure(i.PremiereSeance.Debut)}.");
+        return $"Bonjour, l'inscription {Francais.De($"{eleve.Prenom} {eleve.Nom}")} est enregistrée.\n"
+            + string.Join("\n", lignes) + "\n"
+            + $"À bientôt. {Signature(centre)}";
+    }
+
+    private static string Signature(Centre centre) =>
+        centre.Telephone is { } telephone ? $"{centre.Nom}, {TelephoneTunisien.Grouper(telephone)}" : centre.Nom;
 
     /// <summary>
     /// ELV-09 : passe l'élève dans un autre groupe du même type, à sa première séance dans le nouveau groupe. L'ancienne
@@ -666,7 +688,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     private static string TexteDeConfirmation(Eleve eleve, InscriptionDeLEleve inscription, Seance premiere, Centre centre)
     {
         var jour = Jours.De(premiere.Date.DayOfWeek).ToString().ToLowerInvariant();
-        var signature = centre.Telephone is { } telephone ? $"{centre.Nom}, {TelephoneTunisien.Grouper(telephone)}" : centre.Nom;
+        var signature = Signature(centre);
         return $"Bonjour, l'inscription {Francais.De($"{eleve.Prenom} {eleve.Nom}")} est enregistrée.\n"
             + $"{inscription.Groupe.Matiere} avec {inscription.Professeur}, {inscription.Groupe.Nom} : première séance le {jour} "
             + $"{SaisieDuGroupe.EcrireUneDate(premiere.Date)} à {CalendrierDuGroupe.Heure(premiere.Debut)}.\n"

@@ -25,7 +25,11 @@ describe("les adresses de l'application", () => {
     harness = await RouterTestingHarness.create();
   });
 
-  afterEach(() => http.verify());
+  // Le cadre relit le nombre de demandes à traiter à chaque page.
+  afterEach(() => {
+    http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
+    http.verify();
+  });
 
   /** Ouvre une adresse, comme au premier chargement : la session est demandée au serveur, qui répond `moi`. */
   async function ouvrir(adresse: string, moi: Moi): Promise<void> {
@@ -213,6 +217,7 @@ describe("les adresses de l'application", () => {
   it('une secrétaire voit le lien public sur /demandes, et imprime l’affiche sur /demandes/affiche', async () => {
     await ouvrir('/demandes', AMIRA);
     http.expectOne('/api/demandes/lien').flush({ lien: 'http://localhost:4200/inscription/les-jasmins' });
+    http.expectOne('/api/demandes').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Le lien public du centre'));
     expect(texte()).not.toContain('Cette page arrive bientôt');
     expect(titre()).toBe("Demandes d'inscription · SchoolHub");
@@ -221,6 +226,25 @@ describe("les adresses de l'application", () => {
     (await vi.waitFor(() => http.expectOne('/api/demandes/lien'))).flush({ lien: 'http://localhost:4200/inscription/les-jasmins' });
     await vi.waitFor(() => expect(texte()).toContain('Scannez le code'));
     expect(titre()).toBe('Affiche · SchoolHub');
+  });
+
+  it("une secrétaire ouvre une demande sur /demandes/d1, avec « Demandes d'inscription » allumé", async () => {
+    await ouvrir('/demandes/d1', AMIRA);
+    (await vi.waitFor(() => http.expectOne('/api/demandes/d1'))).flush({ message: 'Demande introuvable' }, { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/niveaux').flush([]);
+    await vi.waitFor(() => expect(texte()).toContain("Cette demande n'existe pas."));
+
+    expect(titre()).toBe("Demande d'inscription · SchoolHub");
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/demandes"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it("l'accueil montre les demandes à traiter", async () => {
+    await ouvrir('/aujourdhui', AMIRA);
+    http.expectOne('/api/demandes/nombre').flush({ aTraiter: 2 });
+
+    await vi.waitFor(() => expect(texte()).toContain('2 demandes d’inscription à traiter'));
+    expect((harness.fixture.nativeElement as HTMLElement).querySelector('main a[href="/demandes"]')).not.toBeNull();
   });
 
   it("le formulaire public s'ouvre sans connexion sur /inscription/les-jasmins", async () => {

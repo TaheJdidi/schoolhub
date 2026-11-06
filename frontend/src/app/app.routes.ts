@@ -28,6 +28,7 @@ const affiche = () => import('./pages/demandes/affiche').then((module) => module
 const formulairePublic = () => import('./pages/inscription-publique/formulaire-public').then((module) => module.FormulairePublic);
 const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((module) => module.PageDeLEleve);
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
+const pageDeLaDemande = () => import('./pages/demandes/page-de-la-demande').then((module) => module.PageDeLaDemande);
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
@@ -89,6 +90,8 @@ export const routes: Routes = [
         title: titre('Changement de groupe'),
       },
       { path: 'eleves/:id', loadComponent: pageDeLEleve, title: titre('Élève') },
+      // DEM-04 et DEM-05 : une demande, sous la page Demandes : le menu garde « Demandes d'inscription » allumé.
+      { path: 'demandes/:id', loadComponent: pageDeLaDemande, title: titre("Demande d'inscription") },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },
       { path: 'plus', component: Plus, title: titre('Plus') },
       { path: '**', component: Introuvable, title: titre('Page introuvable') },

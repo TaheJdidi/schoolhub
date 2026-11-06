@@ -1,8 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, fromEvent, map, merge } from 'rxjs';
+import { NombreDeDemandes } from '../socle/nombre-de-demandes';
 import { dateDuJour } from '../socle/dates';
 import { Icone } from '../socle/icone';
 import { EntreeDuMenu, menuDe, ONGLETS } from '../socle/menu';
@@ -44,6 +45,20 @@ export class Cadre {
     { initialValue: new Date() },
   );
   protected readonly date = computed(() => dateDuJour(this.maintenant()));
+
+  /** DEM-03 : le nombre de demandes à traiter, à côté de « Demandes d'inscription », relu à chaque page. */
+  private readonly nombreDeDemandes = inject(NombreDeDemandes);
+  protected readonly demandesATraiter = this.nombreDeDemandes.aTraiter;
+
+  /** Le cadre naît pendant une navigation : la fin de celle-ci donne déjà la première lecture. */
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((evenement) => evenement instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => void this.nombreDeDemandes.actualiser());
+  }
 
   protected readonly personne = this.session.personne;
   protected readonly initiales = computed(() => {
