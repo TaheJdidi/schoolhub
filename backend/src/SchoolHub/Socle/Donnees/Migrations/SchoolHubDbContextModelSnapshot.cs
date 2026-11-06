@@ -1219,6 +1219,149 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("professeurs", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Rh.Conge", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("Au")
+                        .HasColumnType("date")
+                        .HasColumnName("au");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("Du")
+                        .HasColumnType("date")
+                        .HasColumnName("du");
+
+                    b.Property<Guid>("EmployeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employe_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.HasKey("Id")
+                        .HasName("pk_conges");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_conges_centre_id");
+
+                    b.HasIndex("EmployeId")
+                        .HasDatabaseName("ix_conges_employe_id");
+
+                    b.ToTable("conges", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Rh.Employe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("Horaires")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("horaires");
+
+                    b.Property<string>("Nom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nom");
+
+                    b.Property<DateOnly?>("PartiLe")
+                        .HasColumnType("date")
+                        .HasColumnName("parti_le");
+
+                    b.Property<string>("Poste")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("poste");
+
+                    b.Property<string>("Prenom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("prenom");
+
+                    b.Property<decimal>("Salaire")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("salaire");
+
+                    b.Property<string>("Telephone")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("telephone");
+
+                    b.HasKey("Id")
+                        .HasName("pk_employes");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_employes_centre_id");
+
+                    b.ToTable("employes", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Rh.SalairePaye", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<Guid>("EmployeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("employe_id");
+
+                    b.Property<DateOnly>("Mois")
+                        .HasColumnType("date")
+                        .HasColumnName("mois");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.Property<DateOnly>("PayeLe")
+                        .HasColumnType("date")
+                        .HasColumnName("paye_le");
+
+                    b.HasKey("Id")
+                        .HasName("pk_salaires_payes");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_salaires_payes_centre_id");
+
+                    b.HasIndex("EmployeId", "Mois")
+                        .IsUnique()
+                        .HasDatabaseName("ix_salaires_payes_employe_id_mois");
+
+                    b.ToTable("salaires_payes", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Seances.Absence", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2219,6 +2362,50 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_professeurs_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Rh.Conge", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_conges_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Rh.Employe", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_conges_employes_employe_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Rh.Employe", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_employes_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Rh.SalairePaye", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_salaires_payes_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Rh.Employe", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_salaires_payes_employes_employe_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Seances.Absence", b =>

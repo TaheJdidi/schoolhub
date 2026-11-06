@@ -50,6 +50,7 @@ const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> 
   bibliotheque: () => import('./pages/bibliotheque/bibliotheque').then((module) => module.Bibliotheque),
   parts: () => import('./pages/parts/parts').then((module) => module.Parts),
   achats: () => import('./pages/achats/achats').then((module) => module.Achats),
+  'ressources-humaines': () => import('./pages/rh/ressources-humaines').then((module) => module.RessourcesHumaines),
 };
 
 /**

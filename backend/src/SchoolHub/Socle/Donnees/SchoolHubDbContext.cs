@@ -11,6 +11,7 @@ using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
 using SchoolHub.Modules.Parts;
 using SchoolHub.Modules.Professeurs;
+using SchoolHub.Modules.Rh;
 using SchoolHub.Modules.Seances;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
@@ -73,6 +74,12 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<Achat> Achats => Set<Achat>();
 
     public DbSet<FactureDAchat> FacturesDAchat => Set<FactureDAchat>();
+
+    public DbSet<Employe> Employes => Set<Employe>();
+
+    public DbSet<Conge> Conges => Set<Conge>();
+
+    public DbSet<SalairePaye> SalairesPayes => Set<SalairePaye>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;
