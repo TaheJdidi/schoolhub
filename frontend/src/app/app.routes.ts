@@ -17,7 +17,6 @@ import { Introuvable } from './pages/introuvable/introuvable';
 import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
 import { Parametres } from './pages/parametres/parametres';
-import { Professeurs } from './pages/professeurs/professeurs';
 import { EntreeDuMenu, MENU } from './socle/menu';
 import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
 
@@ -38,7 +37,6 @@ const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((modu
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
-  professeurs: Professeurs,
   eleves: Eleves,
   demandes: Demandes,
   comptes: Comptes,
@@ -47,8 +45,10 @@ const PAGES: Partial<Record<string, Type<unknown>>> = {
 
 /** Les pages du menu qui se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
 const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> = {
+  professeurs: () => import('./pages/professeurs/professeurs').then((module) => module.Professeurs),
   caisse: () => import('./pages/caisse/caisse').then((module) => module.Caisse),
   bibliotheque: () => import('./pages/bibliotheque/bibliotheque').then((module) => module.Bibliotheque),
+  parts: () => import('./pages/parts/parts').then((module) => module.Parts),
 };
 
 /**

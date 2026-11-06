@@ -82,6 +82,9 @@
           }
         </p>
         <p class="groupes">{{ groupesOuverts(professeur.groupesOuverts) }}</p>
+        @if (proprietaire()) {
+          <sh-part-du-centre [professeurId]="professeur.id" />
+        }
 
         @if (aConfirmer()) {
           <p class="question">Supprimer {{ nomComplet(professeur) }} ? Seulement en cas d'erreur de saisie.</p>
