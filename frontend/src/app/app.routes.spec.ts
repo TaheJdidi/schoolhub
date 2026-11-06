@@ -31,6 +31,7 @@ describe("les adresses de l'application", () => {
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
+    http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
     http.verify();
   });
 
@@ -204,11 +205,11 @@ describe("les adresses de l'application", () => {
   });
 
   it('une page pas encore faite le dit', async () => {
-    await ouvrir('/bibliotheque', AMIRA);
+    await ouvrir('/achats', AMIRA);
 
-    expect(texte()).toContain('Bibliothèque');
+    expect(texte()).toContain('Achats');
     expect(texte()).toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Bibliothèque · SchoolHub');
+    expect(titre()).toBe('Achats · SchoolHub');
   });
 
   it('une secrétaire voit les reçus du jour sur /caisse, un reçu sur /caisse/recus/r1, et encaisse sur /eleves/e1/encaissement', async () => {

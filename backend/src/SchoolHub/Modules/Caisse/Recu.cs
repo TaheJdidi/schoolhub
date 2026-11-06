@@ -68,6 +68,11 @@ public sealed class Recu : IAppartientAuCentre
 
     public Guid? AnnuleParId { get; private set; }
 
+    /// <summary>CAI-09 : la clôture qui a compté ce reçu ; <c>null</c> tant que sa caisse est ouverte.</summary>
+    public Guid? ClotureId { get; private set; }
+
+    internal void Ranger(Guid clotureId) => ClotureId = clotureId;
+
     internal void Annuler(Guid auteurId, string motif, DateTimeOffset maintenant)
     {
         AnnuleLe = maintenant;
@@ -120,5 +125,8 @@ internal sealed class RecuConfiguration : IEntityTypeConfiguration<Recu>
         });
         // Les règlements d'un encaissement pointent vers leur reçu.
         recu.HasMany<Reglement>().WithOne().HasForeignKey(r => r.RecuId).OnDelete(DeleteBehavior.Restrict);
+        // CAI-09 : la caisse ouverte d'un compte, ce sont ses reçus sans clôture.
+        recu.HasOne<ClotureDeCaisse>().WithMany().HasForeignKey(r => r.ClotureId).OnDelete(DeleteBehavior.Restrict);
+        recu.HasIndex(r => new { r.AuteurId, r.ClotureId });
     }
 }

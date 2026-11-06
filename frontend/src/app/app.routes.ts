@@ -5,7 +5,6 @@ import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
-import { Caisse } from './pages/caisse/caisse';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Demandes } from './pages/demandes/demandes';
@@ -41,10 +40,15 @@ const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((modu
 const PAGES: Partial<Record<string, Type<unknown>>> = {
   professeurs: Professeurs,
   eleves: Eleves,
-  caisse: Caisse,
   demandes: Demandes,
   comptes: Comptes,
   parametres: Parametres,
+};
+
+/** Les pages du menu qui se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
+const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> = {
+  caisse: () => import('./pages/caisse/caisse').then((module) => module.Caisse),
+  bibliotheque: () => import('./pages/bibliotheque/bibliotheque').then((module) => module.Bibliotheque),
 };
 
 /**
@@ -52,9 +56,10 @@ const PAGES: Partial<Record<string, Type<unknown>>> = {
  * la page pour le propriétaire, puis « Accès réservé au propriétaire » pour la secrétaire.
  */
 function adressesDe(entree: EntreeDuMenu): Routes {
+  const aLaDemande = PAGES_A_LA_DEMANDE[entree.chemin];
   const page = {
     path: entree.chemin,
-    component: PAGES[entree.chemin] ?? Bientot,
+    ...(aLaDemande ? { loadComponent: aLaDemande } : { component: PAGES[entree.chemin] ?? Bientot }),
     data: { titre: entree.libelle },
     title: titre(entree.libelle),
   };

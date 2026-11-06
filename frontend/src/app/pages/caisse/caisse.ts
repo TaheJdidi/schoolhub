@@ -1,31 +1,39 @@
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
 import { dateDuJourLocale } from '../groupes/groupe';
+import { Session } from '../../socle/session/session';
+import { ControleDesCloturesComponent } from './controle-des-clotures';
+import { MaCaisseComponent } from './ma-caisse';
 import { RecuDeLaListe } from './recu';
 
 /**
  * CAI-06 : la page « Caisse ». Les reçus du jour, les plus récents en premier, avec leur total ; puis la recherche d'un
- * reçu par numéro, par élève ou par date, parmi tous les reçus du centre. La clôture du soir viendra avec CAI-09.
+ * reçu par numéro, par élève ou par date, parmi tous les reçus du centre. En tête, « Ma caisse » et sa clôture du soir
+ * (CAI-09) ; pour le propriétaire, le contrôle des clôtures (CAI-10).
  */
 @Component({
   selector: 'sh-caisse',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, MaCaisseComponent, ControleDesCloturesComponent],
   template: `
     <div class="pagehead">
       <div>
         <h1 class="h1">Caisse</h1>
-        <p class="sub">Les reçus, et leur recherche. Encaissez depuis la fiche d'un élève.</p>
+        <p class="sub">Votre caisse et sa clôture du soir, puis les reçus. Encaissez depuis la fiche d'un élève ou d'un groupe.</p>
       </div>
     </div>
 
     <div class="cartes">
+      <sh-ma-caisse (cloturee)="controle()?.recharger()" />
+      @if (proprietaire()) {
+        <sh-controle-des-clotures />
+      }
       <section class="card carte">
         <div class="entete">
           <h2 class="titre">{{ titre() }}</h2>
@@ -90,7 +98,10 @@ import { RecuDeLaListe } from './recu';
 })
 export class Caisse implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly session = inject(Session);
 
+  protected readonly controle = viewChild(ControleDesCloturesComponent);
+  protected readonly proprietaire = computed(() => this.session.personne()?.role === 'Proprietaire');
   protected readonly montant = ecrireUnMontant;
   protected readonly aujourdhui = dateDuJourLocale();
   protected readonly recus = signal<RecuDeLaListe[] | null>(null);

@@ -73,6 +73,7 @@ public enum ActionDuJournal
     SeanceDeplacee,
     Encaissement,
     RecuAnnule,
+    CaisseCloturee,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

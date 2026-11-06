@@ -14,6 +14,13 @@ public static class DateDeTunis
     public static DateOnly Aujourdhui(TimeProvider temps, TimeZoneInfo fuseau) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(temps.GetUtcNow(), fuseau).DateTime);
 
+    /// <summary>L'heure à Tunis de ce moment, à la minute : « 14:32 » (BIB-01, BIB-02).</summary>
+    public static TimeOnly Heure(DateTimeOffset moment)
+    {
+        var local = TimeZoneInfo.ConvertTime(moment, Tunis).DateTime;
+        return new TimeOnly(local.Hour, local.Minute);
+    }
+
     /// <summary>
     /// Le fuseau de Tunis : son nom IANA, puis son nom Windows. Un serveur qui ne connaît ni l'un ni l'autre
     /// (image Linux sans base des fuseaux, ancien Windows) prend UTC+1 : la Tunisie n'a plus d'heure d'été depuis 2009.

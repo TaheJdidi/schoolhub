@@ -31,6 +31,7 @@ describe('le cadre', () => {
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
+    http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
     http.verify();
   });
 
@@ -119,7 +120,7 @@ describe('le cadre', () => {
     await vi.waitFor(() => expect(lien.querySelector('.compte')?.textContent?.trim()).toBe('3'));
     expect(lien.querySelector('.compte')?.getAttribute('aria-label')).toBe('3 à traiter');
 
-    await harness.navigateByUrl('/bibliotheque');
+    await harness.navigateByUrl('/achats');
     http.expectOne('/api/demandes/nombre').flush({ aTraiter: 0 });
 
     await vi.waitFor(() => expect(lien.querySelector('.compte')).toBeNull());
@@ -139,7 +140,7 @@ describe('le cadre', () => {
   });
 
   it("allume l'onglet « Plus » pour les autres pages du menu", async () => {
-    const page = await ouvrir('/bibliotheque', AMIRA);
+    const page = await ouvrir('/achats', AMIRA);
 
     expect(page.querySelector('.tabbar a[href="/plus"]')?.getAttribute('aria-current')).toBe('page');
     expect(page.querySelector('.tabbar a[href="/caisse"]')?.getAttribute('aria-current')).toBeNull();

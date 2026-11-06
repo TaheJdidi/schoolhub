@@ -101,15 +101,16 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     }
 
     /// <summary>
-    /// ELV-11 : supprime une fiche créée par erreur. Une fiche qui a une inscription a un historique : elle reste.
-    /// Les paiements et les présences ajouteront leur propre refus.
+    /// ELV-11 : supprime une fiche créée par erreur. Une fiche qui a une inscription, un reçu (CAI-03) ou une entrée à la
+    /// bibliothèque (BIB-01) a un historique : elle reste.
     /// </summary>
     public async Task<IssueSurUnEleve> SupprimerAsync(Guid id)
     {
         var eleve = await contexte.Eleves.SingleOrDefaultAsync(e => e.Id == id);
         if (eleve is null)
             return EleveIntrouvable;
-        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == id))
+        if (await contexte.Inscriptions.AnyAsync(i => i.EleveId == id) || await contexte.Recus.AnyAsync(r => r.EleveId == id)
+            || await contexte.EntreesALaBibliotheque.AnyAsync(e => e.EleveId == id))
             return new IssueSurUnEleve(null, StatusCodes.Status409Conflict, AvecHistorique);
 
         contexte.Eleves.Remove(eleve);

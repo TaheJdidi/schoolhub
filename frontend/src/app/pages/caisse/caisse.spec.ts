@@ -9,6 +9,9 @@ import { EncaissementGroupe } from './encaissement-groupe';
 import { PageDEncaissement } from './page-d-encaissement';
 import { PageDuRecu } from './page-du-recu';
 import { RecuAImprimer } from './recu-a-imprimer';
+import { Moi } from '../../socle/session/moi';
+import { Session } from '../../socle/session/session';
+import { CaisseOuverte, Cloture, ControleDesClotures, MaCaisse } from './caisse-du-soir';
 import { Encaissable, EncaissementDuGroupe, RecuDecrit } from './recu';
 
 const RECU: RecuDecrit = {
@@ -316,11 +319,33 @@ describe("l'encaissement groupé", () => {
   });
 });
 
+const OUVERTE: CaisseOuverte = { jour: '2027-11-27', rang: 1, encaisse: 845, sorties: 0, attendu: 845, recus: 12, oubliee: false };
+
+const CLOTURE: Cloture = {
+  id: 'c1',
+  jour: '2027-11-27',
+  rang: 1,
+  compteId: 'a1',
+  secretaire: 'Amira Jlassi',
+  encaisse: 845,
+  sorties: 0,
+  attendu: 845,
+  compte: 840,
+  ecart: -5,
+  clotureeLe: '2027-11-27T17:47:00+00:00',
+  argentRecu: false,
+  argentRecuLe: null,
+};
+
+/** La carte des reçus : la dernière de la page. */
+const carteDesRecus = (page: HTMLElement) => [...page.querySelectorAll('section.card')].at(-1) as HTMLElement;
+
 describe('la page « Caisse »', () => {
   it('montre les reçus du jour, puis cherche par élève', async () => {
     const http = configurer();
     const harness = await RouterTestingHarness.create('/caisse');
     const page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/caisse'))).flush({ ouvertes: [OUVERTE], clotures: [] });
     const premiere = await vi.waitFor(() => http.expectOne((r) => r.url === '/api/recus'));
     expect(premiere.request.params.get('jour')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     premiere.flush([
@@ -329,20 +354,127 @@ describe('la page « Caisse »', () => {
     ]);
     await vi.waitFor(() => expect(page.querySelectorAll('a.recu')).toHaveLength(2));
 
-    expect(page.querySelector('h2')?.textContent).toContain('Reçus du jour');
+    const recus = carteDesRecus(page);
+    expect(recus.querySelector('h2')?.textContent).toContain('Reçus du jour');
     // Un reçu annulé ne compte pas dans le total.
-    expect(page.querySelector('.compte')?.textContent).toContain('2 reçus · 60,000 TND');
+    expect(recus.querySelector('.compte')?.textContent).toContain('2 reçus · 60,000 TND');
     expect(page.querySelector('a.recu')?.textContent).toContain('Annulé');
     expect(page.querySelector('a.recu')?.getAttribute('href')).toBe('/caisse/recus/r2');
+    // Pas de contrôle des clôtures pour une secrétaire.
+    expect(page.textContent).not.toContain('Contrôle des clôtures');
 
-    const eleve = page.querySelectorAll('.filtres input')[1] as HTMLInputElement;
+    const eleve = recus.querySelectorAll('.filtres input')[1] as HTMLInputElement;
     eleve.value = 'miled';
     bouton(page, 'Chercher')!.click();
     const recherche = http.expectOne((r) => r.url === '/api/recus');
     expect(recherche.request.params.get('eleve')).toBe('miled');
     recherche.flush([]);
     await vi.waitFor(() => expect(page.textContent).toContain('Aucun reçu.'));
-    expect(page.querySelector('h2')?.textContent).toContain('Reçus trouvés');
+    expect(carteDesRecus(page).querySelector('h2')?.textContent).toContain('Reçus trouvés');
+    http.verify();
+  });
+});
+
+describe('« Ma caisse » et sa clôture du soir', () => {
+  let http: HttpTestingController;
+  let page: HTMLElement;
+
+  async function ouvrir(caisse: MaCaisse): Promise<void> {
+    http = configurer();
+    const harness = await RouterTestingHarness.create('/caisse');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/caisse'))).flush(caisse);
+    http.expectOne((r) => r.url === '/api/recus').flush([]);
+    await vi.waitFor(() => expect(page.textContent).toContain('Espèces attendues'));
+  }
+
+  afterEach(() => http.verify());
+
+  const compte = () => page.querySelector('sh-ma-caisse input') as HTMLInputElement;
+
+  function saisir(valeur: string): void {
+    compte().value = valeur;
+    compte().dispatchEvent(new Event('input'));
+  }
+
+  it("montre l'encaissé, les sorties et l'attendu, et l'écart en direct", async () => {
+    await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
+
+    expect(page.querySelector('sh-ma-caisse h2')?.textContent).toContain('Ma caisse');
+    expect(page.querySelector('.chiffres')?.textContent).toContain('845,000 TND');
+    expect(page.querySelector('.chiffres')?.textContent).toContain('12 reçus');
+    expect(page.querySelector('.ecart')?.textContent).toContain('Saisissez le montant compté');
+
+    saisir('840');
+    await vi.waitFor(() => expect(page.querySelector('.ecart')?.textContent).toContain('Écart : −5,000 TND'));
+    saisir('845,000');
+    await vi.waitFor(() => expect(page.querySelector('.ecart')?.textContent).toContain("Pas d'écart"));
+  });
+
+  it('clôture avec le montant compté, puis montre la caisse clôturée', async () => {
+    await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
+    saisir('840');
+
+    bouton(page, 'Clôturer ma caisse')!.click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/caisse/cloture' });
+    expect(requete.request.body).toEqual({ jour: '2027-11-27', compte: 840 });
+    requete.flush(CLOTURE);
+    (await vi.waitFor(() => http.expectOne('/api/caisse'))).flush({
+      ouvertes: [{ ...OUVERTE, rang: 2, encaisse: 0, attendu: 0, recus: 0 }],
+      clotures: [CLOTURE],
+    });
+
+    await vi.waitFor(() => expect(page.textContent).toContain('Clôturée'));
+    expect(page.textContent).toContain('−5,000 TND');
+    expect(page.textContent).toContain('Rien à clôturer pour le moment');
+  });
+
+  it("montre en tête une caisse oubliée, à clôturer d'abord", async () => {
+    await ouvrir({ ouvertes: [{ ...OUVERTE, jour: '2027-11-26', oubliee: true }, OUVERTE], clotures: [] });
+
+    expect(page.querySelector('sh-ma-caisse h2')?.textContent).toContain('Caisse du 26/11');
+    expect(page.querySelector('sh-ma-caisse .note.warn')?.textContent).toContain("n'est pas clôturée");
+  });
+});
+
+describe('le contrôle des clôtures, pour le propriétaire', () => {
+  it("montre le tableau, l'écart négatif en rouge, et coche « argent reçu »", async () => {
+    const http = configurer();
+    TestBed.inject(Session).connaitre({ prenom: 'Hedi', nom: 'Ben Salah', role: 'Proprietaire' } as Moi);
+    const harness = await RouterTestingHarness.create('/caisse');
+    const page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/caisse'))).flush({ ouvertes: [OUVERTE], clotures: [] });
+    const controle: ControleDesClotures = {
+      clotures: [CLOTURE],
+      aRecuperer: 840,
+      nonCloturees: [{ compteId: 's1', secretaire: 'Sonia Mabrouk', jour: '2027-11-26', attendu: 120, recus: 3 }],
+      comptes: [{ id: 'a1', nom: 'Amira Jlassi' }],
+    };
+    (await vi.waitFor(() => http.expectOne((r) => r.url === '/api/caisse/clotures'))).flush(controle);
+    http.expectOne((r) => r.url === '/api/recus').flush([]);
+    await vi.waitFor(() => expect(page.querySelector('td.bad')).not.toBeNull());
+
+    expect(page.textContent).toContain('À récupérer : 840,000 TND');
+    expect(page.textContent).toContain('Sonia Mabrouk le 26/11 (120,000 TND)');
+    expect(page.querySelector('td.bad')?.textContent).toContain('−5,000');
+
+    (page.querySelector('sh-controle-des-clotures tbody input[type="checkbox"]') as HTMLInputElement).click();
+    const requete = http.expectOne({ method: 'PUT', url: '/api/caisse/clotures/c1/argent-recu' });
+    expect(requete.request.body).toEqual({ recu: true });
+    requete.flush({ ...CLOTURE, argentRecu: true });
+    (await vi.waitFor(() => http.expectOne((r) => r.url === '/api/caisse/clotures'))).flush({
+      ...controle,
+      clotures: [{ ...CLOTURE, argentRecu: true }],
+      aRecuperer: 0,
+    });
+    await vi.waitFor(() => expect(page.textContent).toContain('À récupérer : 0,000 TND'));
+
+    const secretaire = page.querySelector('sh-controle-des-clotures select') as HTMLSelectElement;
+    secretaire.value = 'a1';
+    secretaire.dispatchEvent(new Event('change'));
+    const filtree = http.expectOne((r) => r.url === '/api/caisse/clotures');
+    expect(filtree.request.params.get('compteId')).toBe('a1');
+    filtree.flush(controle);
     http.verify();
   });
 });

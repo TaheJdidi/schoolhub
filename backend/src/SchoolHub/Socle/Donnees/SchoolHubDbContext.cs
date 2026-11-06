@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Bibliotheque;
 using SchoolHub.Modules.Caisse;
 using SchoolHub.Modules.Demandes;
 using SchoolHub.Modules.Eleves;
@@ -56,6 +57,10 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
     public DbSet<Rattrapage> Rattrapages => Set<Rattrapage>();
 
     public DbSet<Recu> Recus => Set<Recu>();
+
+    public DbSet<ClotureDeCaisse> CloturesDeCaisse => Set<ClotureDeCaisse>();
+
+    public DbSet<EntreeALaBibliotheque> EntreesALaBibliotheque => Set<EntreeALaBibliotheque>();
 
     // Lu à chaque requête : le filtre suit le centre courant de ce contexte.
     private Guid? CentreIdCourant => centreCourant.Id;

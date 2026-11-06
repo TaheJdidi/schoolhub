@@ -103,6 +103,146 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Bibliotheque.EntreeALaBibliotheque", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ArriveeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("arrivee_le");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<TimeOnly?>("Depart")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("depart");
+
+                    b.Property<Guid>("EleveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eleve_id");
+
+                    b.Property<DateOnly>("Jour")
+                        .HasColumnType("date")
+                        .HasColumnName("jour");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.Property<Guid>("RecuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recu_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_entrees_a_la_bibliotheque");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_entrees_a_la_bibliotheque_centre_id");
+
+                    b.HasIndex("EleveId")
+                        .HasDatabaseName("ix_entrees_a_la_bibliotheque_eleve_id");
+
+                    b.HasIndex("RecuId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_entrees_a_la_bibliotheque_recu_id");
+
+                    b.HasIndex("Jour", "EleveId")
+                        .HasDatabaseName("ix_entrees_a_la_bibliotheque_jour_eleve_id");
+
+                    b.ToTable("entrees_a_la_bibliotheque", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Caisse.ClotureDeCaisse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArgentRecuLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("argent_recu_le");
+
+                    b.Property<Guid?>("ArgentRecuParId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("argent_recu_par_id");
+
+                    b.Property<decimal>("Attendu")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("attendu");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateTimeOffset>("ClotureeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cloturee_le");
+
+                    b.Property<decimal>("Compte")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("compte");
+
+                    b.Property<Guid>("CompteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("compte_id");
+
+                    b.Property<decimal>("Ecart")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("ecart");
+
+                    b.Property<decimal>("Encaisse")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("encaisse");
+
+                    b.Property<DateOnly>("Jour")
+                        .HasColumnType("date")
+                        .HasColumnName("jour");
+
+                    b.Property<int>("Rang")
+                        .HasColumnType("integer")
+                        .HasColumnName("rang");
+
+                    b.Property<string>("Secretaire")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("secretaire");
+
+                    b.Property<decimal>("Sorties")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("sorties");
+
+                    b.HasKey("Id")
+                        .HasName("pk_clotures_de_caisse");
+
+                    b.HasIndex("ArgentRecuParId")
+                        .HasDatabaseName("ix_clotures_de_caisse_argent_recu_par_id");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_clotures_de_caisse_centre_id");
+
+                    b.HasIndex("Jour")
+                        .HasDatabaseName("ix_clotures_de_caisse_jour");
+
+                    b.HasIndex("CompteId", "Jour", "Rang")
+                        .IsUnique()
+                        .HasDatabaseName("ix_clotures_de_caisse_compte_id_jour_rang");
+
+                    b.ToTable("clotures_de_caisse", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Caisse.Recu", b =>
                 {
                     b.Property<Guid>("Id")
@@ -131,6 +271,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.Property<Guid>("CentreId")
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
+
+                    b.Property<Guid?>("ClotureId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cloture_id");
 
                     b.Property<DateTimeOffset>("CreeLe")
                         .HasColumnType("timestamp with time zone")
@@ -164,11 +308,14 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.HasIndex("AnnuleParId")
                         .HasDatabaseName("ix_recus_annule_par_id");
 
-                    b.HasIndex("AuteurId")
-                        .HasDatabaseName("ix_recus_auteur_id");
+                    b.HasIndex("ClotureId")
+                        .HasDatabaseName("ix_recus_cloture_id");
 
                     b.HasIndex("EleveId")
                         .HasDatabaseName("ix_recus_eleve_id");
+
+                    b.HasIndex("AuteurId", "ClotureId")
+                        .HasDatabaseName("ix_recus_auteur_id_cloture_id");
 
                     b.HasIndex("CentreId", "Numero")
                         .IsUnique()
@@ -1219,6 +1366,53 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Bibliotheque.EntreeALaBibliotheque", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_entrees_a_la_bibliotheque_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
+                        .WithMany()
+                        .HasForeignKey("EleveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_entrees_a_la_bibliotheque_eleves_eleve_id");
+
+                    b.HasOne("SchoolHub.Modules.Caisse.Recu", null)
+                        .WithMany()
+                        .HasForeignKey("RecuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_entrees_a_la_bibliotheque_recus_recu_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Caisse.ClotureDeCaisse", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("ArgentRecuParId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_clotures_de_caisse_asp_net_users_argent_recu_par_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_clotures_de_caisse_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("CompteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_clotures_de_caisse_asp_net_users_compte_id");
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Caisse.Recu", b =>
                 {
                     b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
@@ -1240,6 +1434,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_recus_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Caisse.ClotureDeCaisse", null)
+                        .WithMany()
+                        .HasForeignKey("ClotureId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_recus_clotures_de_caisse_cloture_id");
 
                     b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
                         .WithMany()

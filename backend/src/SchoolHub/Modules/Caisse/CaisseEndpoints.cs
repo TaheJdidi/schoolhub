@@ -51,6 +51,25 @@ public static class CaisseEndpoints
             return issue.Message is null ? TypedResults.NoContent() : ConnexionEndpoints.Refus(issue.Statut, issue.Message);
         });
 
+        // CAI-09 : sa caisse et sa clôture du soir ; CAI-10 : le contrôle des clôtures, pour le propriétaire.
+        var caisse = api.MapGroup("/caisse");
+        caisse.MapGet("", async (ClaimsPrincipal utilisateur, UserManager<Compte> comptes, CaissesDuCentre caisses) =>
+            await caisses.MaCaisseAsync(await AuteurAsync(utilisateur, comptes)));
+        caisse.MapPost("/cloture", async Task<Results<Created<ClotureDecrite>, JsonHttpResult<Avis>>> (
+            ClotureSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, CaissesDuCentre caisses) =>
+        {
+            var issue = await caisses.CloturerAsync(await AuteurAsync(utilisateur, comptes), saisie);
+            return issue.Cloture is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Created("/api/caisse", issue.Cloture);
+        });
+        caisse.MapGet("/clotures", (DateOnly? du, DateOnly? au, Guid? compteId, CaissesDuCentre caisses) => caisses.ControleAsync(du, au, compteId))
+            .RequireAuthorization(Politiques.Proprietaire);
+        caisse.MapPut("/clotures/{id:guid}/argent-recu", async Task<Results<Ok<ClotureDecrite>, JsonHttpResult<Avis>>> (
+            Guid id, ArgentRecuSaisi saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, CaissesDuCentre caisses) =>
+        {
+            var issue = await caisses.MarquerLArgentRecuAsync(await AuteurAsync(utilisateur, comptes), id, saisie);
+            return issue.Cloture is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Cloture);
+        }).RequireAuthorization(Politiques.Proprietaire);
+
         var groupe = api.MapGroup("/recus");
         groupe.MapGet("", (DateOnly? jour, int? numero, string? eleve, RecusDuCentre recus) => recus.ListerAsync(jour, numero, eleve));
         groupe.MapGet("/{id:guid}", async Task<Results<Ok<RecuDecrit>, JsonHttpResult<Avis>>> (

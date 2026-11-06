@@ -35,6 +35,7 @@ public sealed partial class RecusDuCentre(
     private const string MotifTropLong = "Le motif fait au plus 200 caractères";
     private const string DAvantAujourdhui = "Ce reçu date d'avant aujourd'hui : seul le propriétaire peut l'annuler";
     private const string DUneAutreSecretaire = "Ce reçu a été fait par une autre secrétaire : seul le propriétaire peut l'annuler";
+    private const string CaisseCloturee = "Votre caisse est clôturée : seul le propriétaire peut annuler ce reçu";
     public const string AucunEmail = "Aucun email n'est connu pour cet élève. Ajoutez-en un sur sa fiche, ou utilisez WhatsApp.";
 
     /// <summary>Le nombre de reçus d'une recherche : assez pour une page, jamais toute une année.</summary>
@@ -114,7 +115,8 @@ public sealed partial class RecusDuCentre(
         var recu = new Recu(numero, eleve.Id, auteur.Id, $"{auteur.Prenom} {auteur.Nom}", maintenant, DateDeTunis.Aujourdhui(temps),
             aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)));
         contexte.Recus.Add(recu);
-        foreach (var somme in aRegler)
+        // Une entrée à la bibliothèque (BIB-01) n'était pas due : elle n'a pas de règlement.
+        foreach (var somme in aRegler.Where(s => s.AssuranceId is not null || s.InscriptionId is not null))
         {
             contexte.Reglements.Add(somme.AssuranceId is { } assuranceId
                 ? Reglement.DeLAssurance(assuranceId, somme.Montant, OrigineDuReglement.Encaissement, maintenant, auteur.Id, recu.Id)
@@ -127,6 +129,25 @@ public sealed partial class RecusDuCentre(
             "À payer", $"Encaissé, {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
         return recu;
     }
+
+    /// <summary>
+    /// BIB-01 : le reçu d'une entrée à la bibliothèque, payée en espèces, dans la transaction de l'appelant. Il ne part pas
+    /// par email : il se remet seulement si la personne le demande.
+    /// </summary>
+    internal async Task<Recu> CreerUnRecuDeBibliothequeAsync(Compte auteur, Eleve eleve, decimal prix)
+    {
+        var recu = CreerLeRecu(auteur, eleve,
+            [new SommeEncaissable(null, null, LigneDeBibliotheque, LibelleDeBibliotheque, CleDeBibliotheque, prix, DateDeTunis.Aujourdhui(temps), 0m)],
+            await NumeroSuivantAsync());
+        return recu;
+    }
+
+    internal const string LigneDeBibliotheque = "Bibliothèque";
+    internal const string LibelleDeBibliotheque = "Entrée à la bibliothèque (journée)";
+    private const string CleDeBibliotheque = "Bibliotheque";
+
+    /// <summary>CAI-05 : le reçu décrit pour la page ; utilisé aussi par la bibliothèque.</summary>
+    internal Task<RecuDecrit> DecrireLeRecuAsync(Recu recu, Compte lecteur) => DecrireAsync(recu, lecteur);
 
     /// <summary>CAI-05 et CAI-06 : un reçu, son texte et ses messages prêts ; <c>null</c> s'il n'est pas dans ce centre.</summary>
     public async Task<RecuDecrit?> LireAsync(Guid id, Compte lecteur)
@@ -248,7 +269,7 @@ public sealed partial class RecusDuCentre(
 
     /// <summary>
     /// CAI-07 : pourquoi ce compte ne peut pas annuler ce reçu ; <c>null</c> s'il le peut. Le propriétaire peut toujours.
-    /// La clôture de la caisse (CAI-09) ajoutera son refus.
+    /// Après la clôture de sa caisse (CAI-09), la secrétaire ne l'annule plus.
     /// </summary>
     private string? PourquoiPasAnnulable(Recu recu, Compte compte)
     {
@@ -256,7 +277,9 @@ public sealed partial class RecusDuCentre(
             return null;
         if (recu.AuteurId != compte.Id)
             return DUneAutreSecretaire;
-        return recu.Jour < DateDeTunis.Aujourdhui(temps) ? DAvantAujourdhui : null;
+        if (recu.Jour < DateDeTunis.Aujourdhui(temps))
+            return DAvantAujourdhui;
+        return recu.ClotureId is not null ? CaisseCloturee : null;
     }
 
     private async Task<RecuDecrit> DecrireAsync(Recu recu, Compte lecteur)
@@ -298,7 +321,8 @@ public sealed partial class RecusDuCentre(
         lignes.Add($"Reçu n° {recu.Numero} · {centre.Nom}" + (centre.Telephone is { } telephone ? $", {TelephoneTunisien.Grouper(telephone)}" : ""));
         lignes.Add($"Le {SaisieDuGroupe.EcrireUneDate(recu.Jour)}");
         lignes.Add($"Élève : {eleve.Prenom} {eleve.Nom}");
-        lignes.AddRange(recu.Lignes.Select(l => l.AssuranceId is not null
+        // L'assurance et la bibliothèque n'ont pas de groupe : leur libellé suffit.
+        lignes.AddRange(recu.Lignes.Select(l => l.AssuranceId is not null || l.InscriptionId is null
             ? $"• {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"
             : $"• {l.Groupe}, {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"));
         lignes.Add($"Total payé en espèces : {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
