@@ -34,6 +34,28 @@ export interface AppelDeLaSeance {
   ouvert: boolean;
   appelFait: boolean;
   eleves: EleveALAppel[];
+  /** SEA-03 : la séance est annulée, avec son motif. */
+  annulee?: boolean;
+  motifDAnnulation?: string | null;
+  /** « Prevue », « Remplacement » ou « Supplementaire ». */
+  nature?: NatureDeLaSeance;
+}
+
+/** D'où vient une séance. */
+export type NatureDeLaSeance = 'Prevue' | 'Remplacement' | 'Supplementaire';
+
+/** Un élève concerné par un changement du calendrier, et un message par destinataire. */
+export interface MessagesDUnEleve {
+  eleveId: string;
+  prenom: string;
+  nom: string;
+  messages: MessageWhatsApp[];
+}
+
+/** SEA-03 à SEA-06 : le texte du message, et les messages prêts pour les élèves concernés. */
+export interface ChangementDuCalendrier {
+  texte: string;
+  eleves: MessagesDUnEleve[];
 }
 
 /** SEA-09 : une séance passée encore « appel à faire » (GET /api/seances/a-recopier). */

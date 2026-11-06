@@ -138,18 +138,33 @@ public sealed record ProfesseurDuGroupe(Guid Id, string Prenom, string Nom);
 public sealed record NiveauDuGroupe(Guid Id, string Nom);
 
 /// <summary>Une séance d'Étude ; <see cref="AppelFait"/> dit si son appel est enregistré (SEA-02, SEA-07).</summary>
-public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string Fin, bool AppelFait = false)
+public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string Fin, bool AppelFait = false, string Nature = "Prevue")
 {
     public static SeanceDuGroupe De(Seance seance) =>
         new(seance.Id, seance.Date, seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture), seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture),
-            seance.AppelFaitLe is not null);
+            seance.AppelFaitLe is not null, seance.Nature.ToString());
 }
+
+/// <summary>
+/// SEA-02 : une séance qui ne compte pas : annulée (avec son motif, et la date de son remplacement s'il y en a un) ou
+/// supplémentaire. <see cref="Nature"/> vaut « Prevue », « Remplacement » ou « Supplementaire ».
+/// </summary>
+public sealed record SeanceHorsCompte(
+    Guid Id,
+    DateOnly Date,
+    string Debut,
+    string Fin,
+    string Nature,
+    bool Annulee,
+    string? Motif,
+    DateOnly? RemplaceeLe,
+    bool AppelFait);
 
 /// <summary>
 /// Une séance de Révision ou de Formation, avec son numéro (à partir de la première séance dans SchoolHub) et, pour une
 /// Révision, son prix.
 /// </summary>
-public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string Debut, string Fin, decimal? Prix, bool AppelFait = false)
+public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string Debut, string Fin, decimal? Prix, bool AppelFait = false, string Nature = "Prevue")
 {
     public static SeanceNumerotee De(Seance seance, int numero, IReadOnlyList<decimal>? prixDesSeances) => new(
         seance.Id,
@@ -157,8 +172,9 @@ public sealed record SeanceNumerotee(Guid Id, int Numero, DateOnly Date, string 
         seance.Date,
         seance.Debut.ToString("HH:mm", CultureInfo.InvariantCulture),
         seance.Fin.ToString("HH:mm", CultureInfo.InvariantCulture),
-        prixDesSeances?[numero - 1],
-        seance.AppelFaitLe is not null);
+        prixDesSeances is { } prix && numero <= prix.Count ? prix[numero - 1] : null,
+        seance.AppelFaitLe is not null,
+        seance.Nature.ToString());
 }
 
 /// <summary>Une tranche d'une Formation : son montant, et la séance où elle est due.</summary>
@@ -193,4 +209,5 @@ public sealed record FicheDuGroupe(
     List<SeanceNumerotee> Seances,
     List<TrancheDuGroupe> Tranches,
     DateOnly? FermeLe,
-    string? MotifDeFermeture);
+    string? MotifDeFermeture,
+    List<SeanceHorsCompte>? HorsCompte = null);

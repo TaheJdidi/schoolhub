@@ -145,6 +145,51 @@ describe("la page de l'appel", () => {
     await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain("L'appel s'ouvre le jour de la séance"));
   });
 
+  it('annule la séance avec un motif, puis montre les messages', async () => {
+    await ouvrir({ ...APPEL, date: '2027-12-04', ouvert: false });
+
+    bouton('Annuler cette séance')!.click();
+    await vi.waitFor(() => expect(bouton("Confirmer l'annulation")).toBeDefined());
+    bouton("Confirmer l'annulation")!.click();
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain("Écrivez le motif de l'annulation"));
+
+    const motif = page.querySelector('input[placeholder="Professeur absent"]') as HTMLInputElement;
+    motif.value = 'Professeur absent';
+    motif.dispatchEvent(new Event('input'));
+    bouton("Confirmer l'annulation")!.click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/seances/s1/annulation' });
+    expect(requete.request.body).toEqual({ motif: 'Professeur absent' });
+    requete.flush({ texte: 'Bonjour, la séance de mathématiques du samedi 04/12/2027, de 10h à 12h, est annulée. Centre Les Jasmins.', eleves: [] });
+    (await vi.waitFor(() => http.expectOne('/api/seances/s1/appel'))).flush({ ...APPEL, ouvert: false, annulee: true, motifDAnnulation: 'Professeur absent' });
+
+    await vi.waitFor(() => expect(page.textContent).toContain('Cette séance est annulée : Professeur absent.'));
+    expect(page.querySelector('.texte-du-message')?.textContent).toContain('est annulée');
+    expect(bouton('Remplacer cette séance')).toBeDefined();
+  });
+
+  it('déplace la séance, avec ses heures proposées', async () => {
+    await ouvrir({ ...APPEL, date: '2027-12-04', ouvert: false });
+
+    bouton('Déplacer cette séance')!.click();
+    await vi.waitFor(() => expect(page.querySelector('input[type="date"]')).not.toBeNull());
+    const date = page.querySelector('input[type="date"]') as HTMLInputElement;
+    date.value = '2027-12-07';
+    date.dispatchEvent(new Event('input'));
+    bouton('Déplacer la séance')!.click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/seances/s1/deplacement' });
+    expect(requete.request.body).toEqual({ date: '2027-12-07', debut: '10:00', fin: '12:00' });
+    requete.flush({ texte: 'Bonjour, la séance est déplacée.', eleves: [] });
+    (await vi.waitFor(() => http.expectOne('/api/seances/s1/appel'))).flush({ ...APPEL, ouvert: false, annulee: true, motifDAnnulation: 'Déplacée au 07/12/2027' });
+
+    await vi.waitFor(() => expect(page.textContent).toContain('Cette séance est annulée : Déplacée au 07/12/2027.'));
+  });
+
+  it("ne propose ni d'annuler ni de déplacer une séance qui a son appel", async () => {
+    await ouvrir({ ...APPEL, appelFait: true });
+
+    expect(bouton('Annuler cette séance')).toBeUndefined();
+    expect(bouton('Déplacer cette séance')).toBeUndefined();
+  });
   it("dit qu'une séance inconnue n'existe pas", async () => {
     await ouvrir(null);
 

@@ -9,6 +9,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
+import { CarteDuCalendrier } from '../seances/carte-du-calendrier';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
@@ -47,7 +48,7 @@ const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -152,6 +153,15 @@ export class PageDuGroupe implements OnInit {
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));
+    }
+  }
+
+  /** SEA-03 à SEA-06 : après un changement du calendrier, les Mois et les séances se recalculent. */
+  protected async recharger(): Promise<void> {
+    try {
+      this.fiche.set(await firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)));
+    } catch (erreur) {
+      this.erreur.set(messageDErreur(erreur));
     }
   }
 

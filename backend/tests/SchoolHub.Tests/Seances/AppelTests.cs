@@ -133,13 +133,14 @@ public sealed class AppelTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         var appel = await EnregistrerAsync(seance, [_lina.Inscription]);
 
         Assert.Equal([("Lina", true), ("Adem", false)], appel.Eleves.Select(e => (e.Prenom, e.Absent)));
+        // Les deux lignes s'écrivent au même instant : leur ordre n'est pas garanti.
         var corrections = (await _application.JournalAsync(_jasmins)).Where(l => l.Action == ActionDuJournal.PresenceCorrigee).ToList();
         Assert.Equal(
             [
-                ("Lina Gharbi · Mathématiques, Groupe Samedi 10h → 12h · séance du 27/11/2027", "Présent", "Absent"),
                 ("Adem Miled · Mathématiques, Groupe Samedi 10h → 12h · séance du 27/11/2027", "Absent", "Présent"),
+                ("Lina Gharbi · Mathématiques, Groupe Samedi 10h → 12h · séance du 27/11/2027", "Présent", "Absent"),
             ],
-            corrections.Select(l => (l.Detail, l.Avant, l.Apres)));
+            corrections.Select(l => (l.Detail, l.Avant, l.Apres)).OrderBy(l => l.Detail, StringComparer.Ordinal));
         Assert.All(corrections, l => Assert.Equal("Amira Jlassi", l.Auteur));
     }
 

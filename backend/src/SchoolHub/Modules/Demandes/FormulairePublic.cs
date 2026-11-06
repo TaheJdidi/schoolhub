@@ -92,7 +92,7 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
     private async Task<List<GroupeDuFormulaire>> GroupesProposesAsync(SchoolHubDbContext contexte)
     {
         var groupes = await contexte.Groupes.Where(g => g.FermeLe == null).ToListAsync();
-        var dernieresSeances = await contexte.Seances
+        var dernieresSeances = await contexte.Seances.QuiComptent()
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);

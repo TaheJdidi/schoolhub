@@ -7,7 +7,11 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
-import { AppelDeLaSeance, EleveALAppel } from './appel';
+import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel } from './appel';
+import { MessagesDuChangement } from './messages-du-changement';
+
+/** Ce que la secrétaire fait de la séance (SEA-03, SEA-04). */
+type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
 
 /**
  * SEA-07, SEA-10 et SEA-11 : l'appel d'une séance. Tous les élèves sont présents ; un toucher marque un absent, un autre
@@ -18,7 +22,7 @@ import { AppelDeLaSeance, EleveALAppel } from './appel';
 @Component({
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, MessagesDuChangement],
   template: `
     @if (introuvable()) {
       <div class="pagehead">
@@ -48,7 +52,9 @@ import { AppelDeLaSeance, EleveALAppel } from './appel';
               <span class="compte">{{ presents() }} présents · {{ absents().length }} {{ absents().length > 1 ? 'absents' : 'absent' }}</span>
             }
           </div>
-          @if (!appel.ouvert) {
+          @if (appel.annulee) {
+            <p class="note warn" role="status">Cette séance est annulée : {{ appel.motifDAnnulation }}.</p>
+          } @else if (!appel.ouvert) {
             <p class="note" role="status">L'appel s'ouvre le jour de la séance.</p>
           } @else {
             <p class="aide">Touchez un élève pour le marquer absent ; touchez-le de nouveau pour le remettre présent.</p>
@@ -106,6 +112,59 @@ import { AppelDeLaSeance, EleveALAppel } from './appel';
             }
           </section>
         }
+
+        <!-- SEA-03 et SEA-04 : annuler ou déplacer la séance ; remplacer une séance annulée. -->
+        @if (!appel.appelFait && !(appel.annulee && appel.nature === 'Supplementaire')) {
+          <section class="card carte">
+            <h2 class="titre">Cette séance</h2>
+            @if (action() === null) {
+              <div class="actions debut">
+                @if (appel.annulee) {
+                  <button type="button" class="btn" (click)="ouvrir('remplacer')">Remplacer cette séance</button>
+                } @else {
+                  <button type="button" class="btn" (click)="ouvrir('deplacer')">Déplacer cette séance</button>
+                  <button type="button" class="btn" (click)="ouvrir('annuler')">Annuler cette séance</button>
+                }
+              </div>
+            } @else {
+              <div class="champs">
+                @if (action() === 'annuler') {
+                  <label class="f">
+                    Motif de l'annulation
+                    <input #motif autocomplete="off" placeholder="Professeur absent" (input)="motifSaisi.set(motif.value)" />
+                  </label>
+                } @else {
+                  <label class="f">
+                    Nouvelle date
+                    <input #nouvelleDate type="date" (input)="dateSaisie.set(nouvelleDate.value)" />
+                  </label>
+                  <label class="f">
+                    De
+                    <input #nouveauDebut type="time" [value]="debutSaisi()" (input)="debutSaisi.set(nouveauDebut.value)" />
+                  </label>
+                  <label class="f">
+                    À
+                    <input #nouvelleFin type="time" [value]="finSaisie()" (input)="finSaisie.set(nouvelleFin.value)" />
+                  </label>
+                }
+              </div>
+              @if (action() === 'annuler' && appel.groupe.type !== 'Etude') {
+                <p class="aide">Une Révision ou une Formation garde son nombre de séances si vous remplacez celle-ci ensuite.</p>
+              }
+              <div class="actions">
+                <button type="button" class="btn" [disabled]="envoi()" (click)="fermerLAction()">Retour</button>
+                <button type="button" class="btn primary" [disabled]="envoi()" (click)="confirmer()">{{ libelleDeLAction() }}</button>
+              </div>
+            }
+            @if (erreurDuCalendrier(); as erreur) {
+              <p class="note bad" role="alert">{{ erreur }}</p>
+            }
+          </section>
+        }
+
+        @if (changement(); as changement) {
+          <sh-messages-du-changement [changement]="changement" />
+        }
       </div>
     } @else if (erreur(); as erreur) {
       <p class="note bad" role="alert">{{ erreur }}</p>
@@ -124,6 +183,7 @@ import { AppelDeLaSeance, EleveALAppel } from './appel';
     .absent-a-prevenir { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
     .absent-a-prevenir:first-of-type { border-top: 0; }
     .absent-a-prevenir .pill { justify-self: start; }
+    .actions.debut { justify-content: flex-start; }
   `,
 })
 export class PageDeLAppel implements OnInit {
@@ -176,6 +236,74 @@ export class PageDeLAppel implements OnInit {
       this.succes.set(corrige ? 'Appel corrigé' : 'Appel enregistré');
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
+    } finally {
+      this.envoi.set(false);
+    }
+  }
+
+  // ----- Annuler, déplacer, remplacer (SEA-03, SEA-04) -----
+
+  protected readonly action = signal<ActionSurLaSeance | null>(null);
+  protected readonly motifSaisi = signal('');
+  protected readonly dateSaisie = signal('');
+  protected readonly debutSaisi = signal('');
+  protected readonly finSaisie = signal('');
+  protected readonly erreurDuCalendrier = signal<string | null>(null);
+  protected readonly changement = signal<ChangementDuCalendrier | null>(null);
+
+  protected readonly libelleDeLAction = computed(() => {
+    switch (this.action()) {
+      case 'annuler':
+        return "Confirmer l'annulation";
+      case 'deplacer':
+        return 'Déplacer la séance';
+      default:
+        return 'Remplacer la séance';
+    }
+  });
+
+  /** Les heures proposées sont celles de la séance. */
+  protected ouvrir(action: ActionSurLaSeance): void {
+    const appel = this.appel();
+    this.action.set(action);
+    this.motifSaisi.set('');
+    this.dateSaisie.set('');
+    this.debutSaisi.set(appel?.debut ?? '');
+    this.finSaisie.set(appel?.fin ?? '');
+    this.erreurDuCalendrier.set(null);
+  }
+
+  protected fermerLAction(): void {
+    this.action.set(null);
+    this.erreurDuCalendrier.set(null);
+  }
+
+  protected async confirmer(): Promise<void> {
+    const appel = this.appel();
+    const action = this.action();
+    if (this.envoi() || !appel || !action) return;
+    if (action === 'annuler' && !this.motifSaisi().trim()) {
+      this.erreurDuCalendrier.set("Écrivez le motif de l'annulation");
+      return;
+    }
+    if (action !== 'annuler' && (!this.dateSaisie() || !this.debutSaisi() || !this.finSaisie())) {
+      this.erreurDuCalendrier.set('Choisissez la date et les heures');
+      return;
+    }
+
+    this.envoi.set(true);
+    this.erreurDuCalendrier.set(null);
+    try {
+      const adresse = `/api/seances/${appel.seanceId}/${action === 'annuler' ? 'annulation' : action === 'deplacer' ? 'deplacement' : 'remplacement'}`;
+      const corps =
+        action === 'annuler'
+          ? { motif: this.motifSaisi().trim() }
+          : { date: this.dateSaisie(), debut: this.debutSaisi(), fin: this.finSaisie() };
+      this.changement.set(await firstValueFrom(this.http.post<ChangementDuCalendrier>(adresse, corps)));
+      this.action.set(null);
+      this.montrer(await firstValueFrom(this.http.get<AppelDeLaSeance>(`/api/seances/${appel.seanceId}/appel`)));
+    } catch (erreur) {
+      this.erreurDuCalendrier.set(messageDErreur(erreur));
     } finally {
       this.envoi.set(false);
     }

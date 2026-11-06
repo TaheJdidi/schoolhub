@@ -20,6 +20,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
 {
     public const string SeanceIntrouvable = "Séance introuvable";
     private const string PasEncoreOuvert = "L'appel s'ouvre le jour de la séance";
+    private const string SeanceAnnulee = "Cette séance est annulée : elle n'a pas d'appel";
     private const string PasAttendu = "Cet élève n'est pas attendu à cette séance";
     private const string AbsenceIntrouvable = "Absence introuvable";
     private const string Present = "Présent";
@@ -50,6 +51,8 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         if (seance is null)
             return Refus(StatusCodes.Status404NotFound, SeanceIntrouvable);
         await contexte.Entry(seance).ReloadAsync();
+        if (seance.AnnuleeLe is not null)
+            return Refus(StatusCodes.Status409Conflict, SeanceAnnulee);
         if (seance.Date > DateDeTunis.Aujourdhui(temps))
             return Refus(StatusCodes.Status409Conflict, PasEncoreOuvert);
 
@@ -89,7 +92,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
     public async Task<List<AppelARecopier>> ARecopierAsync()
     {
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
-        var seances = await contexte.Seances.Where(s => s.Date < aujourdhui && s.AppelFaitLe == null)
+        var seances = await contexte.Seances.QuiOntLieu().Where(s => s.Date < aujourdhui && s.AppelFaitLe == null)
             .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
             .ToListAsync();
         var groupeIds = seances.Select(s => s.GroupeId).Distinct().ToList();
@@ -129,7 +132,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
             Heure(seance.Fin),
             new GroupeDeLAppel(seance.GroupeId, groupe.Nom, groupe.Type, groupe.Matiere),
             groupe.Professeur,
-            seance.Date <= DateDeTunis.Aujourdhui(temps),
+            seance.Date <= DateDeTunis.Aujourdhui(temps) && seance.AnnuleeLe is null,
             seance.AppelFaitLe is not null,
             attendus.Select(a =>
             {
@@ -141,7 +144,10 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
                             WhatsApp.Lien(d.Chiffres, TexteDeLAbsence(a.Eleve, groupe.Matiere, seance, centre))))
                         .ToList();
                 return new EleveALAppel(a.Inscription.Id, a.Eleve.Id, a.Eleve.Prenom, a.Eleve.Nom, absence is not null, absence?.PrevenuLe, messages);
-            }).ToList());
+            }).ToList(),
+            seance.AnnuleeLe is not null,
+            seance.MotifDAnnulation,
+            seance.Nature.ToString());
     }
 
     /// <summary>

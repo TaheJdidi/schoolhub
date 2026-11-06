@@ -160,7 +160,7 @@ public sealed class DemandesDuCentre(
                 return Refus(StatusCodes.Status400BadRequest, ChoisirLeGroupe);
             if (!await contexte.Groupes.AnyAsync(g => g.Id == groupeId))
                 return Refus(StatusCodes.Status404NotFound, GroupeIntrouvable);
-            var prochaine = await contexte.Seances.Where(s => s.GroupeId == groupeId && s.Date >= aujourdhui)
+            var prochaine = await contexte.Seances.QuiComptent().Where(s => s.GroupeId == groupeId && s.Date >= aujourdhui)
                 .OrderBy(s => s.Date).Select(s => (DateOnly?)s.Date).FirstOrDefaultAsync();
             // Sans séance à venir, l'inscription refuse quand même : un groupe fermé ou terminé a son propre refus, plus
             // parlant ; sinon « pas de séance ce jour-là » devient « plus de séance à venir ».
@@ -262,7 +262,7 @@ public sealed class DemandesDuCentre(
             .Where(g => g.FermeLe == null && matiereIds.Contains(g.MatiereId) && (g.NiveauId == null || g.NiveauId == demande.NiveauId))
             .ToListAsync();
         var groupeIds = groupes.Select(g => g.Id).ToList();
-        var seances = await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId))
+        var seances = await contexte.Seances.QuiComptent().Where(s => groupeIds.Contains(s.GroupeId))
             .OrderBy(s => s.Date).ThenBy(s => s.Debut)
             .Select(s => new { s.GroupeId, s.Date, s.Debut })
             .ToListAsync();

@@ -77,8 +77,8 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
         return contexte.Groupes.Where(g =>
             g.FermeLe == null
             && (g.Type == TypeDeGroupe.Etude
-            || !contexte.Seances.Any(s => s.GroupeId == g.Id)
-            || contexte.Seances.Any(s => s.GroupeId == g.Id && s.Date >= aujourdhui)));
+            || !contexte.Seances.QuiComptent().Any(s => s.GroupeId == g.Id)
+            || contexte.Seances.QuiComptent().Any(s => s.GroupeId == g.Id && s.Date >= aujourdhui)));
     }
 
     /// <summary>

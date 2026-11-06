@@ -417,6 +417,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("AnnuleeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("annulee_le");
+
                     b.Property<DateTimeOffset?>("AppelFaitLe")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("appel_fait_le");
@@ -441,11 +445,29 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("groupe_id");
 
+                    b.Property<string>("MotifDAnnulation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("motif_d_annulation");
+
+                    b.Property<string>("Nature")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("nature");
+
+                    b.Property<Guid?>("RemplaceLaSeanceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("remplace_la_seance_id");
+
                     b.HasKey("Id")
                         .HasName("pk_seances");
 
                     b.HasIndex("CentreId")
                         .HasDatabaseName("ix_seances_centre_id");
+
+                    b.HasIndex("RemplaceLaSeanceId")
+                        .HasDatabaseName("ix_seances_remplace_la_seance_id");
 
                     b.HasIndex("GroupeId", "Date")
                         .HasDatabaseName("ix_seances_groupe_id_date");
@@ -1313,6 +1335,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_seances_groupes_groupe_id");
+
+                    b.HasOne("SchoolHub.Modules.Groupes.Seance", null)
+                        .WithMany()
+                        .HasForeignKey("RemplaceLaSeanceId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_seances_seances_remplace_la_seance_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Inscriptions.AssuranceDeLAnnee", b =>

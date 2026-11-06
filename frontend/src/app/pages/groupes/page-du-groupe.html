@@ -124,7 +124,7 @@
             @for (seance of mois.seances; track seance.id) {
               <a class="seance" [class.a-faire]="etat(seance) === 'appel à faire'" [class.fait]="etat(seance) === 'appel fait'"
                 [routerLink]="['/professeurs/groupes', fiche.id, 'appel', seance.id]">
-                {{ jourDeSeance(seance.date) }} <small>{{ etat(seance) }}</small>
+                {{ jourDeSeance(seance.date) }} <small>{{ seance.nature === 'Remplacement' ? 'remplacement · ' : '' }}{{ etat(seance) }}</small>
               </a>
             }
           </div>
@@ -146,7 +146,7 @@
               @if (seance.prix !== null) {
                 <span class="prix">{{ montant(seance.prix) }} TND</span>
               }
-              <small class="etat">{{ etat(seance) }}</small>
+              <small class="etat">{{ seance.nature === 'Remplacement' ? 'remplacement · ' : '' }}{{ etat(seance) }}</small>
             </a>
           }
         </div>
@@ -164,6 +164,9 @@
         </section>
       }
     }
+
+    <!-- SEA-03 à SEA-06 : les séances annulées et supplémentaires, et les changements du calendrier. -->
+    <sh-carte-du-calendrier [fiche]="fiche" [modifiable]="!fiche.fermeLe && !fiche.termine" (modifie)="recharger()" />
   </div>
 } @else if (introuvable()) {
   <div class="pagehead">

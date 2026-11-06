@@ -51,6 +51,8 @@ export interface SeanceDuGroupe {
   fin: string;
   /** SEA-02 : l'appel de la séance est enregistré. */
   appelFait?: boolean;
+  /** SEA-04 : « Remplacement » pour une séance qui en remplace une annulée. */
+  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire';
 }
 
 /** Un Mois de 4 séances : il a commencé quand sa séance 1 a eu lieu. */
@@ -71,6 +73,7 @@ export interface SeanceNumerotee {
   prix: number | null;
   /** SEA-02 : l'appel de la séance est enregistré. */
   appelFait?: boolean;
+  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire';
 }
 
 /** SEA-02 : l'état d'une séance, d'après sa date et son appel. */
@@ -112,6 +115,21 @@ export interface FicheDuGroupe {
   /** La date de fermeture (GRP-08), « 2028-03-15 » ; vide tant que le groupe est ouvert. */
   fermeLe: string | null;
   motifDeFermeture: string | null;
+  /** SEA-02 : les séances annulées et supplémentaires, qui ne comptent pas. */
+  horsCompte?: SeanceHorsCompte[];
+}
+
+/** SEA-02 : une séance annulée (avec son motif et la date de son remplacement) ou supplémentaire. */
+export interface SeanceHorsCompte {
+  id: string;
+  date: string;
+  debut: string;
+  fin: string;
+  nature: 'Prevue' | 'Remplacement' | 'Supplementaire';
+  annulee: boolean;
+  motif: string | null;
+  remplaceeLe: string | null;
+  appelFait: boolean;
 }
 
 /** « 10:00 » donne « 10h », « 17:30 » donne « 17h30 », « 08:00 » donne « 8h ». */

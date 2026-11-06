@@ -298,7 +298,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
             var type = (await contexte.Groupes.SingleAsync(g => g.Id == ancienne.GroupeId)).Type;
             groupes = groupes.Where(g => g.Type == type && g.Id != ancienne.GroupeId).ToList();
         }
-        var dernieresSeances = await contexte.Seances
+        var dernieresSeances = await contexte.Seances.QuiComptent()
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
@@ -673,7 +673,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
                 i => i.GroupeId, g => g.Id, (i, g) => new { i.GroupeId, i.DebutLe, i.ArreteLe })
             .ToListAsync();
         var groupeIds = etudes.Select(e => e.GroupeId).ToList();
-        var seances = await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).Select(s => new { s.GroupeId, s.Date }).ToListAsync();
+        var seances = await contexte.Seances.QuiComptent().Where(s => groupeIds.Contains(s.GroupeId)).Select(s => new { s.GroupeId, s.Date }).ToListAsync();
         // Une inscription arrêtée avant sa première séance n'a jamais commencé : elle ne compte pas.
         return etudes
             .Select(e => seances.Where(s => s.GroupeId == e.GroupeId && s.Date >= e.DebutLe).Select(s => (DateOnly?)s.Date).Min() is { } premiere
@@ -741,7 +741,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         var inscriptionIds = inscriptions.Select(i => (Guid?)i.Id).ToList();
         var groupeIds = inscriptions.Select(i => i.GroupeId).Distinct().ToList();
         var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
-        var seances = (await contexte.Seances.Where(s => groupeIds.Contains(s.GroupeId)).ToListAsync())
+        var seances = (await contexte.Seances.QuiComptent().Where(s => groupeIds.Contains(s.GroupeId)).ToListAsync())
             .GroupBy(s => s.GroupeId)
             .ToDictionary(g => g.Key, g => g.OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id).ToList());
         var reglements = (await contexte.Reglements.Where(r => inscriptionIds.Contains(r.InscriptionId)).ToListAsync())
@@ -820,7 +820,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
     /// <summary>Les séances du groupe, rangées comme on les compte : par date, puis par heure de début.</summary>
     private Task<List<Seance>> SeancesAsync(Guid groupeId) =>
-        contexte.Seances
+        contexte.Seances.QuiComptent()
             .Where(s => s.GroupeId == groupeId)
             .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
             .ToListAsync();

@@ -123,7 +123,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         var groupes = await contexte.Groupes.OrderBy(g => g.Nom).ThenBy(g => g.Id).ToListAsync();
         var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
         var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
-        var dernieresSeances = await contexte.Seances
+        var dernieresSeances = await contexte.Seances.QuiComptent()
             .GroupBy(s => s.GroupeId)
             .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
             .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
@@ -294,7 +294,30 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
             seancesNumerotees,
             groupe.Tranches.OrderBy(t => t.Seance).Select(t => new TrancheDuGroupe(t.Montant, t.Seance)).ToList(),
             groupe.FermeLe,
-            groupe.MotifDeFermeture);
+            groupe.MotifDeFermeture,
+            await HorsCompteAsync(id));
+    }
+
+    /// <summary>SEA-02 : les séances annulées et supplémentaires du groupe, par date, avec la date du remplacement.</summary>
+    private async Task<List<SeanceHorsCompte>> HorsCompteAsync(Guid groupeId)
+    {
+        var toutes = await contexte.Seances.Where(s => s.GroupeId == groupeId).ToListAsync();
+        var remplacements = toutes.Where(s => s.RemplaceLaSeanceId is not null && s.AnnuleeLe is null)
+            .GroupBy(s => s.RemplaceLaSeanceId!.Value)
+            .ToDictionary(g => g.Key, g => g.Min(s => s.Date));
+        return toutes.Where(s => !s.Compte)
+            .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
+            .Select(s => new SeanceHorsCompte(
+                s.Id,
+                s.Date,
+                s.Debut.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                s.Fin.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                s.Nature.ToString(),
+                s.AnnuleeLe is not null,
+                s.MotifDAnnulation,
+                remplacements.TryGetValue(s.Id, out var le) ? le : null,
+                s.AppelFaitLe is not null))
+            .ToList();
     }
 
     /// <summary>Ce que la création prépare, selon le type : les créneaux, les séances, l'année et le nom proposé.</summary>
@@ -428,7 +451,7 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
 
     /// <summary>Les séances du groupe, rangées comme on les compte : par date, puis par heure de début.</summary>
     private Task<List<Seance>> SeancesAsync(Guid groupeId) =>
-        contexte.Seances
+        contexte.Seances.QuiComptent()
             .Where(s => s.GroupeId == groupeId)
             .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
             .ToListAsync();

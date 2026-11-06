@@ -16,8 +16,27 @@ public static class SeancesEndpoints
         seances.MapGet("/{id:guid}/appel", LireAsync);
         seances.MapPut("/{id:guid}/appel", EnregistrerAsync);
         seances.MapPost("/{id:guid}/absences/{inscription:guid}/prevenu", PrevenirAsync);
+
+        // SEA-03 à SEA-06 : changer le calendrier d'un groupe.
+        seances.MapPost("/{id:guid}/annulation", async (Guid id, AnnulationSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
+            CalendrierDesSeances calendrier) => Repondre(await calendrier.AnnulerAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
+        seances.MapPost("/{id:guid}/deplacement", async (Guid id, NouvelleSeanceSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
+            CalendrierDesSeances calendrier) => Repondre(await calendrier.DeplacerAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
+        seances.MapPost("/{id:guid}/remplacement", async (Guid id, NouvelleSeanceSaisie saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
+            CalendrierDesSeances calendrier) => Repondre(await calendrier.RemplacerAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
+        api.MapPost("/groupes/{id:guid}/seances", async (Guid id, NouvelleSeanceSaisie saisie, CalendrierDesSeances calendrier) =>
+            Repondre(await calendrier.AjouterAsync(id, saisie)));
+        api.MapPost("/groupes/{id:guid}/horaire", async (Guid id, ChangementDHoraire saisie, CalendrierDesSeances calendrier) =>
+            Repondre(await calendrier.ChangerLHoraireAsync(id, saisie)));
         return api;
     }
+
+    private static Results<Ok<ChangementDuCalendrier>, JsonHttpResult<Avis>> Repondre(IssueDuCalendrier issue) =>
+        issue.Changement is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Changement);
+
+    /// <summary>La personne connectée : elle est l'auteur de la ligne du journal.</summary>
+    private static async Task<Compte> AuteurAsync(ClaimsPrincipal utilisateur, UserManager<Compte> comptes) =>
+        await comptes.GetUserAsync(utilisateur) ?? throw new InvalidOperationException("Aucun compte connecté.");
 
     private static async Task<Results<Ok<AppelDeLaSeance>, JsonHttpResult<Avis>>> LireAsync(Guid id, AppelsDuCentre appels) =>
         await appels.LireAsync(id) is { } appel
@@ -76,7 +95,25 @@ public sealed record AppelDeLaSeance(
     string Professeur,
     bool Ouvert,
     bool AppelFait,
-    List<EleveALAppel> Eleves);
+    List<EleveALAppel> Eleves,
+    bool Annulee = false,
+    string? MotifDAnnulation = null,
+    string Nature = "Prevue");
+
+/// <summary>SEA-03 : le motif d'une annulation, « professeur absent ».</summary>
+public sealed record AnnulationSaisie(string? Motif);
+
+/// <summary>SEA-04 et SEA-05 : la date et les heures « HH:mm » d'une nouvelle séance.</summary>
+public sealed record NouvelleSeanceSaisie(DateOnly? Date, string? Debut, string? Fin);
+
+/// <summary>SEA-06 : les nouveaux créneaux, et la date à partir de laquelle ils valent.</summary>
+public sealed record ChangementDHoraire(List<SchoolHub.Modules.Groupes.CreneauSaisi>? Creneaux, DateOnly? APartirDu);
+
+/// <summary>Un élève concerné par un changement du calendrier, et un message par destinataire.</summary>
+public sealed record MessagesDUnEleve(Guid EleveId, string Prenom, string Nom, List<MessageWhatsApp> Messages);
+
+/// <summary>SEA-03 à SEA-06 : le texte du message, et les messages prêts pour les élèves concernés.</summary>
+public sealed record ChangementDuCalendrier(string Texte, List<MessagesDUnEleve> Eleves);
 
 /// <summary>SEA-09 : une séance passée encore « appel à faire ».</summary>
 public sealed record AppelARecopier(Guid SeanceId, DateOnly Date, string Debut, string Fin, GroupeDeLAppel Groupe, string Professeur);

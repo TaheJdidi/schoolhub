@@ -167,6 +167,13 @@ public sealed class Groupe : IAppartientAuCentre
         Capacite = capacite;
     }
 
+    /// <summary>SEA-06 : les nouveaux créneaux, déjà vérifiés ; les séances se recréent à part.</summary>
+    internal void ChangerLesCreneaux(IEnumerable<Creneau> creneaux)
+    {
+        _creneaux.Clear();
+        _creneaux.AddRange(creneaux);
+    }
+
     /// <summary>Ferme le groupe à une date, avec son motif, déjà vérifiés : il ne se modifie plus ensuite.</summary>
     public void Fermer(DateOnly date, string motif)
     {
