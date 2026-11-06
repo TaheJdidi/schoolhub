@@ -28,6 +28,10 @@
         @if (aPayer.lignes.length > 0) {
           <p class="total">Total <b>{{ montant(aPayer.total) }} TND</b></p>
         }
+        <!-- CAI-03 : encaisser ce qui est dû, ou payer d'avance. -->
+        <div class="actions">
+          <a class="btn primary" [routerLink]="['/eleves', fiche.id, 'encaissement']">Encaisser</a>
+        </div>
       }
     </section>
 

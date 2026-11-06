@@ -24,11 +24,12 @@ describe('le cadre', () => {
     harness = await RouterTestingHarness.create();
   });
 
-  // La personne est déjà connue : seul le nombre de demandes à traiter est relu, à chaque page.
+  // La personne est déjà connue : seul le nombre de demandes à traiter est relu, à chaque page ; l'accueil et la caisse lisent leurs listes.
   afterEach(() => {
     const http = TestBed.inject(HttpTestingController);
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.verify();
   });
 

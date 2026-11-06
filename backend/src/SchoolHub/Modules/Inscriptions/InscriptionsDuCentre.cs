@@ -375,6 +375,29 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
     }
 
     /// <summary>
+    /// CAI-03 : toutes les sommes que l'élève peut payer, dues à ce jour ou plus tard (« Payer d'avance ») : chaque somme
+    /// pas réglée et de plus de 0 TND de ses inscriptions, puis l'assurance de l'année si elle est à payer. Rangées par
+    /// date, puis par groupe, l'assurance après les groupes. Les montants viennent du calcul, jamais de la page.
+    /// </summary>
+    internal async Task<List<SommeEncaissable>> SommesEncaissablesAsync(Guid eleveId)
+    {
+        var echeances = await EcheancesAsync(await contexte.Inscriptions.Where(i => i.EleveId == eleveId).ToListAsync());
+        var matiereIds = echeances.Select(e => e.Groupe.MatiereId).Distinct().ToList();
+        var matieres = await contexte.Matieres.Where(m => matiereIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var sommes = echeances
+            .SelectMany(e => e.Sommes
+                .Where(s => !s.Reglee && s.Montant > 0)
+                .Select(s => new SommeEncaissable(e.Inscription.Id, null, $"{matieres[e.Groupe.MatiereId]} · {e.Groupe.Nom}", s.Libelle, s.Cle,
+                    s.Montant, s.Date, s.ReportDeduit)))
+            .ToList();
+        if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer } assurance } enCours && assurance.Montant > 0)
+            sommes.Add(new SommeEncaissable(null, enCours.Assurance.Id, "Assurance", $"Assurance {assurance.Annee}", Reglement.CleDeLAssurance,
+                assurance.Montant, assurance.DueLe ?? DateOnly.MaxValue, 0m));
+        // À date égale, les groupes d'abord, l'assurance ensuite.
+        return sommes.OrderBy(s => s.DueLe).ThenBy(s => s.AssuranceId is not null).ThenBy(s => s.Groupe).ThenBy(s => s.Cle).ToList();
+    }
+
+    /// <summary>
     /// ELV-05 : le propriétaire accorde ou change le prix spécial d'une inscription, avec sa raison. Il vaut pour ce qui
     /// n'est pas encore payé. L'action va au journal, avec le prix d'avant et celui d'après.
     /// </summary>
@@ -574,6 +597,7 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
     private const string EtatAPayer = "APayer";
     private const string EtatPayeeAvantSchoolHub = "PayeeAvantSchoolHub";
+    private const string EtatPayee = "Payee";
     private const string EtatDispensee = "Dispensee";
 
     /// <summary>
@@ -590,8 +614,12 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
         if (assurance is null)
             return null;
 
-        var reglee = await contexte.Reglements.AnyAsync(r => r.AssuranceId == assurance.Id);
-        var etat = assurance.DispenseeLe is not null ? EtatDispensee : reglee ? EtatPayeeAvantSchoolHub : EtatAPayer;
+        var origine = await contexte.Reglements.Where(r => r.AssuranceId == assurance.Id).Select(r => (OrigineDuReglement?)r.Origine).FirstOrDefaultAsync();
+        // CAI-03 : encaissée avec un reçu, elle est « payée » ; notée avant SchoolHub (ELV-07), elle le dit.
+        var etat = assurance.DispenseeLe is not null ? EtatDispensee
+            : origine == OrigineDuReglement.Encaissement ? EtatPayee
+            : origine is not null ? EtatPayeeAvantSchoolHub
+            : EtatAPayer;
         var dueLe = await PremiereSeanceDEtudeAsync(eleveId, annee.Id);
         // Plus d'inscription en Étude commencée : une assurance ni payée ni dispensée est sans objet.
         if (dueLe is null && etat == EtatAPayer)
@@ -827,6 +855,21 @@ public sealed class InscriptionsDuCentre(SchoolHubDbContext contexte, TimeProvid
 
     private static IssueDInscription Refus(int statut, string message) => new(null, statut, message);
 }
+
+/// <summary>
+/// CAI-03 : une somme que l'élève peut payer : celle d'une inscription (sa clé, « Mois 3 ») ou l'assurance ; son groupe
+/// (« Mathématiques · Groupe Samedi 10h → 12h »), son libellé, son montant, le jour où elle est due, et la part du report
+/// qui l'a réduite (ELV-09), à figer dans son règlement.
+/// </summary>
+public sealed record SommeEncaissable(
+    Guid? InscriptionId,
+    Guid? AssuranceId,
+    string Groupe,
+    string Libelle,
+    string Cle,
+    decimal Montant,
+    DateOnly DueLe,
+    decimal ReportDeduit);
 
 /// <summary>Ce qu'une inscription a donné : l'enregistrement et le statut HTTP, ou un refus (statut et message).</summary>
 public sealed record IssueDInscription(EnregistrementDeLInscription? Enregistrement, int Statut, string? Message);

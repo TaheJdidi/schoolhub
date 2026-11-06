@@ -182,6 +182,7 @@ export class PageDeLEleve implements OnInit {
   /** « à payer », « payée avant SchoolHub », « dispensée (Orphelin) ». */
   protected etatDeLAssurance(assurance: AssuranceDeLEleve): string {
     if (assurance.etat === 'Dispensee') return `dispensée (${assurance.raisonDeLaDispense})`;
+    if (assurance.etat === 'Payee') return 'payée';
     return assurance.etat === 'PayeeAvantSchoolHub' ? 'payée avant SchoolHub' : 'à payer';
   }
 

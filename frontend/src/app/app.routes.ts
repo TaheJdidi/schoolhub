@@ -5,6 +5,7 @@ import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
 import { Aujourdhui } from './pages/aujourdhui/aujourdhui';
 import { Bientot } from './pages/bientot/bientot';
+import { Caisse } from './pages/caisse/caisse';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Demandes } from './pages/demandes/demandes';
@@ -30,12 +31,16 @@ const pageDeLEleve = () => import('./pages/eleves/fiche-de-l-eleve').then((modul
 const pageDInscription = () => import('./pages/inscriptions/page-d-inscription').then((module) => module.PageDInscription);
 const pageDeLaDemande = () => import('./pages/demandes/page-de-la-demande').then((module) => module.PageDeLaDemande);
 const pageDeLAppel = () => import('./pages/seances/page-de-l-appel').then((module) => module.PageDeLAppel);
+const pageDEncaissement = () => import('./pages/caisse/page-d-encaissement').then((module) => module.PageDEncaissement);
+const pageDuRecu = () => import('./pages/caisse/page-du-recu').then((module) => module.PageDuRecu);
+const recuAImprimer = () => import('./pages/caisse/recu-a-imprimer').then((module) => module.RecuAImprimer);
 const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((module) => module.FeuilleDAppel);
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
   professeurs: Professeurs,
   eleves: Eleves,
+  caisse: Caisse,
   demandes: Demandes,
   comptes: Comptes,
   parametres: Parametres,
@@ -70,6 +75,8 @@ export const routes: Routes = [
   { path: 'inscription/:code', loadComponent: formulairePublic, title: titre("Demande d'inscription") },
   // DEM-02 : l'affiche à imprimer, sans le menu, pour une personne connectée.
   { path: 'demandes/affiche', loadComponent: affiche, canActivate: [estConnecte], title: titre('Affiche') },
+  // CAI-05 : le reçu à imprimer, au format A5, sans le menu.
+  { path: 'recus/:id/impression', loadComponent: recuAImprimer, canActivate: [estConnecte], title: titre('Reçu') },
   // SEA-08 : la feuille d'appel à imprimer, sans le menu, pour une personne connectée.
   { path: 'feuille-d-appel/:id', loadComponent: feuilleDAppel, canActivate: [estConnecte], title: titre("Feuille d'appel") },
   {
@@ -95,7 +102,11 @@ export const routes: Routes = [
         data: { depuis: 'changement' },
         title: titre('Changement de groupe'),
       },
+      // CAI-03 : encaisser un élève, sous la page Élèves.
+      { path: 'eleves/:id/encaissement', loadComponent: pageDEncaissement, title: titre('Encaissement') },
       { path: 'eleves/:id', loadComponent: pageDeLEleve, title: titre('Élève') },
+      // CAI-05 à CAI-07 : un reçu, sous la page Caisse.
+      { path: 'caisse/recus/:id', loadComponent: pageDuRecu, title: titre('Reçu') },
       // DEM-04 et DEM-05 : une demande, sous la page Demandes : le menu garde « Demandes d'inscription » allumé.
       { path: 'demandes/:id', loadComponent: pageDeLaDemande, title: titre("Demande d'inscription") },
       { path: 'guichet', component: Bientot, data: { titre: 'Guichet' }, title: titre('Guichet') },

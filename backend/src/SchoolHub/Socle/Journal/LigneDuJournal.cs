@@ -71,6 +71,8 @@ public enum ActionDuJournal
     PresenceCorrigee,
     SeanceAnnulee,
     SeanceDeplacee,
+    Encaissement,
+    RecuAnnule,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

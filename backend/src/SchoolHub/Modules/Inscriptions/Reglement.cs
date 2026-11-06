@@ -5,10 +5,11 @@ using SchoolHub.Socle.Comptes;
 
 namespace SchoolHub.Modules.Inscriptions;
 
-/// <summary>D'où vient un règlement : noté « payé avant SchoolHub » (ELV-07) ; la caisse ajoutera le reçu (CAI-03).</summary>
+/// <summary>D'où vient un règlement : noté « payé avant SchoolHub » (ELV-07), ou encaissé avec un reçu (CAI-03).</summary>
 public enum OrigineDuReglement
 {
     AvantSchoolHub,
+    Encaissement,
 }
 
 /// <summary>
@@ -56,12 +57,17 @@ public sealed class Reglement : IAppartientAuCentre
     /// <summary>ELV-09 : la part du report qui a réduit cette somme ; figée au paiement, elle ne sert pas une seconde fois.</summary>
     public decimal PartDuReport { get; private set; }
 
-    internal static Reglement DUneSomme(
-        Guid inscriptionId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId, decimal partDuReport = 0m) =>
-        new(inscriptionId, null, cle, montant, origine, regleLe, auteurId, partDuReport);
+    /// <summary>CAI-03 : le reçu de l'encaissement. L'annulation du reçu (CAI-07) retire ses règlements : la somme redevient à payer.</summary>
+    public Guid? RecuId { get; private set; }
 
-    internal static Reglement DeLAssurance(Guid assuranceId, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId) =>
-        new(null, assuranceId, CleDeLAssurance, montant, origine, regleLe, auteurId);
+    internal static Reglement DUneSomme(
+        Guid inscriptionId, string cle, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId, decimal partDuReport = 0m,
+        Guid? recuId = null) =>
+        new(inscriptionId, null, cle, montant, origine, regleLe, auteurId, partDuReport) { RecuId = recuId };
+
+    internal static Reglement DeLAssurance(Guid assuranceId, decimal montant, OrigineDuReglement origine, DateTimeOffset regleLe, Guid auteurId,
+        Guid? recuId = null) =>
+        new(null, assuranceId, CleDeLAssurance, montant, origine, regleLe, auteurId) { RecuId = recuId };
 }
 
 internal sealed class ReglementConfiguration : IEntityTypeConfiguration<Reglement>

@@ -103,6 +103,83 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Caisse.Recu", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("AnnuleLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("annule_le");
+
+                    b.Property<Guid?>("AnnuleParId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("annule_par_id");
+
+                    b.Property<string>("Auteur")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("auteur");
+
+                    b.Property<Guid>("AuteurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auteur_id");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateTimeOffset>("CreeLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cree_le");
+
+                    b.Property<Guid>("EleveId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eleve_id");
+
+                    b.Property<DateOnly>("Jour")
+                        .HasColumnType("date")
+                        .HasColumnName("jour");
+
+                    b.Property<string>("MotifDAnnulation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("motif_d_annulation");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer")
+                        .HasColumnName("numero");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("total");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recus");
+
+                    b.HasIndex("AnnuleParId")
+                        .HasDatabaseName("ix_recus_annule_par_id");
+
+                    b.HasIndex("AuteurId")
+                        .HasDatabaseName("ix_recus_auteur_id");
+
+                    b.HasIndex("EleveId")
+                        .HasDatabaseName("ix_recus_eleve_id");
+
+                    b.HasIndex("CentreId", "Numero")
+                        .IsUnique()
+                        .HasDatabaseName("ix_recus_centre_id_numero");
+
+                    b.HasIndex("Jour", "AuteurId")
+                        .HasDatabaseName("ix_recus_jour_auteur_id");
+
+                    b.ToTable("recus", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Demandes.DemandeDInscription", b =>
                 {
                     b.Property<Guid>("Id")
@@ -644,6 +721,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("numeric(12,3)")
                         .HasColumnName("part_du_report");
 
+                    b.Property<Guid?>("RecuId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recu_id");
+
                     b.Property<DateTimeOffset>("RegleLe")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("regle_le");
@@ -661,6 +742,9 @@ namespace SchoolHub.Socle.Donnees.Migrations
 
                     b.HasIndex("CentreId")
                         .HasDatabaseName("ix_reglements_centre_id");
+
+                    b.HasIndex("RecuId")
+                        .HasDatabaseName("ix_reglements_recu_id");
 
                     b.HasIndex("InscriptionId", "Cle")
                         .IsUnique()
@@ -1131,6 +1215,92 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Caisse.Recu", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AnnuleParId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_recus_asp_net_users_annule_par_id");
+
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AuteurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recus_asp_net_users_auteur_id");
+
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recus_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Eleves.Eleve", null)
+                        .WithMany()
+                        .HasForeignKey("EleveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recus_eleves_eleve_id");
+
+                    b.OwnsMany("SchoolHub.Modules.Caisse.LigneDuRecu", "Lignes", b1 =>
+                        {
+                            b1.Property<Guid>("RecuId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("recu_id");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasColumnName("id");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<Guid?>("AssuranceId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("assurance_id");
+
+                            b1.Property<string>("Cle")
+                                .IsRequired()
+                                .HasMaxLength(30)
+                                .HasColumnType("character varying(30)")
+                                .HasColumnName("cle");
+
+                            b1.Property<string>("Groupe")
+                                .IsRequired()
+                                .HasMaxLength(250)
+                                .HasColumnType("character varying(250)")
+                                .HasColumnName("groupe");
+
+                            b1.Property<Guid?>("InscriptionId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("inscription_id");
+
+                            b1.Property<string>("Libelle")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("libelle");
+
+                            b1.Property<decimal>("Montant")
+                                .HasPrecision(12, 3)
+                                .HasColumnType("numeric(12,3)")
+                                .HasColumnName("montant");
+
+                            b1.HasKey("RecuId", "Id")
+                                .HasName("pk_lignes_des_recus");
+
+                            b1.ToTable("lignes_des_recus", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("RecuId")
+                                .HasConstraintName("fk_lignes_des_recus_recus_recu_id");
+                        });
+
+                    b.Navigation("Lignes");
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Demandes.DemandeDInscription", b =>
                 {
                     b.HasOne("SchoolHub.Socle.Centres.Centre", null)
@@ -1467,6 +1637,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasForeignKey("InscriptionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reglements_inscriptions_inscription_id");
+
+                    b.HasOne("SchoolHub.Modules.Caisse.Recu", null)
+                        .WithMany()
+                        .HasForeignKey("RecuId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_reglements_recus_recu_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Professeurs.Professeur", b =>

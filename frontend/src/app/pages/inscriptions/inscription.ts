@@ -72,7 +72,8 @@ export interface AssuranceDeLEleve {
   annee: string;
   montant: number;
   dueLe: string | null;
-  etat: 'APayer' | 'PayeeAvantSchoolHub' | 'Dispensee';
+  /** « Payee » : encaissée avec un reçu (CAI-03). */
+  etat: 'APayer' | 'Payee' | 'PayeeAvantSchoolHub' | 'Dispensee';
   raisonDeLaDispense: string | null;
 }
 

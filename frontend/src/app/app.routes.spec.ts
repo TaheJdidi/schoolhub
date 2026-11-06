@@ -29,6 +29,7 @@ describe("les adresses de l'application", () => {
   afterEach(() => {
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.verify();
   });
 
@@ -202,11 +203,30 @@ describe("les adresses de l'application", () => {
   });
 
   it('une page pas encore faite le dit', async () => {
-    await ouvrir('/caisse', AMIRA);
+    await ouvrir('/bibliotheque', AMIRA);
 
-    expect(texte()).toContain('Caisse');
+    expect(texte()).toContain('Bibliothèque');
     expect(texte()).toContain('Cette page arrive bientôt');
+    expect(titre()).toBe('Bibliothèque · SchoolHub');
+  });
+
+  it('une secrétaire voit les reçus du jour sur /caisse, un reçu sur /caisse/recus/r1, et encaisse sur /eleves/e1/encaissement', async () => {
+    await ouvrir('/caisse', AMIRA);
+    http.expectOne((r) => r.url === '/api/recus').flush([]);
+    await vi.waitFor(() => expect(texte()).toContain('Reçus du jour'));
     expect(titre()).toBe('Caisse · SchoolHub');
+
+    await harness.navigateByUrl('/caisse/recus/r1');
+    (await vi.waitFor(() => http.expectOne('/api/recus/r1'))).flush({ message: 'Reçu introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Ce reçu n'existe pas."));
+    expect(titre()).toBe('Reçu · SchoolHub');
+    const menu = harness.fixture.nativeElement as HTMLElement;
+    expect(menu.querySelector('a.nav[href="/caisse"]')?.getAttribute('aria-current')).toBe('page');
+
+    await harness.navigateByUrl('/eleves/e1/encaissement');
+    (await vi.waitFor(() => http.expectOne('/api/eleves/e1/encaissable'))).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
+    await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
+    expect(titre()).toBe('Encaissement · SchoolHub');
   });
 
   it("une personne déjà connectée qui ouvre la connexion passe à « Aujourd'hui »", async () => {
