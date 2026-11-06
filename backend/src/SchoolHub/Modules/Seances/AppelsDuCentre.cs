@@ -67,7 +67,9 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         if (seance.AppelFaitLe is not null)
             NoterLesCorrections(auteur, seance, attendus, etaientAbsents, absents, await ContexteDuGroupeAsync(seance.GroupeId));
 
-        contexte.Absences.RemoveRange(avant.Where(a => !absents.Contains(a.InscriptionId)));
+        // Seuls les attendus changent : l'absence d'un élève qui ne l'est plus (inscription arrêtée depuis) reste telle quelle.
+        var attendusIds = attendus.Select(a => a.Inscription.Id).ToHashSet();
+        contexte.Absences.RemoveRange(avant.Where(a => attendusIds.Contains(a.InscriptionId) && !absents.Contains(a.InscriptionId)));
         contexte.Absences.AddRange(absents.Where(id => !etaientAbsents.Contains(id)).Select(id => new Absence(seance.Id, id)));
         seance.MarquerLAppelFait(temps.GetUtcNow());
         await contexte.SaveChangesAsync();
@@ -88,6 +90,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
     private const string SeanceDejaRattrapee = "Cette séance est déjà rattrapée";
     private const string DejaEnRattrapage = "Cet élève est déjà en rattrapage à cette séance";
     private const string RattrapageIntrouvable = "Rattrapage introuvable";
+    private const string GroupeFerme = "Ce groupe est fermé : pas de rattrapage";
 
     /// <summary>
     /// SEA-12 : les élèves qui peuvent venir en rattrapage à cette séance : inscrits ce jour-là dans un autre groupe ouvert
@@ -152,14 +155,19 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
             return Refus(StatusCodes.Status400BadRequest, DejaDansCeGroupe);
         var accueil = await contexte.Groupes.SingleAsync(g => g.Id == seance.GroupeId);
         var origine = await contexte.Groupes.SingleAsync(g => g.Id == inscription.GroupeId);
+        if (accueil.FermeLe is not null || origine.FermeLe is not null)
+            return Refus(StatusCodes.Status409Conflict, GroupeFerme);
         if (origine.ProfesseurId != accueil.ProfesseurId || origine.MatiereId != accueil.MatiereId || origine.NiveauId != accueil.NiveauId)
             return Refus(StatusCodes.Status400BadRequest, PasLeMemeGroupe);
         if (inscription.DebutLe > seance.Date || inscription.ArreteLe < seance.Date)
             return Refus(StatusCodes.Status400BadRequest, PasInscritCeJourLa);
+        // Les mêmes règles que la liste des possibles : une séance de son groupe qui compte, pendant son inscription, à
+        // 8 semaines au plus de la séance d'accueil.
         var rattrapee = saisie.SeanceRattrapeeId is { } rattrapeeId
             ? await contexte.Seances.QuiComptent().SingleOrDefaultAsync(s => s.Id == rattrapeeId && s.GroupeId == inscription.GroupeId)
             : null;
-        if (rattrapee is null)
+        if (rattrapee is null || rattrapee.Date < inscription.DebutLe || rattrapee.Date > inscription.ArreteLe
+            || Math.Abs(rattrapee.Date.DayNumber - seance.Date.DayNumber) > JoursAutourDeLaSeance)
             return Refus(StatusCodes.Status400BadRequest, ChoisirLaSeanceRattrapee);
         if (await contexte.Rattrapages.AnyAsync(r => r.SeanceId == seance.Id && r.InscriptionId == inscription.Id))
             return Refus(StatusCodes.Status409Conflict, DejaEnRattrapage);

@@ -39,6 +39,8 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
     private const string ChoisirLaDateDeDepart = "Choisissez la date de départ du nouvel horaire";
     private const string DepartTropTot = "Le nouvel horaire part au plus tôt demain";
     private const string DepartApresLAnnee = "Cette date est après la fin de l'année scolaire";
+    private const string EleveEnRattrapage = "Un élève vient en rattrapage à cette séance : retirez son rattrapage d'abord";
+    private const string RattrapageAuNouvelHoraire = "Un rattrapage est prévu sur une séance à recréer : retirez-le avant de changer l'horaire";
     private const int LongueurMaximaleDuDetail = 500;
 
     private Guid CentreId => centreCourant.Id ?? throw new InvalidOperationException("Aucun centre courant.");
@@ -153,8 +155,10 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
 
     /// <summary>
     /// SEA-06 : change l'horaire du groupe à partir d'une date (demain au plus tôt). Les séances prévues de cette date et
-    /// après, sans appel, sont recréées sur les nouveaux créneaux ; les séances d'avant, de remplacement et supplémentaires
-    /// restent. Une Étude va jusqu'à la fin de son année scolaire ; une Révision ou une Formation garde son nombre de séances.
+    /// après, sans appel, sont recréées sur les nouveaux créneaux ; les séances d'avant, annulées, de remplacement et
+    /// supplémentaires restent, et un jour annulé ne reçoit pas de nouvelle séance. Une Étude va jusqu'à la fin de son année
+    /// scolaire ; une Révision ou une Formation garde son nombre de séances. Refusé si un rattrapage vise une séance à
+    /// recréer, ou, pour une Étude, si une séance annulée de la période est déjà remplacée.
     /// </summary>
     public async Task<IssueDuCalendrier> ChangerLHoraireAsync(Guid groupeId, ChangementDHoraire saisie)
     {
@@ -171,14 +175,29 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
             return Refus(StatusCodes.Status400BadRequest, DepartTropTot);
 
         var seances = await contexte.Seances.Where(s => s.GroupeId == groupe!.Id).ToListAsync();
-        var aRecreer = seances.Where(s => s.Nature == NatureDeLaSeance.Prevue && s.Date >= depart && s.AppelFaitLe is null).ToList();
+        // Une séance annulée reste, avec son motif et son remplacement : seules les séances prévues qui ont lieu se recréent.
+        var aRecreer = seances.Where(s => s.Nature == NatureDeLaSeance.Prevue && s.AnnuleeLe is null && s.Date >= depart && s.AppelFaitLe is null).ToList();
+        var recreees = aRecreer.Select(s => s.Id).ToList();
+        // Un rattrapage prévu sur une séance à recréer disparaîtrait avec elle : la secrétaire le retire d'abord.
+        if (await contexte.Rattrapages.AnyAsync(r => recreees.Contains(r.SeanceId) || recreees.Contains(r.SeanceRattrapeeId)))
+            return Refus(StatusCodes.Status409Conflict, RattrapageAuNouvelHoraire);
         IReadOnlyList<SeancePrevue> nouvelles;
         if (groupe!.Type == TypeDeGroupe.Etude)
         {
             var annee = await contexte.AnneesScolaires.SingleAsync(a => a.Id == groupe.AnneeScolaireId);
             if (depart > annee.Fin)
                 return Refus(StatusCodes.Status400BadRequest, DepartApresLAnnee);
-            nouvelles = CalendrierDuGroupe.Seances(creneaux!, depart, annee.Fin);
+            // Une séance annulée et remplacée dans la période recréée : son remplacement compterait en plus du nouvel
+            // horaire. La secrétaire fait partir l'horaire après elle, ou annule d'abord le remplacement.
+            if (seances.Where(s => s.Nature == NatureDeLaSeance.Prevue && s.AnnuleeLe is not null && s.Date >= depart
+                    && seances.Any(r => r.RemplaceLaSeanceId == s.Id && r.AnnuleeLe is null))
+                .OrderBy(s => s.Date).FirstOrDefault() is { } remplacee)
+                return Refus(StatusCodes.Status409Conflict,
+                    $"La séance du {SaisieDuGroupe.EcrireUneDate(remplacee.Date)} est annulée et remplacée : faites partir le nouvel horaire après cette date");
+            // Un jour annulé (un jour férié) le reste : le nouvel horaire n'y recrée pas de séance.
+            var joursAnnules = seances.Where(s => s.Nature == NatureDeLaSeance.Prevue && s.AnnuleeLe is not null && s.Date >= depart)
+                .Select(s => s.Date).ToHashSet();
+            nouvelles = CalendrierDuGroupe.Seances(creneaux!, depart, annee.Fin).Where(s => !joursAnnules.Contains(s.Date)).ToList();
         }
         else
         {
@@ -216,7 +235,10 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
         return (seance, groupe, refus);
     }
 
-    /// <summary>Une séance qu'on peut encore annuler ou déplacer : ni annulée, ni avec son appel.</summary>
+    /// <summary>
+    /// Une séance qu'on peut encore annuler ou déplacer : ni annulée, ni avec son appel, ni attendue par un élève en
+    /// rattrapage (il viendrait à une séance qui n'a plus lieu).
+    /// </summary>
     private async Task<(Seance? Seance, Groupe? Groupe, IssueDuCalendrier? Refus)> SeanceModifiableAsync(Guid seanceId)
     {
         var (seance, groupe, refus) = await SeanceVerrouilleeAsync(seanceId);
@@ -226,6 +248,8 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
             return (null, null, Refus(StatusCodes.Status409Conflict, DejaAnnulee));
         if (seance.AppelFaitLe is not null)
             return (null, null, Refus(StatusCodes.Status409Conflict, AppelDejaFait));
+        if (await contexte.Rattrapages.AnyAsync(r => r.SeanceId == seance.Id))
+            return (null, null, Refus(StatusCodes.Status409Conflict, EleveEnRattrapage));
         return (seance, groupe, null);
     }
 

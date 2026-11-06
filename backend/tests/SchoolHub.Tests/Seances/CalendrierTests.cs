@@ -226,6 +226,35 @@ public sealed class CalendrierTests(PostgreSqlDeTest postgreSql) : IAsyncLifetim
     }
 
     [Fact]
+    public async Task Un_jour_annule_le_reste_avec_le_nouvel_horaire()
+    {
+        var onze = await SeanceAsync(_maths, Le(11, 12));
+        await ActionAsync($"/api/seances/{onze}/annulation", new AnnulationSaisie("Jour férié"));
+
+        await ActionAsync($"/api/groupes/{_maths}/horaire", new ChangementDHoraire([new CreneauSaisi("Samedi", "14:00", "16:00")], Le(4, 12)));
+
+        var fiche = await FicheAsync(_maths);
+        var seances = fiche.Mois.SelectMany(m => m.Seances).Where(s => s.Date >= Le(4, 12)).ToList();
+        Assert.Equal([Le(4, 12), Le(18, 12)], seances.Take(2).Select(s => s.Date));
+        Assert.All(seances, s => Assert.Equal("14:00", s.Debut));
+        // La séance annulée reste visible, avec son motif.
+        var annulee = Assert.Single(fiche.HorsCompte!);
+        Assert.Equal((onze, "Jour férié"), (annulee.Id, annulee.Motif));
+    }
+
+    [Fact]
+    public async Task Une_seance_annulee_et_remplacee_bloque_le_nouvel_horaire()
+    {
+        await ActionAsync($"/api/seances/{await SeanceAsync(_maths, Le(11, 12))}/deplacement", new NouvelleSeanceSaisie(Le(14, 12), "17:00", "19:00"));
+
+        await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/groupes/{_maths}/horaire",
+                new ChangementDHoraire([new CreneauSaisi("Mardi", "17:00", "19:00")], Le(4, 12))),
+            HttpStatusCode.Conflict, "La séance du 11/12/2027 est annulée et remplacée : faites partir le nouvel horaire après cette date");
+        // Après elle, le nouvel horaire passe.
+        await ActionAsync($"/api/groupes/{_maths}/horaire", new ChangementDHoraire([new CreneauSaisi("Mardi", "17:00", "19:00")], Le(15, 12)));
+    }
+
+    [Fact]
     public async Task Le_nouvel_horaire_part_au_plus_tot_demain()
     {
         await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/groupes/{_maths}/horaire",

@@ -119,6 +119,8 @@ public sealed class RattrapageEtFeuilleTests(PostgreSqlDeTest postgreSql) : IAsy
     [InlineData("même groupe", HttpStatusCode.BadRequest, "Cet élève est déjà dans ce groupe")]
     [InlineData("autre niveau", HttpStatusCode.BadRequest, "Le rattrapage se fait dans un groupe du même professeur, de la même matière et du même niveau")]
     [InlineData("séance d'un autre groupe", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
+    [InlineData("séance d'avant son arrivée", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
+    [InlineData("séance à plus de 8 semaines", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
     [InlineData("inscription inconnue", HttpStatusCode.NotFound, "Inscription introuvable")]
     [InlineData("deux fois la même séance", HttpStatusCode.Conflict, "Cette séance est déjà rattrapée")]
     public async Task Un_rattrapage_refuse(string cas, HttpStatusCode statut, string message)
@@ -138,6 +140,13 @@ public sealed class RattrapageEtFeuilleTests(PostgreSqlDeTest postgreSql) : IAsy
                 break;
             case "séance d'un autre groupe":
                 saisie = new RattrapageSaisi(_lina.Inscription, await SeanceAsync(_samedi, Le(4, 12)));
+                break;
+            case "séance d'avant son arrivée":
+                // Lina est dans le groupe du mardi depuis le 23/11.
+                saisie = new RattrapageSaisi(_lina.Inscription, await SeanceAsync(_mardi, Le(16, 11)));
+                break;
+            case "séance à plus de 8 semaines":
+                saisie = new RattrapageSaisi(_lina.Inscription, await SeanceAsync(_mardi, Le(1, 2, 2028)));
                 break;
             case "inscription inconnue":
                 saisie = new RattrapageSaisi(Guid.NewGuid(), duMardi);
@@ -162,6 +171,25 @@ public sealed class RattrapageEtFeuilleTests(PostgreSqlDeTest postgreSql) : IAsy
         Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
         Assert.Empty((await reponse.Content.ReadFromJsonAsync<AppelDeLaSeance>())!.Rattrapages!);
         Assert.Single(await PossiblesAsync(seance));
+    }
+
+    [Fact]
+    public async Task Un_rattrapage_prevu_bloque_le_changement_du_calendrier()
+    {
+        // Lina viendra le samedi 04/12, à la place de son mardi 07/12.
+        var accueil = await SeanceAsync(_samedi, Le(4, 12));
+        await RattraperAsync(accueil, new RattrapageSaisi(_lina.Inscription, await SeanceAsync(_mardi, Le(7, 12))));
+
+        await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/seances/{accueil}/annulation", new AnnulationSaisie("Professeur absent")),
+            HttpStatusCode.Conflict, "Un élève vient en rattrapage à cette séance : retirez son rattrapage d'abord");
+        await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/seances/{accueil}/deplacement", new NouvelleSeanceSaisie(Le(5, 12), "10:00", "12:00")),
+            HttpStatusCode.Conflict, "Un élève vient en rattrapage à cette séance : retirez son rattrapage d'abord");
+        await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/groupes/{_mardi}/horaire",
+                new ChangementDHoraire([new CreneauSaisi("Mercredi", "17:00", "19:00")], Le(1, 12))),
+            HttpStatusCode.Conflict, "Un rattrapage est prévu sur une séance à recréer : retirez-le avant de changer l'horaire");
+        await VerifierLeRefusAsync(await _secretaire.PostAsJsonAsync($"/api/groupes/{_samedi}/horaire",
+                new ChangementDHoraire([new CreneauSaisi("Dimanche", "10:00", "12:00")], Le(1, 12))),
+            HttpStatusCode.Conflict, "Un rattrapage est prévu sur une séance à recréer : retirez-le avant de changer l'horaire");
     }
 
     // ----- La feuille d'appel (SEA-08) -----

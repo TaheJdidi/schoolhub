@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
@@ -7,6 +9,7 @@ using SchoolHub.Modules.Professeurs;
 using SchoolHub.Modules.Seances;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
+using SchoolHub.Socle.Donnees;
 using SchoolHub.Socle.Journal;
 using SchoolHub.Tests.Outils;
 
@@ -153,6 +156,22 @@ public sealed class AppelTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         await EnregistrerAsync(seance, [_adem.Inscription]);
 
         Assert.DoesNotContain(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.PresenceCorrigee);
+    }
+
+    [Fact]
+    public async Task Une_correction_garde_l_absence_d_un_eleve_plus_attendu()
+    {
+        var seance = await SeanceAsync(_maths, new DateOnly(2027, 11, 27));
+        await EnregistrerAsync(seance, [_lina.Inscription]);
+        // Lina est arrêtée ensuite au 20/11 : elle n'est plus attendue le 27/11.
+        Assert.Equal(HttpStatusCode.OK, (await _secretaire.PostAsJsonAsync($"/api/inscriptions/{_lina.Inscription}/arret",
+            new DateSaisie(new DateOnly(2027, 11, 20)))).StatusCode);
+
+        await EnregistrerAsync(seance, [_adem.Inscription]);
+
+        var absents = await _application.DansUnScopeAsync(services => services.GetRequiredService<SchoolHubDbContext>().Absences.IgnoreQueryFilters()
+            .Where(a => a.SeanceId == seance).Select(a => a.InscriptionId).ToListAsync());
+        Assert.Equal(new[] { _adem.Inscription, _lina.Inscription }.Order(), absents.Order());
     }
 
     // ----- Ce qui est dû -----
