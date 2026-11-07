@@ -27,8 +27,36 @@ public static class ListesEndpoints
         });
         // La secrétaire ne peut pas exporter les employés.
         exports.MapGet("/employes", async (ExportsDesListes service) => Fichier(await service.EmployesAsync())).RequireAuthorization(Politiques.Proprietaire);
+
+        // LST-03 et LST-04 : les modèles, et l'import d'un modèle rempli (multipart, champ « fichier »). Le cookie de
+        // session est SameSite=Strict : un formulaire d'un autre site n'arrive pas connecté.
+        var imports = api.MapGroup("/imports");
+        imports.MapGet("/eleves/modele", async (ImportsDesListes service) =>
+            TypedResults.File(await service.ModeleDesElevesAsync(), Classeur.TypeMime, "modele-eleves.xlsx"));
+        imports.MapGet("/professeurs/modele", () => TypedResults.File(ImportsDesListes.ModeleDesProfesseurs(), Classeur.TypeMime, "modele-professeurs.xlsx"));
+        imports.MapPost("/eleves", async (HttpRequest requete, ImportsDesListes service) =>
+            Repondre(await LireAsync(requete) is { } flux ? await service.ImporterDesElevesAsync(flux) : ResultatDImport.Refuse([ImportsDesListes.FichierPasValable])));
+        imports.MapPost("/professeurs", async (HttpRequest requete, ImportsDesListes service) =>
+            Repondre(await LireAsync(requete) is { } flux ? await service.ImporterDesProfesseursAsync(flux) : ResultatDImport.Refuse([ImportsDesListes.FichierPasValable])));
         return api;
     }
+
+    /// <summary>Le fichier envoyé, en mémoire (10 Mo au plus) ; <c>null</c> sans fichier.</summary>
+    private static async Task<Stream?> LireAsync(HttpRequest requete)
+    {
+        if (!requete.HasFormContentType)
+            return null;
+        var fichier = (await requete.ReadFormAsync()).Files.GetFile("fichier");
+        if (fichier is null || fichier.Length == 0 || fichier.Length > 10 * 1024 * 1024)
+            return null;
+        var flux = new MemoryStream();
+        await fichier.CopyToAsync(flux);
+        flux.Position = 0;
+        return flux;
+    }
+
+    /// <summary>200 avec le résultat ; 400 avec les erreurs à corriger (rien n'est importé).</summary>
+    private static IResult Repondre(ResultatDImport resultat) => resultat.Importe ? Results.Ok(resultat) : Results.BadRequest(resultat);
 
     private static FileContentHttpResult Fichier(ExportsDesListes.Fichier fichier) => TypedResults.File(fichier.Contenu, Classeur.TypeMime, fichier.Nom);
 

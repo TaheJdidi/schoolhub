@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { DELAI_DE_RECHERCHE } from '../../cadre/recherche-d-eleves';
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { messageDErreur } from '../../socle/erreurs';
+import { ImportDeListe } from '../../socle/import-de-liste';
 import { EleveTrouve, nombreDEleves } from './eleve';
 
 /**
@@ -17,15 +18,22 @@ import { PastilleDeCouleur } from '../caisse/paiement';
 @Component({
   selector: 'sh-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PastilleDeCouleur, ActionsDeListe],
+  imports: [RouterLink, PastilleDeCouleur, ActionsDeListe, ImportDeListe],
   template: `
     <div class="pagehead">
       <div>
         <h1 class="h1">Élèves</h1>
         <p class="sub">{{ sousTitre() }}</p>
       </div>
-      <a class="btn primary" routerLink="/eleves/nouveau">Ajouter un élève</a>
+      <div class="boutons-de-tete">
+        <button type="button" class="btn" (click)="importOuvert.set(!importOuvert())">Importer</button>
+        <a class="btn primary" routerLink="/eleves/nouveau">Ajouter un élève</a>
+      </div>
     </div>
+
+    @if (importOuvert()) {
+      <sh-import-de-liste quoi="élèves" unite="élève" adresse="/api/imports/eleves" (importe)="recharger()" (ferme)="importOuvert.set(false)" />
+    }
 
     <section class="card carte">
       <div class="filtres-eleves">
@@ -89,7 +97,15 @@ export class Eleves implements OnInit {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.minuterie));
   }
 
+  /** LST-03 : la carte « Importer des élèves ». */
+  protected readonly importOuvert = signal(false);
+
   async ngOnInit(): Promise<void> {
+    await this.recharger();
+  }
+
+  /** La liste entière, au début et après un import. */
+  protected async recharger(): Promise<void> {
     try {
       this.tous.set(await firstValueFrom(this.http.get<EleveTrouve[]>('/api/eleves')));
       this.charge.set(true);

@@ -52,6 +52,7 @@ builder.Services.AddScoped<AchatsDuCentre>();
 builder.Services.AddScoped<RessourcesHumaines>();
 builder.Services.AddScoped<TableauDeBord>();
 builder.Services.AddScoped<ExportsDesListes>();
+builder.Services.AddScoped<ImportsDesListes>();
 builder.Services.AjouterLaProtectionDuFormulaire();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre

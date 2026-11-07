@@ -9,6 +9,21 @@ import { Session } from './session/session';
 /** Les filtres d'un export : seuls ceux qui ont une valeur partent. */
 export type FiltresDExport = Record<string, string | number | boolean | null | undefined>;
 
+/** Télécharge le fichier que le serveur prépare, sous le nom qu'il donne (« eleves-2027-11-27.xlsx »). */
+export async function telechargerUnFichier(http: HttpClient, adresse: string, filtres: FiltresDExport = {}): Promise<void> {
+  let params = new HttpParams();
+  for (const [cle, valeur] of Object.entries(filtres)) {
+    if (valeur !== null && valeur !== undefined && valeur !== '') params = params.set(cle, String(valeur));
+  }
+  const reponse = await firstValueFrom(http.get(adresse, { params, responseType: 'blob', observe: 'response' }));
+  const nom = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(reponse.headers.get('Content-Disposition') ?? '')?.[1] ?? 'liste.xlsx';
+  const lien = document.createElement('a');
+  lien.href = URL.createObjectURL(reponse.body!);
+  lien.download = decodeURIComponent(nom);
+  lien.click();
+  URL.revokeObjectURL(lien.href);
+}
+
 /**
  * LST-01 et LST-02 : « Imprimer » et « Exporter (Excel) » d'une liste, avec le filtre en cours. À l'impression, une page
  * A4 porte le nom du centre, le nom de la liste, la date et le nombre de lignes ; les boutons, les menus et les champs
@@ -62,20 +77,10 @@ export class ActionsDeListe {
   protected async telecharger(): Promise<void> {
     const adresse = this.exporter();
     if (!adresse) return;
-    let params = new HttpParams();
-    for (const [cle, valeur] of Object.entries(this.filtres())) {
-      if (valeur !== null && valeur !== undefined && valeur !== '') params = params.set(cle, String(valeur));
-    }
     this.envoi.set(true);
     this.erreur.set(null);
     try {
-      const reponse = await firstValueFrom(this.http.get(adresse, { params, responseType: 'blob', observe: 'response' }));
-      const nom = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(reponse.headers.get('Content-Disposition') ?? '')?.[1] ?? 'liste.xlsx';
-      const lien = document.createElement('a');
-      lien.href = URL.createObjectURL(reponse.body!);
-      lien.download = decodeURIComponent(nom);
-      lien.click();
-      URL.revokeObjectURL(lien.href);
+      await telechargerUnFichier(this.http, adresse, this.filtres());
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     } finally {

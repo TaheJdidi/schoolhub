@@ -82,3 +82,5 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:1.8}
   .sans-impression,.btn,input[type="checkbox"],select,input[type="date"],input[type="month"]{display:none !important}
   .card{border:0}
 }
+/* Les boutons à droite du titre d'une page : « Importer », « Ajouter… ». */
+.boutons-de-tete{display:flex;gap:8px;flex-wrap:wrap}

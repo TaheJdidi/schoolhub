@@ -137,7 +137,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
     /// Les champs dans l'ordre du formulaire, sans les espaces autour : le premier refusé donne la réponse.
     /// Le téléphone revient en 8 chiffres, et un email vide devient <c>null</c>.
     /// </summary>
-    private static ((string Prenom, string Nom, string Telephone, string? Email) Fiche, IssueSurUnProfesseur? Refus) VerifierLaFiche(
+    internal static ((string Prenom, string Nom, string Telephone, string? Email) Fiche, IssueSurUnProfesseur? Refus) VerifierLaFiche(
         FicheDuProfesseur saisie)
     {
         var prenom = saisie.Prenom?.Trim() ?? "";

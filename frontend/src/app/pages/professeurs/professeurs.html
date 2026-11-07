@@ -3,8 +3,16 @@
     <h1 class="h1">Professeurs</h1>
     <p class="sub">{{ sousTitre() }}</p>
   </div>
-  <button type="button" class="btn primary" [disabled]="!charge() || envoi()" (click)="ouvrirLAjout()">Ajouter un professeur</button>
+  <div class="boutons-de-tete">
+    <button type="button" class="btn" (click)="importOuvert.set(!importOuvert())">Importer</button>
+    <button type="button" class="btn primary" [disabled]="!charge() || envoi()" (click)="ouvrirLAjout()">Ajouter un professeur</button>
+  </div>
 </div>
+
+@if (importOuvert()) {
+  <sh-import-de-liste quoi="professeurs" unite="professeur" adresse="/api/imports/professeurs" (importe)="chargerApresImport()"
+    (ferme)="importOuvert.set(false)" />
+}
 
 <div class="filtres" role="group" aria-label="Filtrer les professeurs">
   <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'au-centre'" [disabled]="envoi()" (click)="filtrer('au-centre')">
