@@ -212,9 +212,12 @@ const totaux = (lignes: LigneDuTableau[]): Totaux => ({
     .pagehead { margin-bottom: 0; }
     .periode { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
     .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-    .chiffres div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
-    .chiffres span, .chiffres small { color: var(--ink-2); font-size: 12.5px; }
-    .chiffres b { font-size: 20px; }
+    /* Comme le prototype (écran 13) : quatre chiffres sur fond gris, en grand. */
+    .chiffres div { display: grid; gap: 4px; padding: 16px 18px; border-radius: 14px; background: var(--sunk); }
+    .chiffres span, .chiffres small { color: var(--ink-2); font-size: 13px; }
+    .chiffres b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
+    /* « Total » est une ligne du tableau : le style « total » des fiches ne s'y applique pas. */
+    tr.total { display: table-row; }
     .chiffres .bad .benefice, .chiffres div.bad b { color: var(--bad); }
     .chiffres div.ok .benefice { color: var(--ok); }
     .deux-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
