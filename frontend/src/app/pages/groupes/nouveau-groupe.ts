@@ -95,6 +95,8 @@ export class NouveauGroupe implements OnInit {
   protected readonly dejaCommence = signal(false);
   /** La secrétaire a écrit le nom elle-même : il ne suit plus le premier créneau. */
   private nomChoisi = false;
+  /** Le dernier nom proposé d'après les créneaux. */
+  private dernierNomPropose = '';
 
   protected readonly formulaire = new FormGroup({
     professeurId: new FormControl('', { nonNullable: true }),
@@ -207,8 +209,13 @@ export class NouveauGroupe implements OnInit {
     this.tranches.removeAt(rang);
   }
 
+  /**
+   * La secrétaire a écrit dans le nom. Un nom à elle ne suit plus les créneaux ; un nom vidé, ou laissé égal au nom
+   * proposé, les suit de nouveau au prochain changement de jour ou d'horaire.
+   */
   protected nomSaisi(): void {
-    this.nomChoisi = true;
+    const nom = this.formulaire.controls.nom.value.trim();
+    this.nomChoisi = nom !== '' && nom !== this.dernierNomPropose;
   }
 
   protected async creer(): Promise<void> {
@@ -320,11 +327,16 @@ export class NouveauGroupe implements OnInit {
       const premiere = this.dates.at(0)?.getRawValue();
       if (!premiere?.date || !premiere.debutDeLaDate || !premiere.finDeLaDate) return;
       const jour = jourDeLaDate(premiere.date);
-      this.formulaire.controls.nom.setValue(nomPropose({ jour, debut: premiere.debutDeLaDate, fin: premiere.finDeLaDate }));
+      this.proposer(nomPropose({ jour, debut: premiere.debutDeLaDate, fin: premiere.finDeLaDate }));
       return;
     }
     const premier = this.creneaux.at(0)?.getRawValue();
     if (!premier?.debut || !premier.fin) return;
-    this.formulaire.controls.nom.setValue(nomPropose(premier));
+    this.proposer(nomPropose(premier));
+  }
+
+  private proposer(nom: string): void {
+    this.dernierNomPropose = nom;
+    this.formulaire.controls.nom.setValue(nom);
   }
 }

@@ -110,6 +110,16 @@ describe('la page « Nouveau groupe »', () => {
     await taper('nom', 'Maths du dimanche');
     await taper('debut', '10:30');
     expect(champ('nom').value).toBe('Maths du dimanche');
+
+    // Vidé, le nom suit de nouveau le jour et les horaires.
+    await taper('nom', '');
+    await taper('debut', '08:00');
+    await taper('fin', '10:00');
+    expect(champ('nom').value).toBe('Groupe Dimanche 8h → 10h');
+    // Effleuré sans être changé, il les suit encore.
+    await taper('nom', 'Groupe Dimanche 8h → 10h');
+    await choisirOption('jour', 'Samedi');
+    expect(champ('nom').value).toBe('Groupe Samedi 8h → 10h');
   });
 
   it('ajoute et retire un créneau', async () => {
