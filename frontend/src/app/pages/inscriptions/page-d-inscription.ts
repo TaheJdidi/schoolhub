@@ -217,13 +217,23 @@ export class PageDInscription implements OnInit {
   protected readonly creation = signal(false);
   protected readonly idDuGroupe = this.id;
 
-  /** La fiche est créée : l'élève est choisi, et seul dans les résultats ; « Doublon possible » s'affiche s'il y a lieu. */
-  protected eleveCree(enregistrement: EleveEnregistre): void {
+  /**
+   * La fiche est créée : l'élève est choisi, et seul dans les résultats ; « Doublon possible » s'affiche s'il y a lieu.
+   * Il est inscrit dans la foulée, à la première séance choisie. Seul un mode encore à choisir (Révision, Formation à
+   * tranches) attend « Inscrire ».
+   */
+  protected async eleveCree(enregistrement: EleveEnregistre): Promise<void> {
     const { eleve, avertissement } = enregistrement;
     this.creation.set(false);
     this.trouves.set([{ id: eleve.id, prenom: eleve.prenom, nom: eleve.nom, niveau: eleve.niveau.nom }]);
     this.choisirLEleve(eleve);
     this.avertissement.set(avertissement);
+    if (this.ferme() || !this.groupe()) return;
+    if (this.modes().length > 0 && !this.mode()) {
+      this.erreur.set(`${eleve.prenom} ${eleve.nom} est créé : choisissez le mode de tarification, puis « Inscrire »`);
+      return;
+    }
+    await this.inscrire();
   }
 
   protected choisirLEleve(eleve: Pick<EleveTrouve, 'id' | 'prenom' | 'nom'>): void {

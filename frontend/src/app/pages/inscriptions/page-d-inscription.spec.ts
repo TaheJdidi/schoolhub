@@ -339,7 +339,7 @@ describe("la page d'inscription", () => {
     await vi.waitFor(() => expect(page.querySelector('.sub')?.textContent).toContain('Groupe Samedi 10h → 12h'));
   }
 
-  it('crée un nouvel élève depuis le groupe, au niveau du groupe, le choisit, et l’inscrit', async () => {
+  it('crée un nouvel élève depuis le groupe, au niveau du groupe, et l’inscrit dans la foulée', async () => {
     await depuisLeGroupe();
 
     bouton('Nouvel élève')!.click();
@@ -365,10 +365,8 @@ describe("la page d'inscription", () => {
       { eleve: { id: 'e9', prenom: 'Nour', nom: 'Hamdi', niveau: { id: 'n9', nom: '9ᵉ année de base' } }, avertissement: null },
       { status: 201, statusText: 'Created' },
     );
-    await vi.waitFor(() => expect((page.querySelector('input[name="eleve"][value="e9"]') as HTMLInputElement)?.checked).toBe(true));
-    expect(etiquette('e9')).toContain('Nour Hamdi');
-
-    const requete = await inscrire();
+    // Sans mode à choisir (une Étude), l'inscription part seule, sans « Inscrire ».
+    const requete = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/inscriptions' }));
     expect(requete.request.body).toEqual({ eleveId: 'e9', groupeId: 'g1', mode: null, debutLe: '2027-11-20' });
     requete.flush({ ...ENREGISTREMENT, inscription: { ...INSCRIPTION, eleve: { id: 'e9', prenom: 'Nour', nom: 'Hamdi' } } });
     await vi.waitFor(() => expect(texte()).toContain('Inscription enregistrée'));

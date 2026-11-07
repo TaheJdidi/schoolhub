@@ -85,7 +85,8 @@
   } @else {
     <div class="cartes">
       @if (depuis === 'groupe' && creation()) {
-        <!-- L'élève n'existe pas encore : sa fiche se crée ici, puis il est choisi pour l'inscription. -->
+        <!-- L'élève n'existe pas encore : sa fiche se crée ici, puis il est inscrit dans le groupe. -->
+        <p class="aide">« Enregistrer » crée la fiche et inscrit l'élève dans ce groupe.</p>
         <sh-formulaire-de-l-eleve
           [brouillonDeLaCreation]="'eleve-pour-le-groupe-' + idDuGroupe"
           [niveauDuGroupe]="groupe()?.niveau ?? null"
