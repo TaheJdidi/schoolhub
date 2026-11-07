@@ -12,6 +12,7 @@
         Remplissez ce formulaire, sans créer de compte. Le centre vous confirmera le groupe et la date de la première séance sur WhatsApp.
       </p>
     </header>
+    <p class="note info">On n'y demande ni carte d'identité, ni adresse, ni date de naissance : seulement les contacts utiles.</p>
 
     @if (merci(); as prenom) {
       <section class="card carte">
@@ -67,11 +68,13 @@
         </section>
 
         <section class="card carte">
-          <h2 class="titre">Le parent</h2>
-          <label class="case">
-            <input type="checkbox" aria-label="L'élève est majeur" (change)="basculerMajeur($event)" />
-            L'élève est majeur
-          </label>
+          <div class="titre titre-avec-case">
+            <h2>Le parent</h2>
+            <label class="case">
+              <input type="checkbox" aria-label="L'élève est majeur" (change)="basculerMajeur($event)" />
+              L'élève est majeur
+            </label>
+          </div>
           <div class="champs">
             <label class="f">
               <span>

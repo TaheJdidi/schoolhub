@@ -1,15 +1,27 @@
 /* Le formulaire public : sans le menu, une colonne sur un téléphone, sans défilement de côté. */
 :host { display: block; min-height: 100vh; background: var(--bg); }
-.publique { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
-.entete { display: grid; gap: 6px; }
-.tag { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.publique { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+/* Comme le prototype (écran 9) : un bandeau aux couleurs du centre, puis le formulaire. */
+.entete { display: grid; gap: 6px; padding: 26px 28px 22px; border-radius: 14px; background: var(--accent); color: var(--on-accent); }
+.tag { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
 .h1, .sub { margin: 0; }
+.entete .h1 { color: var(--on-accent); font-size: 26px; }
+.entete .sub { max-width: 62ch; color: var(--on-accent); opacity: 0.92; }
 .sub { color: var(--ink-2); }
+.note.info { background: var(--sunk); color: var(--ink-2); }
+@media (max-width: 600px) { .entete { padding: 20px 16px 18px; } .entete .h1 { font-size: 22px; } }
 
 .cartes { display: grid; gap: 16px; }
 .carte { display: grid; gap: 12px; padding: 16px; }
-.titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
-.champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
+/* Le titre de chaque carte, séparé par un trait, comme le prototype. */
+.titre { margin: 0 -16px; padding: 0 16px 12px; border-bottom: 1px solid var(--line); font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.titre-avec-case { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.titre-avec-case h2 { margin: 0; font-size: inherit; }
+.titre-avec-case .case { font-family: var(--font-body); font-size: 13px; font-weight: 400; }
+/* Deux champs par ligne ; un sur un téléphone. Aucun ne déborde de sa carte. */
+.champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.champs .f { max-width: none; }
+@media (max-width: 600px) { .champs { grid-template-columns: minmax(0, 1fr); } }
 .opt { color: var(--ink-3); font-weight: 400; }
 .case { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .aide, .vide, .note { margin: 0; }
@@ -17,7 +29,7 @@
 .matiere { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
 .matiere:first-of-type { border-top: 0; }
 .matiere .inp { min-width: 0; }
-.envoi { display: grid; gap: 10px; justify-items: end; }
+.envoi { display: grid; gap: 10px; justify-items: start; }
 
 /* Le champ piège reste dans la page, hors de l'écran : un robot le voit, une personne non. */
 .piege { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
