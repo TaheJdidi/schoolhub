@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -31,7 +32,7 @@ import { Session } from '../../socle/session/session';
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, PartDuCentre],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, PartDuCentre, ActionsDeListe],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })

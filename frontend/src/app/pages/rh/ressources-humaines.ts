@@ -1,3 +1,4 @@
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
@@ -44,7 +45,7 @@ export interface SalairesDuMois {
 @Component({
   selector: 'sh-ressources-humaines',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ActionsDeListe],
   template: `
     <div class="pagehead">
       <div>
@@ -79,6 +80,7 @@ export interface SalairesDuMois {
       <div class="entete">
         <h2 class="titre">{{ partis() ? 'Employés partis' : 'Employés' }}</h2>
         <button type="button" class="btn sm" (click)="partis.set(!partis())">{{ partis() ? 'Au centre' : 'Partis' }}</button>
+        <sh-actions-de-liste titre="Employés" [nombre]="visibles().length" exporter="/api/exports/employes" />
       </div>
       @for (employe of visibles(); track employe.id) {
         <div class="employe">

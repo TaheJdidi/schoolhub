@@ -3,19 +3,21 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnIni
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { DELAI_DE_RECHERCHE } from '../../cadre/recherche-d-eleves';
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { messageDErreur } from '../../socle/erreurs';
 import { EleveTrouve, nombreDEleves } from './eleve';
 
 /**
  * ELV-01 et ELV-02 : la page « Élèves ». La liste se charge une fois ; « Filtrer la liste » utilise la même recherche
- * que l'en-tête, sur le serveur, après une courte pause. Un filtre vide remet toute la liste.
+ * que l'en-tête, sur le serveur, après une courte pause. Un filtre vide remet toute la liste. Un niveau restreint la
+ * liste ; « Imprimer » et « Exporter (Excel) » suivent les deux filtres (LST-01, LST-02).
  */
 import { PastilleDeCouleur } from '../caisse/paiement';
 
 @Component({
   selector: 'sh-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PastilleDeCouleur],
+  imports: [RouterLink, PastilleDeCouleur, ActionsDeListe],
   template: `
     <div class="pagehead">
       <div>
@@ -26,10 +28,23 @@ import { PastilleDeCouleur } from '../caisse/paiement';
     </div>
 
     <section class="card carte">
-      <label class="f">
-        Filtrer la liste
-        <input class="inp" (input)="filtrer($event)" placeholder="Nom, prénom ou téléphone" aria-label="Filtrer la liste" autocomplete="off" />
-      </label>
+      <div class="filtres-eleves">
+        <label class="f">
+          Filtrer la liste
+          <input class="inp" (input)="filtrer($event)" placeholder="Nom, prénom ou téléphone" aria-label="Filtrer la liste" autocomplete="off" />
+        </label>
+        <label class="f">
+          Niveau
+          <select class="inp" (change)="niveau.set($any($event.target).value)">
+            <option value="">Tous</option>
+            @for (n of niveaux(); track n) {
+              <option [value]="n">{{ n }}</option>
+            }
+          </select>
+        </label>
+        <sh-actions-de-liste [titre]="titreDeLaListe()" [nombre]="visibles().length" exporter="/api/exports/eleves"
+          [filtres]="{ recherche: filtre(), niveau: niveau() }" />
+      </div>
       <div class="liste">
         @for (eleve of visibles(); track eleve.id) {
           <a class="ligne-eleve" [routerLink]="['/eleves', eleve.id]">
@@ -63,7 +78,11 @@ export class Eleves implements OnInit {
   private minuterie: ReturnType<typeof setTimeout> | undefined;
   private derniere = 0;
 
-  protected readonly visibles = computed(() => this.trouves() ?? this.tous());
+  protected readonly niveau = signal('');
+  /** Les niveaux des élèves du centre, dans l'ordre où ils viennent. */
+  protected readonly niveaux = computed(() => [...new Set(this.tous().map((e) => e.niveau))].sort((a, b) => a.localeCompare(b, 'fr')));
+  protected readonly visibles = computed(() => (this.trouves() ?? this.tous()).filter((e) => !this.niveau() || e.niveau === this.niveau()));
+  protected readonly titreDeLaListe = computed(() => (this.niveau() ? `Élèves de ${this.niveau()}` : 'Élèves'));
   protected readonly sousTitre = computed(() => (this.charge() ? nombreDEleves(this.tous().length) : ''));
 
   constructor() {

@@ -8,7 +8,6 @@ import { Bientot } from './pages/bientot/bientot';
 import { Comptes } from './pages/comptes/comptes';
 import { Connexion } from './pages/connexion/connexion';
 import { Demandes } from './pages/demandes/demandes';
-import { Eleves } from './pages/eleves/eleves';
 import { NouvelEleve } from './pages/eleves/nouvel-eleve';
 import { Invitation } from './pages/invitation/invitation';
 import { NouveauGroupe } from './pages/groupes/nouveau-groupe';
@@ -37,7 +36,6 @@ const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((modu
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
-  eleves: Eleves,
   demandes: Demandes,
   comptes: Comptes,
   parametres: Parametres,
@@ -45,6 +43,7 @@ const PAGES: Partial<Record<string, Type<unknown>>> = {
 
 /** Les pages du menu qui se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
 const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> = {
+  eleves: () => import('./pages/eleves/eleves').then((module) => module.Eleves),
   professeurs: () => import('./pages/professeurs/professeurs').then((module) => module.Professeurs),
   caisse: () => import('./pages/caisse/caisse').then((module) => module.Caisse),
   bibliotheque: () => import('./pages/bibliotheque/bibliotheque').then((module) => module.Bibliotheque),

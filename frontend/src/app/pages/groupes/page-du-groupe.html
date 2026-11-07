@@ -88,6 +88,7 @@
     <section class="card carte les-eleves">
       <div class="entete">
         <h2 class="titre">Les élèves</h2>
+        <sh-actions-de-liste [titre]="fiche.nom + ' · élèves'" [nombre]="inscriptions().length" [exporter]="'/api/exports/groupes/' + fiche.id" />
         @if (!fiche.fermeLe && !fiche.termine) {
           <a class="btn" [routerLink]="['/professeurs/groupes', fiche.id, 'inscription']">Ajouter un élève</a>
         }

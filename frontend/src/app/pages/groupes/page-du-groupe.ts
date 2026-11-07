@@ -1,3 +1,4 @@
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
@@ -49,7 +50,7 @@ const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel],
+  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })

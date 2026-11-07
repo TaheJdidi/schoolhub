@@ -39,3 +39,9 @@
   .main{padding:16px 14px 22px}
 }
 .compte{margin-left:auto;min-width:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:600;line-height:20px;text-align:center}
+/* LST-01 : à l'impression, seule la page : ni l'en-tête, ni le menu, ni les onglets. */
+@media print{
+  .top,.rail,.tabbar{display:none}
+  .shell{display:block;background:#fff}
+  .main{padding:0}
+}

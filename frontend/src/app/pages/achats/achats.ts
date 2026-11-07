@@ -1,3 +1,4 @@
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
@@ -40,7 +41,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
 @Component({
   selector: 'sh-achats',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ActionsDeListe],
   template: `
     <div class="pagehead">
       <div>
@@ -81,6 +82,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     }
 
     <section class="card carte">
+      <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
       <div class="filtres">
         <label class="f">
           Période
@@ -185,7 +187,7 @@ export class Achats implements OnInit {
   protected readonly envoi = signal(false);
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
-  private filtres: Record<string, string> = { mois: this.mois };
+  protected readonly filtresCourants = signal<Record<string, string>>({ mois: this.mois });
   private facture: File | null = null;
 
   protected readonly formulaire = new FormGroup({
@@ -293,8 +295,9 @@ export class Achats implements OnInit {
       this.parAnnee.set(parAnnee);
       valeur = parAnnee ? this.annee : this.mois;
     }
-    this.filtres = parAnnee ? { annee: valeur || this.annee } : { mois: valeur || this.mois };
-    if (categorie) this.filtres['categorie'] = categorie;
+    const filtres: Record<string, string> = parAnnee ? { annee: valeur || this.annee } : { mois: valeur || this.mois };
+    if (categorie) filtres['categorie'] = categorie;
+    this.filtresCourants.set(filtres);
     await this.charger();
   }
 
@@ -305,7 +308,7 @@ export class Achats implements OnInit {
 
   private async charger(): Promise<void> {
     try {
-      this.liste.set(await firstValueFrom(this.http.get<AchatsEtTotaux>('/api/achats', { params: this.filtres })));
+      this.liste.set(await firstValueFrom(this.http.get<AchatsEtTotaux>('/api/achats', { params: this.filtresCourants() })));
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }

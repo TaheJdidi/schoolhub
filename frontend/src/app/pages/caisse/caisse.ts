@@ -1,3 +1,4 @@
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from '@angular/core';
@@ -20,7 +21,7 @@ import { RecuDeLaListe } from './recu';
 @Component({
   selector: 'sh-caisse',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, MaCaisseComponent, ControleDesCloturesComponent],
+  imports: [RouterLink, MaCaisseComponent, ControleDesCloturesComponent, ActionsDeListe],
   template: `
     <div class="pagehead">
       <div>
@@ -40,6 +41,7 @@ import { RecuDeLaListe } from './recu';
           @if (recus(); as recus) {
             <span class="compte">{{ recus.length }} {{ recus.length > 1 ? 'reçus' : 'reçu' }} · {{ montant(totalValable()) }} TND</span>
           }
+          <sh-actions-de-liste [titre]="titre()" [nombre]="recus()?.length ?? 0" exporter="/api/exports/recus" [filtres]="filtresDExport()" />
         </div>
         <div class="filtres">
           <label class="f">
@@ -107,6 +109,8 @@ export class Caisse implements OnInit {
   protected readonly recus = signal<RecuDeLaListe[] | null>(null);
   protected readonly erreur = signal<string | null>(null);
   private readonly recherche = signal<{ numero: string; eleve: string; jour: string }>({ numero: '', eleve: '', jour: this.aujourdhui });
+  /** LST-02 : l'export suit la recherche en cours. */
+  protected readonly filtresDExport = computed(() => this.recherche());
 
   protected readonly titre = computed(() => {
     const { numero, eleve, jour } = this.recherche();

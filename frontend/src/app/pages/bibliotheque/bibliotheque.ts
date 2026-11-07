@@ -1,3 +1,4 @@
+import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
@@ -52,7 +53,7 @@ export interface EntreeEnregistree {
 @Component({
   selector: 'sh-bibliotheque',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormulaireDeLEleve],
+  imports: [RouterLink, FormulaireDeLEleve, ActionsDeListe],
   template: `
     <div class="pagehead">
       <div>
@@ -66,7 +67,8 @@ export interface EntreeEnregistree {
       </div>
       <div class="actions">
         <label class="f jour">Jour <input type="date" [value]="jour()" (change)="changerDeJour($any($event.target).value)" /></label>
-        <button type="button" class="btn" (click)="imprimer()">Imprimer</button>
+        <sh-actions-de-liste [titre]="'Bibliothèque · ' + date(jour())" [nombre]="journee()?.liste?.length ?? 0" exporter="/api/exports/bibliotheque"
+          [filtres]="{ jour: jour() }" />
       </div>
     </div>
 
@@ -200,7 +202,7 @@ export interface EntreeEnregistree {
     .trouve { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; }
     .deux { display: grid; flex: 1; min-width: 0; }
     .deux small { color: var(--ink-2); font-size: 12.5px; }
-    @media print { .pagehead .actions, .nouvelle, .depart { display: none; } }
+    @media print { .jour, .nouvelle, .depart { display: none; } }
   `,
 })
 export class Bibliotheque implements OnInit, OnDestroy {
@@ -311,10 +313,6 @@ export class Bibliotheque implements OnInit, OnDestroy {
   /** « 27/11/2027 ». */
   protected date(texte: string): string {
     return formatDate(texte, 'dd/MM/yyyy', FRANCAIS);
-  }
-
-  protected imprimer(): void {
-    window.print();
   }
 
   private async charger(): Promise<void> {

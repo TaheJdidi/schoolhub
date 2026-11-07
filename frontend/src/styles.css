@@ -73,3 +73,12 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:1.8}
 @media (max-width: 760px){
   .h1{font-size:20px}
 }
+/* LST-01 : l'en-tête d'impression d'une liste ne se voit qu'à l'impression ; les boutons ne s'impriment pas. */
+.entete-d-impression{display:none}
+@media print{
+  @page{size:A4;margin:12mm}
+  body{background:#fff}
+  .entete-d-impression{display:flex}
+  .sans-impression,.btn,input[type="checkbox"],select,input[type="date"],input[type="month"]{display:none !important}
+  .card{border:0}
+}

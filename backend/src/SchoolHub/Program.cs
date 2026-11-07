@@ -6,6 +6,7 @@ using SchoolHub.Modules.Demandes;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
+using SchoolHub.Modules.Listes;
 using SchoolHub.Modules.Parts;
 using SchoolHub.Modules.Professeurs;
 using SchoolHub.Modules.Rh;
@@ -50,6 +51,7 @@ builder.Services.AddScoped<PartsDesProfesseurs>();
 builder.Services.AddScoped<AchatsDuCentre>();
 builder.Services.AddScoped<RessourcesHumaines>();
 builder.Services.AddScoped<TableauDeBord>();
+builder.Services.AddScoped<ExportsDesListes>();
 builder.Services.AjouterLaProtectionDuFormulaire();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
@@ -115,6 +117,7 @@ api.MapParts();
 api.MapAchats();
 api.MapRessourcesHumaines();
 api.MapTableauDeBord();
+api.MapListes();
 app.MapPagesDeLApplication(api);
 
 app.Run();

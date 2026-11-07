@@ -13,6 +13,8 @@
   <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'partis'" [disabled]="envoi()" (click)="filtrer('partis')">
     Professeurs partis
   </button>
+  <sh-actions-de-liste [titre]="filtre() === 'partis' ? 'Professeurs partis' : 'Professeurs'" [nombre]="visibles().length"
+    exporter="/api/exports/professeurs" [filtres]="{ partis: filtre() === 'partis' }" />
 </div>
 
 <div class="colonnes">
