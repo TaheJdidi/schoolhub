@@ -10,15 +10,23 @@
       Nom
       <input formControlName="nom" autocomplete="off" />
     </label>
-    <label class="f">
-      Niveau
-      <select class="inp" formControlName="niveauId">
-        <option value="">Choisissez le niveau</option>
-        @for (niveau of niveaux(); track niveau.id) {
-          <option [value]="niveau.id">{{ niveau.nom }}</option>
-        }
-      </select>
-    </label>
+    @if (niveauDuGroupe(); as niveau) {
+      <!-- Créé depuis un groupe : l'élève prend le niveau du groupe, sans le choisir. -->
+      <label class="f">
+        Niveau
+        <input class="inp" name="niveau-du-groupe" [value]="niveau.nom" readonly />
+      </label>
+    } @else {
+      <label class="f">
+        Niveau
+        <select class="inp" formControlName="niveauId">
+          <option value="">Choisissez le niveau</option>
+          @for (niveau of niveaux(); track niveau.id) {
+            <option [value]="niveau.id">{{ niveau.nom }}</option>
+          }
+        </select>
+      </label>
+    }
     <label class="f">
       <span>Établissement scolaire <span class="opt">(facultatif)</span></span>
       <input formControlName="etablissement" autocomplete="off" />

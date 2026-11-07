@@ -47,6 +47,8 @@ export class FormulaireDeLEleve implements OnInit {
   readonly brouillonDeLaCreation = input('eleve-nouveau');
   /** À la création : « Professeur » puis « Groupe » (facultatifs), pour inscrire l'élève en même temps. */
   readonly proposerUnGroupe = input(false);
+  /** Créé depuis un groupe qui a un niveau : l'élève prend ce niveau, qui ne se choisit pas. */
+  readonly niveauDuGroupe = input<{ id: string; nom: string } | null>(null);
   readonly enregistre = output<EleveEnregistre>();
   readonly annule = output<void>();
 
@@ -130,6 +132,8 @@ export class FormulaireDeLEleve implements OnInit {
       .subscribe(() => reverifier(this.formulaire));
     this.remplir();
     this.brouillon.reprendre();
+    const niveauDuGroupe = this.niveauDuGroupe();
+    if (niveauDuGroupe && !this.eleve()) controles.niveauId.setValue(niveauDuGroupe.id);
 
     try {
       const avecGroupe = this.proposerUnGroupe();

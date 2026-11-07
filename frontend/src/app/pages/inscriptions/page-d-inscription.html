@@ -86,7 +86,10 @@
     <div class="cartes">
       @if (depuis === 'groupe' && creation()) {
         <!-- L'élève n'existe pas encore : sa fiche se crée ici, puis il est choisi pour l'inscription. -->
-        <sh-formulaire-de-l-eleve [brouillonDeLaCreation]="'eleve-pour-le-groupe-' + idDuGroupe" (enregistre)="eleveCree($event)" (annule)="creation.set(false)" />
+        <sh-formulaire-de-l-eleve
+          [brouillonDeLaCreation]="'eleve-pour-le-groupe-' + idDuGroupe"
+          [niveauDuGroupe]="groupe()?.niveau ?? null"
+          (enregistre)="eleveCree($event)" (annule)="creation.set(false)" />
       } @else if (depuis === 'groupe') {
         <section class="card carte">
           <div class="entete">
