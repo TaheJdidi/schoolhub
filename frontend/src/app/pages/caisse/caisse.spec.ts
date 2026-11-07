@@ -348,8 +348,8 @@ const CLOTURE: Cloture = {
   argentRecuLe: null,
 };
 
-/** La carte des reçus : la dernière de la page. */
-const carteDesRecus = (page: HTMLElement) => [...page.querySelectorAll('section.card')].at(-1) as HTMLElement;
+/** La carte des reçus du jour (prototype, écran 7 : à gauche, sous les chiffres). */
+const carteDesRecus = (page: HTMLElement) => page.querySelector('.recus-du-jour') as HTMLElement;
 
 describe('la page « Caisse »', () => {
   it('montre les reçus du jour, puis cherche par élève', async () => {
@@ -363,6 +363,8 @@ describe('la page « Caisse »', () => {
       { id: 'r2', numero: 13, jour: '2027-11-27', creeLe: '2027-11-27T09:30:00+00:00', eleve: 'Lina Gharbi', total: 40, secretaire: 'Amira Jlassi', annule: true },
       { id: 'r1', numero: 12, jour: '2027-11-27', creeLe: '2027-11-27T09:00:00+00:00', eleve: 'Adem Miled', total: 60, secretaire: 'Amira Jlassi', annule: false },
     ]);
+    // Les sorties de caisse du jour : les achats du mois, filtrés.
+    http.expectOne((r) => r.url === '/api/achats').flush({ achats: [], totalMateriel: 0, totalService: 0, total: 0 });
     await vi.waitFor(() => expect(page.querySelectorAll('a.recu')).toHaveLength(2));
 
     const recus = carteDesRecus(page);
@@ -396,6 +398,7 @@ describe('« Ma caisse » et sa clôture du soir', () => {
     page = harness.routeNativeElement as HTMLElement;
     (await vi.waitFor(() => http.expectOne('/api/caisse'))).flush(caisse);
     http.expectOne((r) => r.url === '/api/recus').flush([]);
+    http.expectOne((r) => r.url === '/api/achats').flush({ achats: [], totalMateriel: 0, totalService: 0, total: 0 });
     await vi.waitFor(() => expect(page.textContent).toContain('Espèces attendues'));
   }
 
@@ -411,7 +414,8 @@ describe('« Ma caisse » et sa clôture du soir', () => {
   it("montre l'encaissé, les sorties et l'attendu, et l'écart en direct", async () => {
     await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
 
-    expect(page.querySelector('sh-ma-caisse h2')?.textContent).toContain('Ma caisse');
+    expect(page.querySelector('h1')?.textContent).toContain('Ma caisse');
+    expect(page.querySelector('sh-ma-caisse h2')?.textContent).toContain('Clôture du soir');
     expect(page.querySelector('.chiffres')?.textContent).toContain('845,000 TND');
     expect(page.querySelector('.chiffres')?.textContent).toContain('12 reçus');
     expect(page.querySelector('.ecart')?.textContent).toContain('Saisissez le montant compté');
@@ -470,6 +474,7 @@ describe('le contrôle des clôtures, pour le propriétaire', () => {
     };
     (await vi.waitFor(() => http.expectOne((r) => r.url === '/api/caisse/clotures'))).flush(controle);
     http.expectOne((r) => r.url === '/api/recus').flush([]);
+    http.expectOne((r) => r.url === '/api/achats').flush({ achats: [], totalMateriel: 0, totalService: 0, total: 0 });
     await vi.waitFor(() => expect(page.querySelector('td.bad')).not.toBeNull());
 
     expect(page.textContent).toContain('À récupérer : 840,000 TND');

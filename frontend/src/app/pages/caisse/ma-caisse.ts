@@ -18,9 +18,17 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
   template: `
     @if (caisse(); as caisse) {
       @if (aCloturer(); as ouverte) {
+        <dl class="chiffres">
+          <div><dt>Encaissé</dt><dd><span class="num">{{ montant(ouverte.encaisse) }}</span><small> TND</small></dd><small>{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</small></div>
+          <div><dt>Sorties de caisse</dt><dd><span class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }}</span><small> TND</small></dd><small>Achats payés en espèces</small></div>
+          <div><dt>Espèces attendues</dt><dd class="attendues"><span class="num">{{ montant(ouverte.attendu) }}</span><small> TND</small></dd><small>Encaissé moins les sorties</small></div>
+        </dl>
+      }
+      <div class="colonne-cloture">
+      @if (aCloturer(); as ouverte) {
         <section class="card carte" [class.oubliee]="ouverte.oubliee" aria-labelledby="t-ma-caisse">
           <div class="entete">
-            <h2 class="titre" id="t-ma-caisse">{{ titre(ouverte) }}</h2>
+            <h2 class="titre" id="t-ma-caisse">{{ ouverte.oubliee ? titre(ouverte) : 'Clôture du soir' }}</h2>
             @if (ouverte.oubliee) {
               <span class="pill warn">Pas clôturée</span>
             }
@@ -28,10 +36,10 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
           @if (ouverte.oubliee) {
             <p class="note warn">Votre caisse du {{ jourCourt(ouverte.jour) }} n'est pas clôturée. Comptez ses espèces et clôturez-la.</p>
           }
-          <dl class="chiffres">
-            <div><dt>Encaissé</dt><dd class="num">{{ montant(ouverte.encaisse) }} TND</dd><small>{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</small></div>
-            <div><dt>Sorties de caisse</dt><dd class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }} TND</dd><small>Achats payés en espèces</small></div>
-            <div><dt>Espèces attendues</dt><dd class="num"><b>{{ montant(ouverte.attendu) }} TND</b></dd><small>Encaissé moins les sorties</small></div>
+          <dl class="kv">
+            <dt>Encaissé</dt><dd class="num">{{ montant(ouverte.encaisse) }} TND</dd>
+            <dt>Sorties de caisse</dt><dd class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }} TND</dd>
+            <dt><b>Espèces attendues</b></dt><dd class="num"><b>{{ montant(ouverte.attendu) }} TND</b></dd>
           </dl>
           @if (ouverte.recus > 0 || ouverte.annules > 0 || ouverte.sorties > 0 || ouverte.oubliee) {
             <div class="cloture">
@@ -66,27 +74,34 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
           <p class="aide">Le propriétaire voit votre clôture et marque « argent reçu » quand il récupère les espèces.</p>
         </section>
       }
+      </div>
     } @else if (erreur(); as erreur) {
       <p class="note bad" role="alert">{{ erreur }}</p>
     }
   `,
   styleUrls: ['../eleves/eleves.css'],
   styles: `
-    :host { display: grid; gap: 16px; }
+    /* Les chiffres et la clôture se rangent dans la grille de la page Caisse (prototype, écran 7). */
+    :host { display: contents; }
+    .chiffres { grid-area: chiffres; }
+    .colonne-cloture { grid-area: cloture; display: grid; gap: 16px; align-content: start; }
     .carte.oubliee { border-color: var(--warn); }
     .entete { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0; }
-    .chiffres div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--sunk); }
-    .chiffres dt { font-size: 12.5px; color: var(--ink-2); }
-    .chiffres dd { margin: 0; font-size: 18px; }
-    .chiffres small { color: var(--ink-3); font-size: 12px; }
-    .cloture { display: grid; gap: 10px; max-width: 360px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 0; }
+    .chiffres div { display: grid; gap: 4px; padding: 16px 18px; border-radius: 14px; background: var(--sunk); }
+    .chiffres dt { font-size: 13px; color: var(--ink-2); }
+    .chiffres dd { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
+    .chiffres dd small { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink-2); }
+    .chiffres dd.attendues { color: var(--ok); }
+    .chiffres > div > small { color: var(--ink-2); font-size: 13px; }
+    .cloture { display: grid; gap: 10px; }
     .ecart { margin: 0; font-weight: 500; color: var(--ink-3); }
     .ecart.ok, .kv .ok { color: var(--ok); }
     .ecart.bad, .kv .bad { color: var(--bad); }
     .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
     .kv dt { color: var(--ink-2); }
-    .kv dd { margin: 0; }
+    .kv dd { margin: 0; text-align: right; }
+    .cloture .btn.primary { width: 100%; }
   `,
 })
 export class MaCaisseComponent implements OnInit {

@@ -34,6 +34,7 @@ describe("les adresses de l'application", () => {
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/groupes').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/achats').forEach((requete) => requete.flush({ achats: [], totalMateriel: 0, totalService: 0, total: 0 }));
     http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
     http.match((requete) => requete.url === '/api/journal').forEach((requete) => requete.flush({ lignes: [], auteurs: [], actions: [] }));
     http.verify();
