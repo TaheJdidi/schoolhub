@@ -212,7 +212,7 @@ public sealed class ImportsDesListes(
     /// GRP-07 : la première séance du Mois en cours d'une Étude (le Mois de la dernière séance passée), ou la prochaine
     /// séance d'une Révision ou d'une Formation ; <c>null</c> si le groupe n'a plus de séance.
     /// </summary>
-    private async Task<DateOnly?> PremiereSeanceDuMoisEnCoursAsync(Groupe groupe)
+    internal async Task<DateOnly?> PremiereSeanceDuMoisEnCoursAsync(Groupe groupe)
     {
         var aujourdhui = DateDeTunis.Aujourdhui(temps);
         var dates = await contexte.Seances.QuiComptent().Where(s => s.GroupeId == groupe.Id)

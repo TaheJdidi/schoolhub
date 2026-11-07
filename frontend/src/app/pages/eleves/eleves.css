@@ -47,3 +47,11 @@
 .aide, .etat { margin: 0; color: var(--ink-2); }
 .filtres-eleves { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 700px) { .filtres-eleves { grid-template-columns: minmax(0, 1fr); } }
+.tout { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 4px; }
+.rangee { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; border-top: 1px solid var(--line); }
+.rangee .ligne-eleve { border-top: 0; }
+.rangee input { margin-left: 4px; }
+.selection { display: grid; gap: 10px; }
+.entete-selection { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions-selection { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap: 10px; align-items: end; }
+@media print { .rangee.non-selectionne, .tout, .filtres-eleves { display: none; } }

@@ -33,7 +33,7 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
             <div><dt>Sorties de caisse</dt><dd class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }} TND</dd><small>Achats payés en espèces</small></div>
             <div><dt>Espèces attendues</dt><dd class="num"><b>{{ montant(ouverte.attendu) }} TND</b></dd><small>Encaissé moins les sorties</small></div>
           </dl>
-          @if (ouverte.recus > 0 || ouverte.oubliee) {
+          @if (ouverte.recus > 0 || ouverte.sorties > 0 || ouverte.oubliee) {
             <div class="cloture">
               <label class="f">
                 Montant compté dans la caisse (TND)

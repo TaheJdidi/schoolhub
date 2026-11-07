@@ -38,8 +38,16 @@ public static class ListesEndpoints
             Repondre(await LireAsync(requete) is { } flux ? await service.ImporterDesElevesAsync(flux) : ResultatDImport.Refuse([ImportsDesListes.FichierPasValable])));
         imports.MapPost("/professeurs", async (HttpRequest requete, ImportsDesListes service) =>
             Repondre(await LireAsync(requete) is { } flux ? await service.ImporterDesProfesseursAsync(flux) : ResultatDImport.Refuse([ImportsDesListes.FichierPasValable])));
+
+        // LST-05 : la même action pour plusieurs élèves sélectionnés.
+        var selection = api.MapGroup("/selection");
+        selection.MapPost("/inscription", async (InscriptionDeLaSelection saisie, SelectionDEleves service) => Repondre(await service.InscrireAsync(saisie)));
+        selection.MapPost("/niveau", async (NiveauDeLaSelection saisie, SelectionDEleves service) => Repondre(await service.ChangerLeNiveauAsync(saisie)));
         return api;
     }
+
+    private static Results<Ok<ResultatDeLaSelection>, JsonHttpResult<Avis>> Repondre(IssueDeLaSelection issue) =>
+        issue.Resultat is null ? ConnexionEndpoints.Refus(issue.Statut, issue.Message!) : TypedResults.Ok(issue.Resultat);
 
     /// <summary>Le fichier envoyé, en mémoire (10 Mo au plus) ; <c>null</c> sans fichier.</summary>
     private static async Task<Stream?> LireAsync(HttpRequest requete)

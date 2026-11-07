@@ -9,7 +9,9 @@ export function lireUnNombre(saisie: string): number | null | undefined {
   return Number(nettoyee.replace(',', '.'));
 }
 
-/** Un montant en dinars, au millime, avec une virgule : « 2,500 ». Vide s'il n'y a pas de montant. */
+/** Un montant en dinars, au millime, avec une virgule : « 2,500 », « −35,000 ». Vide s'il n'y a pas de montant. */
 export function ecrireUnMontant(montant: number | null): string {
-  return montant === null ? '' : montant.toFixed(3).replace('.', ',');
+  if (montant === null) return '';
+  const ecrit = Math.abs(montant).toFixed(3).replace('.', ',');
+  return montant < 0 && ecrit !== '0,000' ? `−${ecrit}` : ecrit;
 }
