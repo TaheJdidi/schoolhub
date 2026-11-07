@@ -844,6 +844,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("date")
                         .HasColumnName("dispensee_le");
 
+                    b.Property<string>("DispenseePar")
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("dispensee_par");
+
                     b.Property<Guid>("EleveId")
                         .HasColumnType("uuid")
                         .HasColumnName("eleve_id");
@@ -919,6 +924,15 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasPrecision(12, 3)
                         .HasColumnType("numeric(12,3)")
                         .HasColumnName("prix_special");
+
+                    b.Property<DateOnly?>("PrixSpecialAccordeLe")
+                        .HasColumnType("date")
+                        .HasColumnName("prix_special_accorde_le");
+
+                    b.Property<string>("PrixSpecialAccordePar")
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("prix_special_accorde_par");
 
                     b.Property<string>("RaisonDuPrixSpecial")
                         .HasMaxLength(200)

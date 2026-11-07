@@ -43,20 +43,29 @@ public sealed class Inscription : IAppartientAuCentre
 
     public string? RaisonDuPrixSpecial { get; private set; }
 
+    /// <summary>TDB-03 : le jour du prix spécial, et qui l'a accordé (prénom et nom, figés).</summary>
+    public DateOnly? PrixSpecialAccordeLe { get; private set; }
+
+    public string? PrixSpecialAccordePar { get; private set; }
+
     /// <summary>ELV-10 : le jour où les tranches à venir d'une Formation sont devenues une seule somme, due ce jour-là.</summary>
     public DateOnly? ResteRegroupeLe { get; private set; }
 
     /// <summary>Le prix spécial et sa raison, déjà vérifiés.</summary>
-    public void AccorderUnPrixSpecial(decimal montant, string raison)
+    public void AccorderUnPrixSpecial(decimal montant, string raison, DateOnly? le = null, string? par = null)
     {
         PrixSpecial = montant;
         RaisonDuPrixSpecial = raison;
+        PrixSpecialAccordeLe = le;
+        PrixSpecialAccordePar = par;
     }
 
     public void RetirerLePrixSpecial()
     {
         PrixSpecial = null;
         RaisonDuPrixSpecial = null;
+        PrixSpecialAccordeLe = null;
+        PrixSpecialAccordePar = null;
     }
 
     public void RegrouperLeReste(DateOnly aujourdhui) => ResteRegroupeLe = aujourdhui;
@@ -102,11 +111,15 @@ public sealed class AssuranceDeLAnnee : IAppartientAuCentre
     public string? RaisonDeLaDispense { get; private set; }
 
     /// <summary>La dispense et sa raison, déjà vérifiées.</summary>
-    public void Dispenser(DateOnly aujourdhui, string raison)
+    public void Dispenser(DateOnly aujourdhui, string raison, string? par = null)
     {
         DispenseeLe = aujourdhui;
         RaisonDeLaDispense = raison;
+        DispenseePar = par;
     }
+
+    /// <summary>TDB-03 : qui a accordé la dispense (prénom et nom, figés).</summary>
+    public string? DispenseePar { get; private set; }
 
     /// <summary>« Assurance 2027-2028 ».</summary>
     public static string Libelle(AnneeScolaire annee) => $"Assurance {Annee(annee)}";
@@ -125,6 +138,7 @@ internal sealed class InscriptionConfiguration : IEntityTypeConfiguration<Inscri
         inscription.Property(i => i.PrixSpecial).HasPrecision(12, 3);
         inscription.HasOne<Inscription>().WithMany().HasForeignKey(i => i.DepuisInscriptionId).OnDelete(DeleteBehavior.Restrict);
         inscription.Property(i => i.RaisonDuPrixSpecial).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
+        inscription.Property(i => i.PrixSpecialAccordePar).HasMaxLength(201);
         inscription.HasOne<Eleve>().WithMany().HasForeignKey(i => i.EleveId).OnDelete(DeleteBehavior.Restrict);
         inscription.HasOne<Groupe>().WithMany().HasForeignKey(i => i.GroupeId).OnDelete(DeleteBehavior.Restrict);
         // Un élève n'a qu'une inscription pas arrêtée par groupe : arrêté (ELV-08), il peut s'y réinscrire.
@@ -141,6 +155,7 @@ internal sealed class AssuranceDeLAnneeConfiguration : IEntityTypeConfiguration<
         assurance.ToTable("assurances");
         assurance.Property(a => a.Montant).HasPrecision(12, 3);
         assurance.Property(a => a.RaisonDeLaDispense).HasMaxLength(InscriptionsDuCentre.LongueurMaximaleDUneRaison);
+        assurance.Property(a => a.DispenseePar).HasMaxLength(201);
         assurance.HasOne<Eleve>().WithMany().HasForeignKey(a => a.EleveId).OnDelete(DeleteBehavior.Restrict);
         assurance.HasOne<AnneeScolaire>().WithMany().HasForeignKey(a => a.AnneeScolaireId).OnDelete(DeleteBehavior.Restrict);
         assurance.HasIndex(a => new { a.EleveId, a.AnneeScolaireId }).IsUnique();

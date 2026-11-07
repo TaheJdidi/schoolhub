@@ -420,7 +420,7 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
         var avant = (await DecrireAsync([inscription]))[0];
         journal.Noter(auteur, ActionDuJournal.PrixSpecialAccorde, Couper($"{await QuiEtOuAsync(inscription)} · {raison}"),
             EcrireLePrix(avant.Groupe.Type, avant.PrixSpecial ?? avant.PrixNormal), EcrireLePrix(avant.Groupe.Type, montant));
-        inscription.AccorderUnPrixSpecial(montant, raison);
+        inscription.AccorderUnPrixSpecial(montant, raison, DateDeTunis.Aujourdhui(temps), $"{auteur.Prenom} {auteur.Nom}");
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
         return new IssueSurUneInscription((await DecrireAsync([inscription]))[0], StatusCodes.Status200OK, null);
@@ -469,7 +469,7 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
 
         journal.Noter(auteur, ActionDuJournal.AssuranceDispensee,
             Couper($"{eleve.Prenom} {eleve.Nom} · Assurance {enCours.Decrite.Annee} · {raison}"), "À payer", "Dispensée");
-        enCours.Assurance.Dispenser(DateDeTunis.Aujourdhui(temps), raison);
+        enCours.Assurance.Dispenser(DateDeTunis.Aujourdhui(temps), raison, $"{auteur.Prenom} {auteur.Nom}");
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
         return new IssueSurUneAssurance((await AssuranceEnCoursAsync(eleveId))!.Value.Decrite, StatusCodes.Status200OK, null);

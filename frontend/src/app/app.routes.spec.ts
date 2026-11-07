@@ -32,6 +32,7 @@ describe("les adresses de l'application", () => {
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
     http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
+    http.match((requete) => requete.url === '/api/journal').forEach((requete) => requete.flush({ lignes: [], auteurs: [], actions: [] }));
     http.verify();
   });
 
@@ -59,8 +60,7 @@ describe("les adresses de l'application", () => {
   it('le propriétaire qui ouvre /journal en premier voit sa page', async () => {
     await ouvrir('/journal', HEDI);
 
-    expect(texte()).toContain('Journal');
-    expect(texte()).toContain('Cette page arrive bientôt');
+    await vi.waitFor(() => expect(texte()).toContain('Qui a fait quoi, et quand'));
     expect(texte()).not.toContain('Accès réservé');
   });
 

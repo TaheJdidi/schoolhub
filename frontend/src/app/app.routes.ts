@@ -51,6 +51,8 @@ const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> 
   parts: () => import('./pages/parts/parts').then((module) => module.Parts),
   achats: () => import('./pages/achats/achats').then((module) => module.Achats),
   'ressources-humaines': () => import('./pages/rh/ressources-humaines').then((module) => module.RessourcesHumaines),
+  'tableau-de-bord': () => import('./pages/tableau/tableau-de-bord').then((module) => module.TableauDeBord),
+  journal: () => import('./pages/tableau/journal').then((module) => module.Journal),
 };
 
 /**

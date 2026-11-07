@@ -54,9 +54,28 @@ public sealed partial class InscriptionsDuCentre
         return periodes;
     }
 
+    /// <summary>
+    /// TDB-01 et TDB-02 : ce qui était dû dans la période (jusqu'à aujourd'hui au plus) et n'est toujours pas payé : par
+    /// groupe, les sommes des inscriptions ; à part, les assurances.
+    /// </summary>
+    internal async Task<ImpayesDeLaPeriode> ImpayesAsync(DateOnly du, DateOnly au)
+    {
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var fin = au < aujourdhui ? au : aujourdhui;
+        var echeances = await EcheancesAsync(await contexte.Inscriptions.ToListAsync());
+        var parGroupe = echeances.GroupBy(e => e.Groupe.Id)
+            .ToDictionary(g => g.Key, g => g.SelectMany(e => e.Sommes).Where(s => !s.Reglee && s.Montant > 0 && s.Date >= du && s.Date <= fin).Sum(s => s.Montant));
+        var eleveIds = echeances.Select(e => e.Inscription.EleveId).Distinct().ToList();
+        var assurances = (await AssurancesAPayerAsync(eleveIds, echeances)).Values.Where(a => a.DueLe >= du && a.DueLe <= fin).Sum(a => a.Montant);
+        return new ImpayesDeLaPeriode(parGroupe, assurances);
+    }
+
     /// <summary>La clé de la période d'une Révision ou d'une Formation : le groupe entier.</summary>
     internal const string CleDuGroupeEntier = "Groupe";
 }
+
+/// <summary>TDB-01 : les impayés d'une période : par groupe, et ceux des assurances.</summary>
+internal sealed record ImpayesDeLaPeriode(IReadOnlyDictionary<Guid, decimal> ParGroupe, decimal Assurances);
 
 /// <summary>
 /// PRT-01 : une période finie d'un groupe : sa clé (« Mois 3 », ou « Groupe » pour une Révision ou une Formation), son
