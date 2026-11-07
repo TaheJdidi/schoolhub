@@ -276,4 +276,46 @@ describe("la page de l'appel", () => {
 
     await vi.waitFor(() => expect(page.textContent).toContain("Cette séance n'existe pas."));
   });
+
+  it("dans la fiche du groupe : une ligne par élève avec ce qu'il doit, la case « Absent », puis « Fait par »", async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(PageDeLAppel);
+    fixture.componentRef.setInput('seance', 's1');
+    fixture.componentRef.setInput('integre', true);
+    fixture.componentRef.setInput('libelleDeLaSeance', 'séance 2 du Mois 2');
+    fixture.componentRef.setInput('paiements', {
+      'e-i1': { couleur: 'AJour', texte: 'À jour' },
+      'e-i2': { couleur: 'Rouge', texte: 'À payer : Mois 1, Mois 2 · 110,000 TND' },
+    });
+    page = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+    http.expectOne('/api/seances/s1/appel').flush(APPEL);
+    await vi.waitFor(() => expect(page.querySelectorAll('.ligne-appel')).toHaveLength(2));
+
+    expect(page.querySelector('.entete-appel h2')?.textContent).toContain('Appel · sam. 27/11 · séance 2 du Mois 2');
+    expect(page.querySelector('.entete-appel')?.textContent).toContain('cochez seulement les absents');
+    const lignes = [...page.querySelectorAll('.ligne-appel')];
+    expect(lignes[1].querySelector('.point')?.classList).toContain('Rouge');
+    expect(lignes[1].textContent).toContain('À payer : Mois 1, Mois 2 · 110,000 TND');
+
+    (lignes[1].querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    await fixture.whenStable();
+    expect(lignes[1].querySelector('.case-absent')?.classList).toContain('coche');
+    expect(page.querySelector('.pied-appel .compte')?.textContent).toContain('1 présent · 1 absent');
+
+    ([...page.querySelectorAll('button')].find((b) => b.textContent?.includes("Valider l'appel")) as HTMLButtonElement).click();
+    const requete = http.expectOne({ method: 'PUT', url: '/api/seances/s1/appel' });
+    expect(requete.request.body).toEqual({ absents: ['i2'] });
+    requete.flush({ ...APPEL, appelFait: true, appelFaitPar: 'Amira Jlassi', appelFaitLe: '2027-11-27T09:44:00+01:00', eleves: [APPEL.eleves[0], { ...APPEL.eleves[1], absent: true }] });
+
+    await vi.waitFor(() => expect(page.querySelector('.entete-appel')?.textContent).toContain('Fait par Amira Jlassi à'));
+    expect(page.querySelector('.entete-appel .pill')?.textContent).toContain('Appel fait');
+    // Fait : plus de cases, « Présent » ou « Absent » ; « Corriger l'appel » les rouvre.
+    expect(page.querySelector('.case-absent')).toBeNull();
+    expect([...page.querySelectorAll('.ligne-appel')].map((l) => l.lastElementChild?.textContent?.trim())).toEqual(['Présent', 'Absent']);
+    ([...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === "Corriger l'appel") as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(page.querySelectorAll('.case-absent')).toHaveLength(2);
+  });
 });

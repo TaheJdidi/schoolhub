@@ -82,6 +82,9 @@ export interface AppelDeLaSeance {
   nature?: NatureDeLaSeance;
   /** SEA-12 : les élèves en rattrapage à cette séance. */
   rattrapages?: EleveEnRattrapage[];
+  /** SEA-07 : quand l'appel a été fait la première fois, et par qui (« Amira Jlassi »). */
+  appelFaitLe?: string | null;
+  appelFaitPar?: string | null;
 }
 
 /** D'où vient une séance. */

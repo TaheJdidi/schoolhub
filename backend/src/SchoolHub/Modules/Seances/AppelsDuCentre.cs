@@ -71,7 +71,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         var attendusIds = attendus.Select(a => a.Inscription.Id).ToHashSet();
         contexte.Absences.RemoveRange(avant.Where(a => attendusIds.Contains(a.InscriptionId) && !absents.Contains(a.InscriptionId)));
         contexte.Absences.AddRange(absents.Where(id => !etaientAbsents.Contains(id)).Select(id => new Absence(seance.Id, id)));
-        seance.MarquerLAppelFait(temps.GetUtcNow());
+        seance.MarquerLAppelFait(temps.GetUtcNow(), $"{auteur.Prenom} {auteur.Nom}");
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
         return new IssueDeLAppel(await DecrireAsync(seance), StatusCodes.Status200OK, null);
@@ -316,7 +316,9 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
                 var absence = absences.GetValueOrDefault(r.Attendu.Inscription.Id);
                 return new EleveEnRattrapage(r.Rattrapage.Id, r.Attendu.Inscription.Id, r.Attendu.Eleve.Id, r.Attendu.Eleve.Prenom, r.Attendu.Eleve.Nom,
                     r.GroupeDOrigine, r.SeanceRattrapee, absence is not null, absence?.PrevenuLe, Messages(r.Attendu.Eleve, absence));
-            }).ToList());
+            }).ToList(),
+            seance.AppelFaitLe,
+            seance.AppelFaitPar);
     }
 
     /// <summary>SEA-12 : les élèves en rattrapage à cette séance, par nom puis prénom, avec leur groupe et la séance rattrapée.</summary>

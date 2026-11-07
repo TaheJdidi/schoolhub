@@ -53,6 +53,102 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
       }
 
       <div class="cartes">
+        @if (integre()) {
+          <!-- Comme le prototype (écran 3) : l'appel dans la fiche du groupe, une ligne par élève avec ce qu'il doit. -->
+          <section class="card appel-integre">
+            <div class="entete-appel">
+              <div>
+                <h2 class="titre">Appel · {{ jourCourt(appel.date) }}{{ libelleDeLaSeance() ? ' · ' + libelleDeLaSeance() : '' }}</h2>
+                @if (appel.annulee) {
+                  <p class="aide">Cette séance est annulée : {{ appel.motifDAnnulation }}.</p>
+                } @else if (!appel.ouvert) {
+                  <p class="aide">L'appel s'ouvre le jour de la séance.</p>
+                } @else if (appel.appelFait && !correction()) {
+                  <p class="aide">Fait{{ appel.appelFaitPar ? ' par ' + appel.appelFaitPar : '' }}{{ appel.appelFaitLe ? ' à ' + heureDuMoment(appel.appelFaitLe) : '' }}.</p>
+                } @else {
+                  <p class="aide">Tous les élèves sont présents par défaut : cochez seulement les absents.</p>
+                }
+              </div>
+              @if (appel.appelFait) {
+                <span class="pill ok">✓ Appel fait</span>
+              } @else if (appel.ouvert) {
+                <span class="pill warn">Appel à faire</span>
+              } @else {
+                <span class="pill muted">À venir</span>
+              }
+            </div>
+            <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'appel que vous n'aviez pas enregistré." action="Annuler les changements" />
+            @for (eleve of appel.eleves; track eleve.inscriptionId) {
+              <div class="ligne-appel">
+                <span class="point" [class]="'point ' + (paiementDe(eleve.eleveId)?.couleur ?? '')" aria-hidden="true"></span>
+                <span class="deux">
+                  <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                  @if (paiementDe(eleve.eleveId); as paiement) {
+                    <small>{{ paiement.texte }}</small>
+                  }
+                  @if (eleve.rattrapeeLe; as le) {
+                    <small>Rattrapée le {{ court(le) }}</small>
+                  }
+                </span>
+                @if (modifiable()) {
+                  <label class="case-absent" [class.coche]="absents().includes(eleve.inscriptionId)">
+                    <input type="checkbox" [checked]="absents().includes(eleve.inscriptionId)" [disabled]="envoi()" (change)="basculer(eleve)" />
+                    Absent
+                  </label>
+                } @else if (appel.appelFait) {
+                  @if (absents().includes(eleve.inscriptionId)) {
+                    <span class="pill bad">Absent</span>
+                  } @else {
+                    <span class="present">Présent</span>
+                  }
+                }
+              </div>
+            } @empty {
+              <p class="vide">Aucun élève attendu à cette séance.</p>
+            }
+            @if (appel.rattrapages?.length) {
+              <p class="bande">En rattrapage dans ce groupe</p>
+              @for (eleve of appel.rattrapages; track eleve.rattrapageId) {
+                <div class="ligne-appel">
+                  <span class="point" aria-hidden="true"></span>
+                  <span class="deux">
+                    <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                    <small>Vient du {{ eleve.groupeDOrigine }} · paie dans son groupe</small>
+                  </span>
+                  @if (modifiable()) {
+                    <label class="case-absent" [class.coche]="absents().includes(eleve.inscriptionId)">
+                      <input type="checkbox" [checked]="absents().includes(eleve.inscriptionId)" [disabled]="envoi()" (change)="basculer(eleve)" />
+                      Absent
+                    </label>
+                  } @else if (appel.appelFait) {
+                    <span [class]="absents().includes(eleve.inscriptionId) ? 'pill bad' : 'present'">{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</span>
+                  }
+                </div>
+              }
+            }
+            @if (appel.ouvert) {
+              <div class="pied-appel">
+                <span class="compte">{{ presents() }} présent{{ presents() > 1 ? 's' : '' }} · {{ absents().length }} absent{{ absents().length > 1 ? 's' : '' }}</span>
+                <span class="boutons">
+                  @if (!appel.annulee) {
+                    <button type="button" class="btn ghost" (click)="ouvrirLeRattrapage()">+ Rattrapage</button>
+                  }
+                  @if (modifiable()) {
+                    <button type="button" class="btn primary" [disabled]="envoi()" (click)="enregistrer()">✓ {{ appel.appelFait ? "Enregistrer la correction" : "Valider l'appel" }}</button>
+                  } @else {
+                    <button type="button" class="btn" (click)="correction.set(true)">Corriger l'appel</button>
+                  }
+                </span>
+              </div>
+            }
+            @if (succes(); as succes) {
+              <p class="note ok" role="status">{{ succes }}</p>
+            }
+            @if (erreur(); as erreur) {
+              <p class="note bad" role="alert">{{ erreur }}</p>
+            }
+          </section>
+        } @else {
         <section class="card carte">
           <div class="entete">
             <h2 class="titre">
@@ -136,6 +232,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
             <p class="note bad" role="alert">{{ erreur }}</p>
           }
         </section>
+        }
 
         @if (appel.appelFait && absentsEnregistres().length > 0) {
           <section class="card carte">
@@ -159,8 +256,8 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
           </section>
         }
 
-        <!-- SEA-12 : ajouter un élève en rattrapage. -->
-        @if (!appel.annulee) {
+        <!-- SEA-12 : ajouter un élève en rattrapage ; dans la fiche du groupe, après « + Rattrapage ». -->
+        @if (!appel.annulee && (!integre() || rattrapageOuvert())) {
           <section class="card carte">
             <h2 class="titre">Rattrapage</h2>
             @if (rattrapables() === null) {
@@ -279,6 +376,28 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     .actions.debut { justify-content: flex-start; }
     .eleve small.origine { color: var(--ink-2); font-weight: 400; }
     /* Dans la fiche du groupe (prototype, écran 3) : une ligne par élève, « Présent » ou « Absent » à droite. */
+    .appel-integre { display: grid; padding: 0; overflow: hidden; }
+    .entete-appel { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+    .entete-appel .titre { margin: 0; }
+    .entete-appel .aide { margin: 2px 0 0; }
+    .ligne-appel { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--line); }
+    .entete-appel + .ligne-appel, sh-brouillon-repris + .ligne-appel, .bande + .ligne-appel { border-top: 0; }
+    .ligne-appel .deux { display: grid; flex: 1; min-width: 0; }
+    .ligne-appel .deux b { font-weight: 600; }
+    .ligne-appel .deux small { color: var(--ink-2); font-size: 13px; }
+    .point { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
+    .point.AJour { background: var(--ok); }
+    .point.APayer { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+    .point.Orange { background: var(--warn); }
+    .point.Rouge { background: var(--bad); }
+    .case-absent { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+    .case-absent input { width: 16px; height: 16px; margin: 0; accent-color: var(--bad); }
+    .case-absent.coche { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+    .present { color: var(--ink-3); font-size: 13.5px; }
+    .bande { margin: 0; padding: 8px 18px; background: var(--sunk); border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .pied-appel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); }
+    .pied-appel .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .appel-integre > .note { margin: 0 18px 14px; }
     :host(.integre) .eleves { grid-template-columns: minmax(0, 1fr); gap: 0; }
     :host(.integre) .eleve { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 10px 2px;
       border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
@@ -298,6 +417,35 @@ export class PageDeLAppel implements OnInit {
   /** Dans la fiche du groupe (prototype, écran 3) : la séance choisie, sans l'en-tête de la page. */
   readonly seance = input<string | null>(null);
   readonly integre = input(false);
+  /** Dans la fiche du groupe : « séance 2 du Mois 2 », et ce que chaque élève doit (point de couleur et texte). */
+  readonly libelleDeLaSeance = input<string | null>(null);
+  readonly paiements = input<Readonly<Record<string, { couleur: string | null; texte: string }>>>({});
+  /** Dans la fiche du groupe : « Corriger l'appel » rouvre les cases d'un appel fait. */
+  protected readonly correction = signal(false);
+  protected readonly rattrapageOuvert = signal(false);
+  protected readonly modifiable = computed(() => {
+    const appel = this.appel();
+    return !!appel && appel.ouvert && !appel.annulee && (!appel.appelFait || this.correction() || !this.integre());
+  });
+
+  protected paiementDe(eleveId: string): { couleur: string | null; texte: string } | null {
+    return this.paiements()[eleveId] ?? null;
+  }
+
+  protected ouvrirLeRattrapage(): void {
+    this.rattrapageOuvert.set(true);
+    void this.chercherLesRattrapables();
+  }
+
+  /** « sam. 31/10 ». */
+  protected jourCourt(date: string): string {
+    return formatDate(date, 'EEE dd/MM', FRANCAIS);
+  }
+
+  /** « 10h44 ». */
+  protected heureDuMoment(moment: string): string {
+    return formatDate(moment, "H'h'mm", FRANCAIS);
+  }
   private get seanceId(): string {
     return this.seance() ?? this.route.snapshot.paramMap.get('seance') ?? '';
   }
@@ -433,6 +581,7 @@ export class PageDeLAppel implements OnInit {
       const corrige = appel.appelFait;
       this.montrer(await firstValueFrom(this.http.put<AppelDeLaSeance>(`/api/seances/${appel.seanceId}/appel`, { absents: this.absents() })));
       this.brouillon.oublier();
+      this.correction.set(false);
       this.succes.set(corrige ? 'Appel corrigé' : 'Appel enregistré');
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

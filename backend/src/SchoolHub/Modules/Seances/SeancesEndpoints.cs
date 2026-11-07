@@ -140,7 +140,9 @@ public sealed record AppelDeLaSeance(
     bool Annulee = false,
     string? MotifDAnnulation = null,
     string Nature = "Prevue",
-    List<EleveEnRattrapage>? Rattrapages = null);
+    List<EleveEnRattrapage>? Rattrapages = null,
+    DateTimeOffset? AppelFaitLe = null,
+    string? AppelFaitPar = null);
 
 /// <summary>SEA-12 : l'élève (son inscription dans son groupe) et la séance de son groupe qu'il rattrape.</summary>
 public sealed record RattrapageSaisi(Guid? InscriptionId, Guid? SeanceRattrapeeId);

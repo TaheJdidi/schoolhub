@@ -775,6 +775,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("appel_fait_le");
 
+                    b.Property<string>("AppelFaitPar")
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("appel_fait_par");
+
                     b.Property<Guid>("CentreId")
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");

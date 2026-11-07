@@ -67,11 +67,20 @@ public sealed class Seance : IAppartientAuCentre
     /// <summary>SEA-07 : le moment où l'appel a été enregistré la première fois ; <c>null</c> : « appel à faire ».</summary>
     public DateTimeOffset? AppelFaitLe { get; private set; }
 
+    /// <summary>SEA-07 : qui a enregistré l'appel la première fois, « Amira Jlassi » ; <c>null</c> avant, ou pour un appel d'avant ce champ.</summary>
+    public string? AppelFaitPar { get; private set; }
+
     /// <summary>Une séance qui compte dans les Mois et dans ce que doivent les élèves.</summary>
     public bool Compte => AnnuleeLe is null && Nature != NatureDeLaSeance.Supplementaire;
 
     /// <summary>SEA-07 : la séance passe à « appel fait ». Une correction (SEA-10) garde le premier moment.</summary>
-    internal void MarquerLAppelFait(DateTimeOffset maintenant) => AppelFaitLe ??= maintenant;
+    internal void MarquerLAppelFait(DateTimeOffset maintenant, string auteur)
+    {
+        if (AppelFaitLe is not null)
+            return;
+        AppelFaitLe = maintenant;
+        AppelFaitPar = auteur;
+    }
 
     /// <summary>SEA-03 : la séance n'aura pas lieu ; elle reste visible, avec son motif.</summary>
     internal void Annuler(string motif, DateTimeOffset maintenant)
@@ -100,6 +109,7 @@ internal sealed class SeanceConfiguration : IEntityTypeConfiguration<Seance>
         seance.ToTable("seances");
         seance.Property(s => s.Nature).HasConversion<string>().HasMaxLength(20);
         seance.Property(s => s.MotifDAnnulation).HasMaxLength(Seance.LongueurMaximaleDuMotif);
+        seance.Property(s => s.AppelFaitPar).HasMaxLength(201);
         seance.Ignore(s => s.Compte);
         seance.HasOne<Groupe>().WithMany().HasForeignKey(s => s.GroupeId).OnDelete(DeleteBehavior.Restrict);
         // Une séance annulée retirée par la fermeture du groupe (GRP-08) laisse son remplacement sans lien.

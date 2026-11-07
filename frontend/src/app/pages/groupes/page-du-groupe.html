@@ -52,7 +52,7 @@
 
       <!-- SEA-07 : l'appel de la séance choisie, sur la fiche même. -->
       @for (id of seanceChoisieEnListe(); track id) {
-        <sh-page-de-l-appel [seance]="id" [integre]="true" />
+        <sh-page-de-l-appel [seance]="id" [integre]="true" [libelleDeLaSeance]="libelleDeLaSeance()" [paiements]="paiements()" />
       }
 
       @if (fiche.tranches.length > 0) {

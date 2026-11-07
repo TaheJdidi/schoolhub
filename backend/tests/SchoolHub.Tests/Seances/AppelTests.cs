@@ -120,6 +120,9 @@ public sealed class AppelTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         var appel = await EnregistrerAsync(seance, [_adem.Inscription]);
 
         Assert.True(appel.AppelFait);
+        // L'appel garde son heure et son auteur : « Fait par Amira Jlassi à 10h44 ».
+        Assert.NotNull(appel.AppelFaitLe);
+        Assert.False(string.IsNullOrWhiteSpace(appel.AppelFaitPar));
         var adem = appel.Eleves.Single(e => e.Prenom == "Adem");
         Assert.True(adem.Absent);
         Assert.False(appel.Eleves.Single(e => e.Prenom == "Lina").Absent);

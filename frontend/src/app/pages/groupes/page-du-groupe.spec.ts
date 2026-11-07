@@ -94,6 +94,7 @@ describe('la fiche d’un groupe', () => {
   /** L'appel de la séance choisie se demande à part (prototype, écran 3) : un test qui ne s'en sert pas le laisse sans réponse. */
   afterEach(() => {
     http.match((r) => /^\/api\/seances\/[^/]+\/appel$/.test(r.url)).forEach((r) => r.flush({ message: 'Séance introuvable' }, { status: 404, statusText: 'Not Found' }));
+    http.match((r) => /^\/api\/groupes\/[^/]+\/encaissement$/.test(r.url)).forEach((r) => r.flush({ groupe: {}, aPayer: [], aJour: [] }));
     http.verify();
   });
 

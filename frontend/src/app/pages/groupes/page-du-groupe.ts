@@ -14,6 +14,7 @@ import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
 import { CarteDuCalendrier } from '../seances/carte-du-calendrier';
 import { PageDeLAppel } from '../seances/page-de-l-appel';
+import { EncaissementDuGroupe } from '../caisse/recu';
 import { BadgeDuGroupeComponent, BoutonDeRappel, enRetard, PastilleDeCouleur } from '../caisse/paiement';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
 
@@ -240,11 +241,51 @@ export class PageDuGroupe implements OnInit {
       this.fiche.set(fiche);
       this.inscriptions.set(inscriptions);
       if (!this.brouillonDeLaModification.reprendre()) this.brouillonDeLaFermeture.reprendre();
+      void this.chargerLesPaiements();
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));
     }
   }
+
+  /** Ce que chaque élève doit dans le groupe, pour l'appel (prototype, écran 3) ; sans lui, l'appel reste utile. */
+  private readonly encaissement = signal<EncaissementDuGroupe | null>(null);
+
+  private async chargerLesPaiements(): Promise<void> {
+    try {
+      this.encaissement.set(await firstValueFrom(this.http.get<EncaissementDuGroupe>(`/api/groupes/${this.id}/encaissement`)));
+    } catch {
+      this.encaissement.set(null);
+    }
+  }
+
+  /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », ou « À jour ». */
+  protected readonly paiements = computed(() => {
+    const paiements: Record<string, { couleur: string | null; texte: string }> = {};
+    const encaissement = this.encaissement();
+    for (const inscription of this.inscriptions()) {
+      paiements[inscription.eleve.id] = { couleur: inscription.couleur ?? null, texte: inscription.couleur === 'AJour' ? 'À jour' : '' };
+    }
+    for (const eleve of encaissement?.aJour ?? []) paiements[eleve.id] = { couleur: 'AJour', texte: 'À jour' };
+    for (const eleve of encaissement?.aPayer ?? []) {
+      const sommes = eleve.sommes.map((s) => (s.inscriptionId ? s.libelle.replace(/\s*\(.*\)$/, '') : 'assurance')).join(', ');
+      paiements[eleve.eleveId] = { couleur: eleve.couleur, texte: `À payer : ${sommes} · ${ecrireUnMontant(eleve.total)} TND` };
+    }
+    return paiements;
+  });
+
+  /** « séance 2 du Mois 2 » (une Étude) ou « séance 3 sur 10 ». */
+  protected readonly libelleDeLaSeance = computed(() => {
+    const fiche = this.fiche();
+    const id = this.seanceChoisie();
+    if (!fiche || !id) return null;
+    if (fiche.type === 'Etude') {
+      const mois = fiche.mois.find((m) => m.seances.some((s) => s.id === id));
+      return mois ? `séance ${mois.seances.findIndex((s) => s.id === id) + 1} du Mois ${mois.numero}` : null;
+    }
+    const seance = fiche.seances.find((s) => s.id === id);
+    return seance ? `séance ${seance.numero} sur ${fiche.nombreDeSeances ?? fiche.seances.length}` : null;
+  });
 
   /** SEA-03 à SEA-06 : après un changement du calendrier, les Mois et les séances se recalculent. */
   protected async recharger(): Promise<void> {
