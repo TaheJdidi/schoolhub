@@ -10,6 +10,7 @@ import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
+import { initiales } from '../../socle/personnes';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
 
 const ADRESSE = '/api/professeurs';
@@ -45,6 +46,7 @@ export class Professeurs implements OnInit {
   /** PRT-04 : la part du centre d'un professeur ne se montre qu'au propriétaire. */
 
   protected readonly groupesOuverts = groupesOuverts;
+  protected readonly initiales = initiales;
   protected readonly nomComplet = nomComplet;
   protected readonly eleves = eleves;
   protected readonly jours = JOURS;

@@ -19,9 +19,17 @@
 .note { margin: 0; }
 
 .cote { display: grid; gap: 12px; min-width: 0; }
+/* La fiche (style A) : les initiales, le nom et le téléphone, les boutons à droite ; ses groupes sous un trait. */
+.entete-fiche { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.initiales { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; font-size: 15px; }
+.identite { display: grid; gap: 2px; flex: 1 1 180px; min-width: 0; }
+.entete-fiche .actions { margin-left: auto; }
+.btn.danger { color: var(--bad); }
+.groupes-du-professeur { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.groupes-du-professeur .titre { font-size: 15px; }
 .carte { display: grid; gap: 14px; padding: 16px; }
 .entete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.titre { font-family: var(--font-display); font-size: 19px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.titre { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
 .coordonnees { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
 .sous-titre { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
 .groupes { margin: 0; color: var(--ink-2); }
@@ -34,8 +42,8 @@
 .entete-groupes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .jours { margin-bottom: 0; }
 .filtre.off { color: var(--ink-3); border-style: dashed; }
-.cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.cadre { display: grid; gap: 6px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
+.cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.cadre { display: grid; gap: 4px; align-content: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
 .cadre:hover { border-color: var(--line-2); background: var(--sunk); }
 .cadre b { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .cadre small { color: var(--ink-2); font-size: 12.5px; }

@@ -56,6 +56,8 @@ describe('la page « Professeurs »', () => {
   const liste = () => [...page.querySelectorAll('.choix')] as HTMLElement[];
   const noms = () => liste().map((choix) => choix.querySelector('.nom')?.textContent?.trim());
   const fiche = () => page.querySelector('.fiche') as HTMLElement;
+  /** Le haut de la fiche : le professeur et ses boutons, sans ses groupes. */
+  const entete = () => fiche().querySelector('.entete-fiche') as HTMLElement;
   const boutons = (endroit: HTMLElement) => [...endroit.querySelectorAll('button')].map((b) => b.textContent?.trim());
   const bouton = (endroit: HTMLElement, libelle: string) => {
     const trouve = [...endroit.querySelectorAll('button')].find((b) => b.textContent?.trim() === libelle);
@@ -86,7 +88,7 @@ describe('la page « Professeurs »', () => {
     expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah');
     expect(fiche().textContent).toContain('98 401 220');
     expect(fiche().textContent).toContain('karim@exemple.tn');
-    expect(boutons(fiche())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
+    expect(boutons(entete())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
   });
 
   it("dit quand il n'y a aucun professeur", async () => {
@@ -112,7 +114,7 @@ describe('la page « Professeurs »', () => {
     expect(noms()).toEqual(['Sami Chaabane']);
     expect(fiche().querySelector('h2')?.textContent).toContain('Sami Chaabane');
     expect(fiche().querySelector('.pill')?.textContent?.trim()).toBe('Parti');
-    expect(boutons(fiche())).toEqual(['Modifier', 'Revenir au centre', 'Supprimer']);
+    expect(boutons(entete())).toEqual(['Modifier', 'Revenir au centre', 'Supprimer']);
   });
 
   it("dit quand aucun professeur n'est parti", async () => {
@@ -191,7 +193,7 @@ describe('la page « Professeurs »', () => {
     await cliquer(fiche(), 'Supprimer');
     expect(fiche().textContent).toContain("Supprimer Karim Ben Salah ? Seulement en cas d'erreur de saisie.");
     await cliquer(fiche(), 'Non');
-    expect(boutons(fiche())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
+    expect(boutons(entete())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
 
     await cliquer(fiche(), 'Supprimer');
     await cliquer(fiche(), 'Oui');

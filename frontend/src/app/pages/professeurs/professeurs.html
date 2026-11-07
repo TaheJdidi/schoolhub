@@ -80,18 +80,34 @@
       </form>
     } @else if (choisi(); as professeur) {
       <section class="card carte fiche">
-        <div class="entete">
-          <h2 class="titre">{{ nomComplet(professeur) }}</h2>
-          @if (professeur.parti) {
-            <span class="pill muted">Parti</span>
+        <div class="entete-fiche">
+          <span class="initiales" aria-hidden="true">{{ initiales(professeur.prenom, professeur.nom) }}</span>
+          <div class="identite">
+            <div class="entete">
+              <h2 class="titre">{{ nomComplet(professeur) }}</h2>
+              @if (professeur.parti) {
+                <span class="pill muted">Parti</span>
+              }
+            </div>
+            <p class="coordonnees">
+              {{ professeur.telephone }}
+              @if (professeur.email) {
+                · {{ professeur.email }}
+              }
+            </p>
+          </div>
+          @if (!aConfirmer()) {
+            <div class="actions">
+              <button type="button" class="btn" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
+              @if (professeur.parti) {
+                <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
+              } @else {
+                <button type="button" class="btn" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
+              }
+              <button type="button" class="btn danger" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
+            </div>
           }
         </div>
-        <p class="coordonnees">
-          {{ professeur.telephone }}
-          @if (professeur.email) {
-            · {{ professeur.email }}
-          }
-        </p>
 
         @if (aConfirmer()) {
           <p class="question">Supprimer {{ nomComplet(professeur) }} ? Seulement en cas d'erreur de saisie.</p>
@@ -99,17 +115,67 @@
             <button type="button" class="btn primary" [disabled]="envoi()" (click)="supprimer(professeur)">Oui</button>
             <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaConfirmation()">Non</button>
           </div>
-        } @else {
-          <div class="actions">
-            <button type="button" class="btn" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
-            @if (professeur.parti) {
-              <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
-            } @else {
-              <button type="button" class="btn" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
-            }
-            <button type="button" class="btn" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
-          </div>
         }
+
+        <!-- Ses groupes (GRP-02), dans la même carte que le professeur -->
+        <div class="groupes-du-professeur">
+          <div class="entete-groupes">
+            <h3 class="titre">Ses groupes</h3>
+            @if (!professeur.parti) {
+              <button type="button" class="btn" [disabled]="!groupesCharges() || envoi()" (click)="nouveauGroupe(professeur)">
+                Nouveau groupe
+              </button>
+            }
+          </div>
+
+          @if (cadresOuverts().length === 0) {
+            <p class="groupes">Aucun groupe ouvert</p>
+          } @else {
+            <div class="filtres jours" role="group" aria-label="Filtrer par jour">
+              <button type="button" class="filtre" [attr.aria-pressed]="jour() === null" (click)="filtrerParJour(null)">Tous</button>
+              @for (j of jours; track j.jour) {
+                <button
+                  type="button"
+                  class="filtre"
+                  [class.off]="!joursAvecGroupe().has(j.jour)"
+                  [attr.aria-pressed]="jour() === j.jour"
+                  [attr.aria-label]="j.jour"
+                  (click)="filtrerParJour(j.jour)"
+                >
+                  {{ j.court }}
+                </button>
+              }
+            </div>
+            <div class="cadres">
+              @for (groupe of groupesAffiches(); track groupe.id) {
+                <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
+                  <span class="tag">{{ types[groupe.type] }}</span>
+                  <b>{{ groupe.nom }}</b>
+                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
+                  <small>{{ eleves(groupe) }}</small>
+                  <sh-badge-du-groupe [badge]="groupe.badge" />
+                </a>
+              } @empty {
+                <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>
+              }
+            </div>
+          }
+
+          @if (anciensGroupes().length > 0) {
+            <details class="anciens">
+              <summary>Anciens groupes ({{ anciensGroupes().length }})</summary>
+              <div class="cadres">
+                @for (groupe of anciensGroupes(); track groupe.id) {
+                  <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
+                    <span class="etiquettes"><span class="tag">{{ types[groupe.type] }}</span><span class="pill muted">{{ groupe.ferme ? 'Fermé' : 'Terminé' }}</span></span>
+                    <b>{{ groupe.nom }}</b>
+                    <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
+                  </a>
+                }
+              </div>
+            </details>
+          }
+        </div>
       </section>
     }
 
@@ -121,67 +187,6 @@
     }
     @if (erreur(); as erreur) {
       <p class="note bad" role="alert">{{ erreur }}</p>
-    }
-
-    @if (mode() === 'fiche' && choisi(); as professeur) {
-      <section class="card carte groupes-du-professeur">
-        <div class="entete-groupes">
-          <h3 class="titre">Ses groupes</h3>
-          @if (!professeur.parti) {
-            <button type="button" class="btn" [disabled]="!groupesCharges() || envoi()" (click)="nouveauGroupe(professeur)">
-              Nouveau groupe
-            </button>
-          }
-        </div>
-
-        @if (cadresOuverts().length === 0) {
-          <p class="groupes">Aucun groupe ouvert</p>
-        } @else {
-          <div class="filtres jours" role="group" aria-label="Filtrer par jour">
-            <button type="button" class="filtre" [attr.aria-pressed]="jour() === null" (click)="filtrerParJour(null)">Tous</button>
-            @for (j of jours; track j.jour) {
-              <button
-                type="button"
-                class="filtre"
-                [class.off]="!joursAvecGroupe().has(j.jour)"
-                [attr.aria-pressed]="jour() === j.jour"
-                [attr.aria-label]="j.jour"
-                (click)="filtrerParJour(j.jour)"
-              >
-                {{ j.court }}
-              </button>
-            }
-          </div>
-          <div class="cadres">
-            @for (groupe of groupesAffiches(); track groupe.id) {
-              <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
-                <span class="tag">{{ types[groupe.type] }}</span>
-                <b>{{ groupe.nom }}</b>
-                <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
-                <small>{{ eleves(groupe) }}</small>
-                <sh-badge-du-groupe [badge]="groupe.badge" />
-              </a>
-            } @empty {
-              <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>
-            }
-          </div>
-        }
-
-        @if (anciensGroupes().length > 0) {
-          <details class="anciens">
-            <summary>Anciens groupes ({{ anciensGroupes().length }})</summary>
-            <div class="cadres">
-              @for (groupe of anciensGroupes(); track groupe.id) {
-                <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
-                  <span class="etiquettes"><span class="tag">{{ types[groupe.type] }}</span><span class="pill muted">{{ groupe.ferme ? 'Fermé' : 'Terminé' }}</span></span>
-                  <b>{{ groupe.nom }}</b>
-                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
-                </a>
-              }
-            </div>
-          </details>
-        }
-      </section>
     }
 
   </div>
