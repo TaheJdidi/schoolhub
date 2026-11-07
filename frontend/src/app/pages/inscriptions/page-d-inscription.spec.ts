@@ -339,6 +339,35 @@ describe("la page d'inscription", () => {
     await vi.waitFor(() => expect(page.querySelector('.sub')?.textContent).toContain('Groupe Samedi 10h → 12h'));
   }
 
+  it('crée un nouvel élève depuis le groupe, le choisit, et l’inscrit', async () => {
+    await depuisLeGroupe();
+
+    bouton('Nouvel élève')!.click();
+    (await vi.waitFor(() => http.expectOne('/api/niveaux'))).flush([{ id: 'n6', nom: '6ᵉ année de base', dOffice: true }]);
+    await vi.waitFor(() => expect(page.querySelector('[formcontrolname="prenom"]')).not.toBeNull());
+    await vi.waitFor(() => expect((page.querySelector('form button[type="submit"]') as HTMLButtonElement).disabled).toBe(false));
+    saisir(page, '[formcontrolname="prenom"]', 'Nour');
+    saisir(page, '[formcontrolname="nom"]', 'Hamdi');
+    const niveau = page.querySelector('[formcontrolname="niveauId"]') as HTMLSelectElement;
+    niveau.value = 'n6';
+    niveau.dispatchEvent(new Event('change'));
+    saisir(page, '[formcontrolname="telephoneParent"]', '98 000 111');
+    (page.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit'));
+
+    const creation = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/eleves' }));
+    creation.flush(
+      { eleve: { id: 'e9', prenom: 'Nour', nom: 'Hamdi', niveau: { id: 'n6', nom: '6ᵉ année de base' } }, avertissement: null },
+      { status: 201, statusText: 'Created' },
+    );
+    await vi.waitFor(() => expect((page.querySelector('input[name="eleve"][value="e9"]') as HTMLInputElement)?.checked).toBe(true));
+    expect(etiquette('e9')).toContain('Nour Hamdi');
+
+    const requete = await inscrire();
+    expect(requete.request.body).toEqual({ eleveId: 'e9', groupeId: 'g1', mode: null, debutLe: '2027-11-20' });
+    requete.flush({ ...ENREGISTREMENT, inscription: { ...INSCRIPTION, eleve: { id: 'e9', prenom: 'Nour', nom: 'Hamdi' } } });
+    await vi.waitFor(() => expect(texte()).toContain('Inscription enregistrée'));
+  });
+
   it('cherche un élève, marque celui qui est déjà inscrit, et inscrit celui qu’on choisit', async () => {
     await depuisLeGroupe();
     expect(page.querySelector('.sub')?.textContent).toContain('Groupe Samedi 10h → 12h · Mathématiques');

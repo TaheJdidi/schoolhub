@@ -8,6 +8,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
 import { EleveTrouve, FicheDeLEleve } from '../eleves/eleve';
+import { EleveEnregistre, FormulaireDeLEleve } from '../eleves/formulaire-de-l-eleve';
 import { eleves, FicheDuGroupe, TYPES } from '../groupes/groupe';
 import {
   CAPACITE_ATTEINTE,
@@ -34,7 +35,7 @@ const CHOISIR_LE_MODE = 'Choisissez le mode de tarification';
 @Component({
   selector: 'sh-page-d-inscription',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, FormulaireDeLEleve],
   templateUrl: './page-d-inscription.html',
   styleUrls: ['../eleves/eleves.css', './inscriptions.css'],
 })
@@ -212,7 +213,20 @@ export class PageDInscription implements OnInit {
     }
   }
 
-  protected choisirLEleve(eleve: EleveTrouve): void {
+  /** Depuis le groupe : « Nouvel élève » ouvre sa fiche à créer, à la place de la recherche. */
+  protected readonly creation = signal(false);
+  protected readonly idDuGroupe = this.id;
+
+  /** La fiche est créée : l'élève est choisi, et seul dans les résultats ; « Doublon possible » s'affiche s'il y a lieu. */
+  protected eleveCree(enregistrement: EleveEnregistre): void {
+    const { eleve, avertissement } = enregistrement;
+    this.creation.set(false);
+    this.trouves.set([{ id: eleve.id, prenom: eleve.prenom, nom: eleve.nom, niveau: eleve.niveau.nom }]);
+    this.choisirLEleve(eleve);
+    this.avertissement.set(avertissement);
+  }
+
+  protected choisirLEleve(eleve: Pick<EleveTrouve, 'id' | 'prenom' | 'nom'>): void {
     this.eleveChoisi.set({ id: eleve.id, prenom: eleve.prenom, nom: eleve.nom });
     this.erreur.set(null);
   }
