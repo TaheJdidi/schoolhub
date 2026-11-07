@@ -39,14 +39,51 @@ describe('la carte « Le centre »', () => {
     harness = await RouterTestingHarness.create('/carte');
     page = harness.routeNativeElement as HTMLElement;
     (await vi.waitFor(() => http.expectOne(ADRESSE))).flush(reglages);
+    // Un centre qui a son année scolaire s'ouvre en lecture : « Modifier » ouvre les champs.
+    if (reglages.anneeScolaire) await modifier();
     await vi.waitFor(() => expect(champ('nom').value).toBe(reglages.nom));
+  }
+
+  async function modifier(): Promise<void> {
+    (await vi.waitFor(() => bouton('Modifier'))).click();
+    await harness.fixture.whenStable();
   }
 
   afterEach(() => http.verify());
 
+  const bouton = (texte: string) => {
+    const trouve = [...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === texte);
+    if (!trouve) throw new Error(`Aucun bouton « ${texte} »`);
+    return trouve as HTMLButtonElement;
+  };
+
   const champ = (nom: string) => page.querySelector(`[formcontrolname="${nom}"]`) as HTMLInputElement;
   const attendre = (texte: string) => vi.waitFor(() => expect(page.textContent).toContain(texte));
   const enregistrement = () => http.expectOne((r) => r.method === 'PUT' && r.url === ADRESSE);
+
+  it('montre les réglages enregistrés en lecture, avec « Modifier »', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([{ path: 'carte', component: CarteDuCentre }]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+    harness = await RouterTestingHarness.create('/carte');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne(ADRESSE))).flush(REGLAGES);
+    await attendre('Du 15/09/2027 au 30/06/2028');
+
+    expect(page.querySelector('input')).toBeNull();
+    const lecture = page.querySelector('.lecture')!.textContent!;
+    for (const texte of ['Centre Les Jasmins', '71 234 567', '20,000 TND', '5 %', '2,500 TND', '40 places']) expect(lecture).toContain(texte);
+
+    await modifier();
+    expect(champ('nom').value).toBe('Centre Les Jasmins');
+    saisir(page, '[formcontrolname="nom"]', 'Autre nom');
+    bouton('Annuler').click();
+    await harness.fixture.whenStable();
+    // « Annuler » referme les champs sans rien envoyer, et oublie la saisie.
+    expect(page.querySelector('.lecture')?.textContent).toContain('Centre Les Jasmins');
+    http.expectNone((r) => r.method === 'PUT');
+  });
 
   it('remplit le formulaire avec les réglages', async () => {
     await ouvrir(REGLAGES);
@@ -128,7 +165,10 @@ describe('la carte « Le centre »', () => {
     enregistrement().flush(REGLAGES);
     await attendre('Paramètres enregistrés');
     expect(page.querySelector('.card [role="status"]')?.textContent).toContain('Paramètres enregistrés');
+    // Enregistrés, les réglages repassent en lecture.
+    expect(page.querySelector('.lecture')).not.toBeNull();
 
+    await modifier();
     saisir(page, '[formcontrolname="telephone"]', '1234');
     envoyer(page);
     enregistrement().flush({ message: 'Le téléphone doit avoir 8 chiffres' }, { status: 400, statusText: 'Bad Request' });
@@ -154,14 +194,14 @@ describe('la carte « Le centre »', () => {
     (await vi.waitFor(() => http.expectOne(ADRESSE))).error(new ProgressEvent('error'));
     await attendre('Pas de connexion à Internet : réessayez.');
 
-    // Un formulaire vide enregistré effacerait l'assurance, les prix et la part du centre.
-    expect((page.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
-    envoyer(page);
+    // Un formulaire vide enregistré effacerait l'assurance, les prix et la part du centre : il ne s'ouvre pas.
+    expect(page.querySelector('button[type="submit"]')).toBeNull();
     http.expectNone((r) => r.method === 'PUT');
 
     const reessayer = [...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Réessayer');
     reessayer!.click();
     (await vi.waitFor(() => http.expectOne(ADRESSE))).flush(REGLAGES);
+    await modifier();
     await vi.waitFor(() => expect(champ('nom').value).toBe('Centre Les Jasmins'));
     expect((page.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
     expect(page.textContent).not.toContain('Pas de connexion');

@@ -2,6 +2,30 @@
   <h2 class="titre">Le centre</h2>
   <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez les changements que vous n'aviez pas enregistrés." action="Annuler les changements" (recommence)="charger()" />
 
+  @if (!enModification() && reglages(); as r) {
+    <dl class="lecture">
+      <div><dt>Nom</dt><dd>{{ r.nom }}</dd></div>
+      <div><dt>Téléphone</dt><dd>{{ r.telephone || '—' }}</dd></div>
+      <div><dt>Email</dt><dd>{{ r.email || '—' }}</dd></div>
+      <div>
+        <dt>Année scolaire</dt>
+        <dd>{{ r.anneeScolaire ? 'Du ' + date(r.anneeScolaire.debut) + ' au ' + date(r.anneeScolaire.fin) : 'Pas encore fixée' }}</dd>
+      </div>
+      <div><dt>Assurance</dt><dd>{{ r.montantDeLAssurance === null ? '—' : montant(r.montantDeLAssurance) + ' TND' }}</dd></div>
+      <div><dt>Part du centre par défaut</dt><dd>{{ r.partDuCentreParDefaut === null ? '—' : (r.partDuCentreParDefaut + ' %').replace('.', ',') }}</dd></div>
+      <div>
+        <dt>Bibliothèque : entrée à la journée</dt>
+        <dd>{{ r.prixDeLEntreeALaBibliotheque === null ? '—' : montant(r.prixDeLEntreeALaBibliotheque) + ' TND' }}</dd>
+      </div>
+      <div>
+        <dt>Bibliothèque : capacité</dt>
+        <dd>{{ r.capaciteDeLaBibliotheque === null ? 'Sans limite' : r.capaciteDeLaBibliotheque + ' places' }}</dd>
+      </div>
+    </dl>
+    <div class="actions">
+      <button type="button" class="btn" (click)="modifier()">Modifier</button>
+    </div>
+  } @else if (enModification()) {
   <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
     <div class="champs">
       <label class="f">
@@ -55,11 +79,15 @@
     </div>
 
     <div class="actions">
+      @if (!sansAnnee() || reglages()?.anneeScolaire) {
+        <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
+      }
       <button type="submit" class="btn primary" [disabled]="envoi() || !charges()">
         {{ envoi() ? 'Enregistrement…' : 'Enregistrer' }}
       </button>
     </div>
   </form>
+  }
 
   @if (succes(); as succes) {
     <p class="note ok" role="status">{{ succes }}</p>

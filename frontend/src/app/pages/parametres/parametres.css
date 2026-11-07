@@ -8,6 +8,12 @@
 .groupe legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .note { margin: 0; }
+/* Les réglages enregistrés, en lecture : un libellé pâle, la valeur en dessous. */
+.lecture { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 12px; margin: 0; }
+.lecture dt { font-size: 13px; color: var(--ink-2); }
+.lecture dd { margin: 2px 0 0; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+/* La carte ne s'étire pas sur tout un grand écran : ses boutons restent près des champs. */
+.carte { max-width: 920px; }
 
 /* La carte des niveaux */
 .intro, .vide { margin: 0; color: var(--ink-2); }

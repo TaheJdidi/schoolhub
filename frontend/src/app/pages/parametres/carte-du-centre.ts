@@ -1,10 +1,12 @@
 import { HttpClient } from '@angular/common/http';
+import { formatDate } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
+import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 
 /** Les réglages du centre, tels que l'API les décrit (GET et PUT /api/centre/parametres). Un réglage vide vaut `null`. */
@@ -58,8 +60,36 @@ export class CarteDuCentre implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
+  /** Les réglages enregistrés, montés en lecture ; « Modifier » ouvre les champs. */
+  protected readonly reglages = signal<Reglages | null>(null);
+  protected readonly enModification = signal(false);
+  protected readonly montant = ecrireUnMontant;
+
   /** Des paramètres changés, puis laissés pour une autre page sans les enregistrer, se retrouvent en revenant. */
-  protected readonly brouillon = garderLeBrouillon('parametres-du-centre', this.formulaire);
+  protected readonly brouillon = garderLeBrouillon('parametres-du-centre', this.formulaire, {
+    aGarder: () => this.enModification(),
+    etat: { lire: () => this.enModification(), ecrire: (ouvert) => this.enModification.set(ouvert) },
+  });
+
+  protected modifier(): void {
+    this.succes.set(null);
+    this.erreur.set(null);
+    this.enModification.set(true);
+  }
+
+  /** « Annuler » : les champs reprennent les réglages enregistrés, et se referment. */
+  protected annuler(): void {
+    this.brouillon.oublier();
+    const reglages = this.reglages();
+    if (reglages) this.remplir(reglages);
+    this.erreur.set(null);
+    this.enModification.set(false);
+  }
+
+  /** « 15/09/2026 ». */
+  protected date(texte: string | null): string {
+    return texte ? formatDate(texte, 'dd/MM/yyyy', FRANCAIS) : '';
+  }
 
   ngOnInit(): Promise<void> {
     return this.charger();
@@ -70,6 +100,8 @@ export class CarteDuCentre implements OnInit {
     try {
       this.remplir(await firstValueFrom(this.http.get<Reglages>(ADRESSE)));
       this.charges.set(true);
+      // Un centre neuf, sans année scolaire, s'ouvre directement en modification.
+      this.enModification.set(this.sansAnnee());
       this.brouillon.reprendre();
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
@@ -91,6 +123,7 @@ export class CarteDuCentre implements OnInit {
     try {
       this.remplir(await firstValueFrom(this.http.put<Reglages>(ADRESSE, saisie)));
       this.brouillon.oublier();
+      this.enModification.set(false);
       this.succes.set('Paramètres enregistrés');
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
@@ -101,6 +134,7 @@ export class CarteDuCentre implements OnInit {
 
   /** Le formulaire prend les réglages du serveur : téléphone groupé, montants au millime. */
   private remplir(reglages: Reglages): void {
+    this.reglages.set(reglages);
     this.formulaire.setValue({
       nom: reglages.nom,
       telephone: reglages.telephone ?? '',
