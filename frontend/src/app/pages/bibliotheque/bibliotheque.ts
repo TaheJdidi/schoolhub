@@ -184,10 +184,11 @@ export interface EntreeEnregistree {
     .pagehead .actions { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
     .jour { min-width: 150px; }
     .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .chiffres div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+    /* Comme le prototype (écran 11) : deux chiffres sur fond gris, en grand. */
+    .chiffres div { display: grid; gap: 4px; padding: 16px 18px; border-radius: 14px; background: var(--sunk); border: 1px solid transparent; }
     .chiffres div.plein { border-color: var(--warn); }
-    .chiffres span, .chiffres small { color: var(--ink-2); font-size: 12.5px; }
-    .chiffres b { font-size: 22px; }
+    .chiffres span, .chiffres small { color: var(--ink-2); font-size: 13px; }
+    .chiffres b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
     .deux-colonnes { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
     @media (max-width: 900px) { .deux-colonnes { grid-template-columns: minmax(0, 1fr); } }
     .defile { overflow-x: auto; }
