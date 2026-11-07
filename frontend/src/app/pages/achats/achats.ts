@@ -85,6 +85,8 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     }
 
     <section class="card carte">
+      <!-- « Imprimer » et « Exporter » à gauche, les filtres en haut à droite. -->
+      <div class="barre">
       <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
       <div class="filtres">
         <label class="f">
@@ -96,7 +98,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
         </label>
         <label class="f">
           {{ parAnnee() ? 'Année' : 'Mois' }}
-          <input #valeur [type]="parAnnee() ? 'number' : 'month'" [value]="parAnnee() ? annee : mois" (change)="filtrer(periode.value, valeur.value, categorie.value)" />
+          <input class="inp" #valeur [type]="parAnnee() ? 'number' : 'month'" [value]="parAnnee() ? annee : mois" (change)="filtrer(periode.value, valeur.value, categorie.value)" />
         </label>
         <label class="f">
           Catégorie
@@ -106,6 +108,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
             <option value="Service">Service</option>
           </select>
         </label>
+      </div>
       </div>
       @if (liste(); as liste) {
         <div class="defile">
@@ -162,7 +165,10 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
   styles: `
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
-    .champs, .filtres { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+    .champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+    .barre { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; }
+    .filtres { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: end; gap: 10px; margin-left: auto; }
+    .filtres .f { width: 170px; }
     .caisse { display: inline-flex; gap: 8px; align-items: center; font-weight: 500; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     .defile { overflow-x: auto; }
