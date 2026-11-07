@@ -30,23 +30,19 @@ const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
  * Une seule action à la fois : pendant un envoi, les boutons sont bloqués.
  */
 import { BadgeDuGroupeComponent } from '../caisse/paiement';
-import { PartDuCentre } from '../parts/part-du-centre';
-import { Session } from '../../socle/session/session';
 
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, PartDuCentre, ActionsDeListe, ImportDeListe, BrouillonRepris],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, ActionsDeListe, ImportDeListe, BrouillonRepris],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
 export class Professeurs implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private readonly session = inject(Session);
 
   /** PRT-04 : la part du centre d'un professeur ne se montre qu'au propriétaire. */
-  protected readonly proprietaire = computed(() => this.session.personne()?.role === 'Proprietaire');
 
   protected readonly groupesOuverts = groupesOuverts;
   protected readonly nomComplet = nomComplet;
