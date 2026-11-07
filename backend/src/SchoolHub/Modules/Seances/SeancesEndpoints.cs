@@ -14,6 +14,7 @@ public static class SeancesEndpoints
         var seances = api.MapGroup("/seances");
         seances.MapGet("/a-recopier", (AppelsDuCentre appels) => appels.ARecopierAsync());
         seances.MapGet("/du-jour", (AppelsDuCentre appels) => appels.DuJourAsync());
+        api.MapGet("/eleves/{id:guid}/presences", (Guid id, AppelsDuCentre appels) => appels.PresencesDeLEleveAsync(id));
         seances.MapGet("/{id:guid}/appel", LireAsync);
         seances.MapPut("/{id:guid}/appel", EnregistrerAsync);
         seances.MapPost("/{id:guid}/absences/{inscription:guid}/prevenu", PrevenirAsync);
@@ -191,4 +192,17 @@ public sealed record AppelARecopier(Guid SeanceId, DateOnly Date, string Debut, 
 /// SEA-01 : une séance d'aujourd'hui sur l'accueil : ses heures, son groupe, son professeur, le nombre d'élèves attendus,
 /// et son état (« AppelFait », « AppelAFaire », « Annulee »).
 /// </summary>
+/// <summary>La fiche de l'élève : une séance de son groupe et sa présence, « Present », « Absent » ou « AppelAFaire ».</summary>
+public sealed record PresenceALaSeance(Guid SeanceId, DateOnly Date, string Debut, string Etat);
+
+/// <summary>Les présences de l'élève dans un groupe, de son inscription à aujourd'hui.</summary>
+public sealed record PresencesDUneInscription(
+    Guid InscriptionId,
+    Guid GroupeId,
+    string Groupe,
+    string Matiere,
+    bool Arretee,
+    int Absences,
+    List<PresenceALaSeance> Seances);
+
 public sealed record SeanceDuJour(Guid SeanceId, string Debut, string Fin, GroupeDeLAppel Groupe, string Professeur, int Attendus, string Etat);

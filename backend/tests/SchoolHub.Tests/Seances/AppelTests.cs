@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SchoolHub.Modules.Caisse;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
@@ -93,6 +94,22 @@ public sealed class AppelTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         await EnregistrerAsync(seance.SeanceId, []);
 
         Assert.Equal("AppelFait", Assert.Single((await _secretaire.GetFromJsonAsync<List<SeanceDuJour>>("/api/seances/du-jour"))!).Etat);
+    }
+
+    [Fact]
+    public async Task La_fiche_de_l_eleve_montre_ses_presences_et_ses_recus()
+    {
+        await EnregistrerAsync(await SeanceAsync(_maths, new DateOnly(2027, 11, 20)), [_adem.Inscription]);
+
+        var presences = Assert.Single((await _secretaire.GetFromJsonAsync<List<PresencesDUneInscription>>($"/api/eleves/{_adem.Eleve}/presences"))!);
+        Assert.Equal(("Mathématiques", 1, false), (presences.Matiere, presences.Absences, presences.Arretee));
+        // Absent le 20/11 ; l'appel du jour n'est pas encore fait ; les séances à venir n'y sont pas.
+        Assert.Equal([(new DateOnly(2027, 11, 20), "Absent"), (new DateOnly(2027, 11, 27), "AppelAFaire")],
+            presences.Seances.Select(s => (s.Date, s.Etat)));
+
+        var lina = Assert.Single((await _secretaire.GetFromJsonAsync<List<PresencesDUneInscription>>($"/api/eleves/{_lina.Eleve}/presences"))!);
+        Assert.Equal("Present", lina.Seances[0].Etat);
+        Assert.Empty((await _secretaire.GetFromJsonAsync<List<RecuDeLEleve>>($"/api/eleves/{_lina.Eleve}/recus"))!);
     }
 
     [Fact]

@@ -31,6 +31,54 @@
 .inscription a { color: var(--accent); font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
 .inscription a:hover { text-decoration: underline; }
 .inscription small { color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
+
+/* La fiche de l'élève : deux colonnes, des cartes à en-tête (maquette de Taha) ; une colonne sur un téléphone. */
+.etat-de-l-eleve { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.fiche-colonnes { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .fiche-colonnes { grid-template-columns: minmax(0, 1fr); } }
+.colonne { display: grid; gap: 16px; min-width: 0; }
+.bloc { display: grid; padding: 0; overflow: hidden; }
+.entete-bloc { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.entete-bloc small { color: var(--ink-2); }
+.bloc > .vide, .bloc > .aide { padding: 14px 18px; }
+.bloc > .note { margin: 0 18px 14px; }
+.bloc .pied { padding: 12px 18px; border-top: 1px solid var(--line); }
+.bloc .inscription { display: flex; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.bloc .entete-bloc + .inscription { border-top: 0; }
+.bloc .inscription .corps { display: grid; gap: 6px; flex: 1; min-width: 0; }
+.bloc .inscription .haut { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.bloc .inscription .deux { display: grid; gap: 2px; min-width: 0; }
+.bloc .inscription .deux b { font-weight: 600; }
+.bloc .inscription .deux b a { color: var(--ink); font-weight: 600; }
+.bloc .inscription .liens { display: flex; gap: 2px; }
+.bloc .inscription .actions { margin-top: 0; }
+.point { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--line-2); }
+.point.AJour { background: var(--ok); }
+.point.APayer { background: var(--accent); }
+.point.Orange { background: var(--warn); }
+.point.Rouge { background: var(--bad); }
+.contacts .coordonnees { padding: 14px 18px; gap: 8px 14px; }
+.contacts .coordonnees dd { text-align: right; font-weight: 500; }
+.assurance { display: grid; gap: 6px; padding: 0 18px 14px; }
+.rangee-assurance { display: flex; justify-content: space-between; gap: 12px; }
+.rangee-assurance span { color: var(--ink-2); }
+.rangee-assurance .etat { color: var(--ink); font-weight: 500; }
+.rangee-assurance .etat.a-payer { color: var(--bad); }
+.assurance .actions { justify-content: flex-start; }
+.presences-du-groupe { display: grid; gap: 2px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.entete-bloc + .presences-du-groupe { border-top: 0; }
+.presences-du-groupe small { color: var(--ink-2); }
+.cases { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.case-presence { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.case-presence.Present { background: var(--ok-soft); color: var(--ok); }
+.case-presence.Absent { background: var(--bad-soft); color: var(--bad); }
+.case-presence.AppelAFaire { border: 1px dashed var(--line-2); color: var(--ink-2); }
+.recu { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.entete-bloc + .recu { border-top: 0; }
+.recu:hover { background: var(--sunk); }
+.recu .deux { display: grid; min-width: 0; }
+.recu small { color: var(--ink-2); font-size: 13px; }
+.recu.annule b { text-decoration: line-through; color: var(--ink-2); }
 .ligne { margin: 0; }
 
 /* « À payer » et les actions sur les inscriptions et l'assurance (ELV-04 à ELV-07, ELV-10) */

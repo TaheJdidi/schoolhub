@@ -160,6 +160,13 @@ public sealed partial class RecusDuCentre(
     /// CAI-06 : les reçus du centre, les plus récents en premier : ceux d'un jour, d'un numéro, ou d'un élève (chaque mot,
     /// sans accents ni majuscules, dans son prénom ou son nom). La secrétaire voit tous les reçus du centre.
     /// </summary>
+    /// <summary>La fiche de l'élève : ses reçus, du plus récent au plus ancien, avec ce que chacun payait.</summary>
+    public async Task<List<RecuDeLEleve>> DeLEleveAsync(Guid eleveId) =>
+        (await contexte.Recus.Where(r => r.EleveId == eleveId).OrderByDescending(r => r.Numero).Take(RecusAuPlus).ToListAsync())
+        .Select(r => new RecuDeLEleve(r.Id, r.Numero, r.Jour, string.Join(", ", r.Lignes.Select(l => l.Libelle)), r.Total, r.Auteur,
+            r.AnnuleLe is not null))
+        .ToList();
+
     public async Task<List<RecuDeLaListe>> ListerAsync(DateOnly? jour, int? numero, string? eleve)
     {
         var requete = contexte.Recus.AsQueryable();

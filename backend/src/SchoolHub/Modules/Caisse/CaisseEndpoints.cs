@@ -40,6 +40,7 @@ public static class CaisseEndpoints
 
         // CAI-08 : le rappel de paiement, et les élèves en rouge.
         api.MapGet("/eleves/en-rouge", (RappelsDePaiement rappels) => rappels.EnRougeAsync());
+        api.MapGet("/eleves/{id:guid}/recus", (Guid id, RecusDuCentre recus) => recus.DeLEleveAsync(id));
         api.MapGet("/eleves/{id:guid}/rappel", async Task<Results<Ok<RappelDePaiement>, JsonHttpResult<Avis>>> (Guid id, RappelsDePaiement rappels) =>
         {
             var issue = await rappels.LireAsync(id);
@@ -160,4 +161,7 @@ public sealed record RecuDecrit(
     string? PourquoiPasAnnulable);
 
 /// <summary>CAI-06 : un reçu dans la liste.</summary>
+/// <summary>Un reçu sur la fiche de l'élève : son numéro, son jour, ce qu'il payait (« Mois 2 (4 séances) »).</summary>
+public sealed record RecuDeLEleve(Guid Id, int Numero, DateOnly Jour, string Libelle, decimal Total, string Secretaire, bool Annule);
+
 public sealed record RecuDeLaListe(Guid Id, int Numero, DateOnly Jour, DateTimeOffset CreeLe, string Eleve, decimal Total, string Secretaire, bool Annule);

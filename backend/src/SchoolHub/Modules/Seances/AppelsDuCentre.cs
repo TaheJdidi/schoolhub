@@ -361,6 +361,39 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         return new ContexteDuGroupe(groupe.Nom, groupe.Type.ToString(), matiere, professeur);
     }
 
+    /// <summary>
+    /// La fiche de l'élève : ses présences, inscription par inscription. Chaque séance qui a eu lieu, de son début à
+    /// aujourd'hui (ou à l'arrêt) : « Present », « Absent », ou « AppelAFaire » tant que l'appel n'est pas fait.
+    /// </summary>
+    public async Task<List<PresencesDUneInscription>> PresencesDeLEleveAsync(Guid eleveId)
+    {
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var inscriptions = await contexte.Inscriptions.Where(i => i.EleveId == eleveId).OrderBy(i => i.DebutLe).ThenBy(i => i.Id).ToListAsync();
+        var groupeIds = inscriptions.Select(i => i.GroupeId).Distinct().ToList();
+        var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
+        var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var seances = await contexte.Seances.QuiOntLieu()
+            .Where(s => groupeIds.Contains(s.GroupeId) && s.Date <= aujourdhui)
+            .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
+            .ToListAsync();
+        var inscriptionIds = inscriptions.Select(i => i.Id).ToList();
+        var absences = (await contexte.Absences.Where(a => inscriptionIds.Contains(a.InscriptionId))
+            .Select(a => new { a.SeanceId, a.InscriptionId }).ToListAsync())
+            .Select(a => (a.SeanceId, a.InscriptionId)).ToHashSet();
+
+        return inscriptions.Select(i =>
+        {
+            var groupe = groupes[i.GroupeId];
+            var siennes = seances
+                .Where(s => s.GroupeId == i.GroupeId && s.Date >= i.DebutLe && (i.ArreteLe == null || s.Date <= i.ArreteLe))
+                .Select(s => new PresenceALaSeance(s.Id, s.Date, Heure(s.Debut),
+                    s.AppelFaitLe is null ? "AppelAFaire" : absences.Contains((s.Id, i.Id)) ? "Absent" : "Present"))
+                .ToList();
+            return new PresencesDUneInscription(i.Id, groupe.Id, groupe.Nom, matieres[groupe.MatiereId], i.ArreteLe is not null,
+                siennes.Count(p => p.Etat == "Absent"), siennes);
+        }).ToList();
+    }
+
     private static string Heure(TimeOnly heure) => heure.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
     private static IssueDeLAppel Refus(int statut, string message) => new(null, statut, message);

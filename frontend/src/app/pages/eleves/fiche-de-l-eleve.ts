@@ -12,6 +12,48 @@ import { dateDuJourLocale } from '../groupes/groupe';
 import { APayer, AssuranceDeLEleve, InscriptionDeLEleve, libelleDuMode } from '../inscriptions/inscription';
 import { de, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 import { FormulaireDeLEleve } from './formulaire-de-l-eleve';
+import { EncaissementDeLEleve } from '../caisse/encaissement-de-l-eleve';
+
+/** SEA-07 : une séance de l'élève et sa présence (GET /api/eleves/{id}/presences). */
+interface PresenceALaSeance {
+  seanceId: string;
+  date: string;
+  debut: string;
+  etat: 'Present' | 'Absent' | 'AppelAFaire';
+}
+
+/** Ses présences dans un groupe. */
+interface PresencesDUneInscription {
+  inscriptionId: string;
+  groupeId: string;
+  groupe: string;
+  matiere: string;
+  arretee: boolean;
+  absences: number;
+  seances: PresenceALaSeance[];
+}
+
+/** CAI-04 : un reçu de l'élève (GET /api/eleves/{id}/recus). */
+interface RecuDeLEleve {
+  id: string;
+  numero: number;
+  jour: string;
+  libelle: string;
+  total: number;
+  secretaire: string;
+  annule: boolean;
+}
+
+/** Ce que dit la couleur de l'élève, en haut de sa fiche. */
+const ETATS_DES_PAIEMENTS: Record<string, { libelle: string; classe: string }> = {
+  AJour: { libelle: 'À jour', classe: 'ok' },
+  APayer: { libelle: 'À payer', classe: 'info' },
+  Orange: { libelle: 'En retard', classe: 'warn' },
+  Rouge: { libelle: '2 séances de retard ou plus', classe: 'bad' },
+};
+
+/** Les dernières séances montrées par groupe : au-delà, la ligne deviendrait illisible. */
+const SEANCES_MONTREES = 16;
 
 /** L'action ouverte sur la fiche : un formulaire ou une question « Oui · Non ». */
 type Action =
@@ -30,12 +72,12 @@ type Action =
  * aucune inscription. L'avertissement « Doublon possible » d'une création arrive par l'état de la navigation. La page suit
  * l'adresse : la recherche de l'en-tête mène d'une fiche à une autre sans recréer la page.
  */
-import { BoutonDeRappel, enRetard, PastilleDeCouleur, rappelEnvoyeLe } from '../caisse/paiement';
+import { BoutonDeRappel, enRetard, rappelEnvoyeLe } from '../caisse/paiement';
 
 @Component({
   selector: 'sh-page-de-l-eleve',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormulaireDeLEleve, RouterLink, PastilleDeCouleur, BoutonDeRappel],
+  imports: [FormulaireDeLEleve, RouterLink, BoutonDeRappel, EncaissementDeLEleve],
   templateUrl: './fiche-de-l-eleve.html',
   styleUrl: './eleves.css',
 })
@@ -61,6 +103,10 @@ export class PageDeLEleve implements OnInit {
   /** L'assurance de l'année ; `null` quand elle est sans objet. */
   protected readonly assurance = signal<AssuranceDeLEleve | null>(null);
   protected readonly aPayer = signal<APayer | null>(null);
+  protected readonly presences = signal<PresencesDUneInscription[]>([]);
+  protected readonly recus = signal<RecuDeLEleve[]>([]);
+  /** Augmente quand ce que l'élève doit change : la carte « À payer » se relit. */
+  protected readonly actualisation = signal(0);
   /** Le propriétaire accorde un prix spécial et dispense de l'assurance ; la secrétaire lit qu'elle ne le peut pas. */
   protected readonly proprietaire = computed(() => this.session.personne()?.role === 'Proprietaire');
   protected readonly action = signal<Action | null>(null);
@@ -74,6 +120,20 @@ export class PageDeLEleve implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly avertissement = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
+
+  /** « 2 séances de retard ou plus » en rouge, « À jour » en vert… */
+  protected etatDesPaiements(couleur: string | null | undefined): { libelle: string; classe: string } | null {
+    return couleur ? (ETATS_DES_PAIEMENTS[couleur] ?? null) : null;
+  }
+
+  /** P, A ou ? dans la case de la séance. */
+  protected lettre(etat: PresenceALaSeance['etat']): string {
+    return etat === 'Present' ? 'P' : etat === 'Absent' ? 'A' : '?';
+  }
+
+  protected dernieres(seances: PresenceALaSeance[]): PresenceALaSeance[] {
+    return seances.slice(-SEANCES_MONTREES);
+  }
 
   /** « samedi 20/11/2027 ». */
   protected jour(date: string): string {
@@ -102,6 +162,8 @@ export class PageDeLEleve implements OnInit {
     this.inscriptions.set([]);
     this.assurance.set(null);
     this.aPayer.set(null);
+    this.presences.set([]);
+    this.recus.set([]);
     this.action.set(null);
     this.erreurDesInscriptions.set(null);
     this.erreurDeLAssurance.set(null);
@@ -126,6 +188,7 @@ export class PageDeLEleve implements OnInit {
       if (this.route.snapshot.paramMap.get('id') !== id) return;
       this.fiche.set(fiche);
       this.montrerCeQuIlDoit(inscriptions, assurance, aPayer);
+      void this.lireLHistorique(id);
     } catch (erreur) {
       if (this.route.snapshot.paramMap.get('id') !== id) return;
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
@@ -140,6 +203,21 @@ export class PageDeLEleve implements OnInit {
       firstValueFrom(this.http.get<AssuranceDeLEleve | null>(`/api/eleves/${id}/assurance`)),
       firstValueFrom(this.http.get<APayer>(`/api/eleves/${id}/a-payer`)),
     ]);
+  }
+
+  /** Ses présences et ses reçus : sans eux, la fiche reste utile ; un refus s'affiche seulement. */
+  private async lireLHistorique(id: string): Promise<void> {
+    try {
+      const [presences, recus] = await Promise.all([
+        firstValueFrom(this.http.get<PresencesDUneInscription[]>(`/api/eleves/${id}/presences`)),
+        firstValueFrom(this.http.get<RecuDeLEleve[]>(`/api/eleves/${id}/recus`)),
+      ]);
+      if (this.route.snapshot.paramMap.get('id') !== id) return;
+      this.presences.set(presences);
+      this.recus.set(recus);
+    } catch (erreur) {
+      if (this.route.snapshot.paramMap.get('id') === id) this.erreur.set(messageDErreur(erreur));
+    }
   }
 
   private montrerCeQuIlDoit(inscriptions: InscriptionDeLEleve[], assurance: AssuranceDeLEleve | null, aPayer: APayer): void {
@@ -233,7 +311,11 @@ export class PageDeLEleve implements OnInit {
       await firstValueFrom(requete());
       this.action.set(null);
       const [inscriptions, assurance, aPayer] = await this.lireCeQuIlDoit(fiche.id);
-      if (this.route.snapshot.paramMap.get('id') === fiche.id) this.montrerCeQuIlDoit(inscriptions, assurance, aPayer);
+      if (this.route.snapshot.paramMap.get('id') === fiche.id) {
+        this.montrerCeQuIlDoit(inscriptions, assurance, aPayer);
+        this.actualisation.update((n) => n + 1);
+        void this.lireLHistorique(fiche.id);
+      }
     } catch (refus) {
       erreur.set(messageDErreur(refus));
     } finally {

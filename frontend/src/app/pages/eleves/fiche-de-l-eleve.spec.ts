@@ -108,7 +108,14 @@ describe('la fiche d’un élève', () => {
     await vi.waitFor(() => expect(page.querySelector('h1')).not.toBeNull());
   }
 
-  afterEach(() => http.verify());
+  /** La carte « À payer », les présences et les reçus se demandent à part : un test qui ne s'en sert pas les laisse vides. */
+  const DE_L_HISTORIQUE = /\/api\/eleves\/[^/]+\/(encaissable|presences|recus)$/;
+  afterEach(() => {
+    http
+      .match((r) => DE_L_HISTORIQUE.test(r.url))
+      .forEach((r) => r.flush(r.request.url.endsWith('encaissable') ? { eleve: { id: 'e1', prenom: 'Adem', nom: 'Miled' }, sommes: [], aUnEmail: true } : []));
+    http.verify();
+  });
 
   const attendre = (texte: string) => vi.waitFor(() => expect(page.textContent).toContain(texte));
   const bouton = (texte: string) =>
@@ -131,7 +138,7 @@ describe('la fiche d’un élève', () => {
     expect(contacts).toContain('Collège Ibn Khaldoun');
     expect(contacts).not.toContain('Élève majeur');
     expect(page.textContent).toContain("Aucune inscription : cet élève n'est dans aucun groupe pour l'instant.");
-    expect(page.querySelector('.assurance')?.textContent).toContain('Sans objet : aucune inscription en Étude cette année.');
+    expect(page.querySelector('.assurance')?.textContent).toContain('sans objet, aucune inscription en Étude cette année.');
     expect(page.querySelector('.inscriptions a[href="/eleves/e1/inscription"]')?.textContent).toContain('Inscrire dans un groupe');
   });
 
@@ -140,11 +147,12 @@ describe('la fiche d’un élève', () => {
 
     const inscription = page.querySelector('.inscription') as HTMLElement;
     expect(inscription.querySelector('a[href="/professeurs/groupes/g1"]')?.textContent).toContain('Groupe Samedi 10h → 12h');
-    expect(inscription.textContent).toContain('Mathématiques · Karim Ben Salah');
-    expect(inscription.textContent).toContain('Étude, 40,000 TND par Mois');
+    expect(inscription.textContent).toContain('Mathématiques · Groupe Samedi 10h → 12h');
+    expect(inscription.textContent).toContain('Karim Ben Salah · Étude, 40,000 TND par Mois');
     expect(inscription.textContent).toContain('Depuis le samedi 20/11/2027');
     expect(page.textContent).not.toContain('Aucune inscription');
-    expect(page.querySelector('.assurance')?.textContent).toContain('Année 2027-2028 : 20,000 TND, due le 20/11/2027');
+    expect(page.querySelector('.assurance')?.textContent).toContain('Assurance 2027-2028');
+    expect(page.querySelector('.assurance')?.textContent).toContain('20,000 TND, due le 20/11/2027');
     expect([...page.querySelectorAll('button')].some((b) => b.textContent?.includes('Supprimer la fiche'))).toBe(false);
   });
 
@@ -243,27 +251,49 @@ describe('la fiche d’un élève', () => {
 
   const carte = (classe: string) => page.querySelector(`.${classe}`) as HTMLElement;
 
-  it("montre ce que l'élève doit à ce jour", async () => {
-    await ouvrir(ADEM, [INSCRIPTION], ASSURANCE, DU);
+  /** CAI-03 : ce que la carte « À payer » propose d'encaisser ; chaque demande en attente reçoit ces sommes. */
+  async function encaissable(sommes: object[] = []): Promise<void> {
+    const requetes = await vi.waitFor(() => {
+      const enAttente = http.match('/api/eleves/e1/encaissable');
+      expect(enAttente.length).toBeGreaterThan(0);
+      return enAttente;
+    });
+    requetes.forEach((r) => r.flush({ eleve: { id: 'e1', prenom: 'Adem', nom: 'Miled' }, sommes, aUnEmail: true }));
+    await vi.waitFor(() => expect(carte('a-payer').querySelector(sommes.length > 0 ? '.somme' : '.vide')).not.toBeNull());
+  }
 
-    const lignes = [...carte('a-payer').querySelectorAll('.ligne-a-payer')].map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
-    expect(lignes[0]).toContain('Mathématiques · Groupe Samedi 10h → 12h');
-    expect(lignes[0]).toContain('Mois 3 (3 séances)');
-    expect(lignes[0]).toContain('30,000 TND');
-    expect(lignes[0]).toContain('dû le 20/11/2027');
-    expect(lignes[1]).toContain('Assurance 2027-2028');
-    expect(carte('a-payer').querySelector('.total')?.textContent).toContain('50,000 TND');
+  it("montre ce que l'élève doit à ce jour, coché d'office, et ce qui se paie d'avance", async () => {
+    await ouvrir(ADEM, [INSCRIPTION], ASSURANCE, DU);
+    await encaissable([
+      { inscriptionId: 'i1', cle: 'Mois 3', groupe: 'Mathématiques, Groupe Samedi 10h → 12h', libelle: 'Mois 3 (3 séances)', montant: 30, dueLe: '2027-11-20', due: true },
+      { inscriptionId: null, cle: 'Assurance', groupe: 'Assurance', libelle: 'Assurance 2027-2028', montant: 20, dueLe: '2027-11-20', due: true },
+      { inscriptionId: 'i1', cle: 'Mois 4', groupe: 'Mathématiques, Groupe Samedi 10h → 12h', libelle: 'Mois 4 (4 séances)', montant: 40, dueLe: '2027-12-18', due: false },
+    ]);
+
+    const sommes = [...carte('a-payer').querySelectorAll('.somme')];
+    expect(sommes.map((s) => (s.querySelector('input') as HTMLInputElement).checked)).toEqual([true, true, false]);
+    expect(sommes[0].textContent).toContain('Mois 3 (3 séances)');
+    expect(sommes[0].textContent).toContain('30,000 TND');
+    expect(sommes[1].textContent).toContain('Une fois par an');
+    expect(carte('a-payer').textContent).toContain("Payer d'avance");
+    expect(sommes[2].textContent).toContain("d'avance");
+    expect(bouton('Encaisser 50,000 TND')).toBeDefined();
+
+    (sommes[2].querySelector('input') as HTMLInputElement).click();
+    await harness.fixture.whenStable();
+    expect(bouton('Encaisser 90,000 TND')).toBeDefined();
   });
 
   it("dit quand il n'y a rien à payer", async () => {
     await ouvrir();
+    await encaissable();
 
     expect(carte('a-payer').textContent).toContain("Rien à payer aujourd'hui.");
   });
 
   it("montre l'état de l'assurance", async () => {
     await ouvrir(ADEM, [INSCRIPTION], ASSURANCE);
-    expect(carte('assurance').textContent).toContain('Année 2027-2028 : 20,000 TND, due le 20/11/2027');
+    expect(carte('assurance').textContent).toContain('20,000 TND, due le 20/11/2027');
     expect(carte('assurance').textContent).toContain('à payer');
     TestBed.resetTestingModule();
 
@@ -288,6 +318,8 @@ describe('la fiche d’un élève', () => {
     await rafraichir([INSCRIPTION], { ...ASSURANCE, etat: 'PayeeAvantSchoolHub' });
 
     await vi.waitFor(() => expect(carte('assurance').querySelector('.etat')?.textContent).toContain('payée avant SchoolHub'));
+    // La carte « À payer » se relit après l'action.
+    await encaissable();
     expect(carte('a-payer').textContent).toContain("Rien à payer aujourd'hui.");
   });
 
@@ -409,6 +441,9 @@ describe('la fiche d’un élève', () => {
       total: 200,
     });
 
+    await encaissable([
+      { inscriptionId: 'i1', cle: 'Reste', groupe: 'Informatique, Groupe Samedi 10h → 12h', libelle: 'Reste de la Formation', montant: 200, dueLe: '2027-11-27', due: true },
+    ]);
     await vi.waitFor(() => expect(carte('a-payer').textContent).toContain('Reste de la Formation'));
     expect(bouton('Payer tout le reste')).toBeUndefined();
   });
@@ -428,7 +463,7 @@ describe('la fiche d’un élève', () => {
   it("arrête une inscription, à la date choisie", async () => {
     await ouvrir(ADEM, [INSCRIPTION]);
 
-    await cliquer("Arrêter l'inscription");
+    await cliquer('Arrêter');
     const date = page.querySelector('[aria-label="Date de l\'arrêt"]') as HTMLInputElement;
     expect(date.value).toBe(dateDuJourLocale());
     expect(carte('inscription').textContent).toContain("Rien ne sera dû après cette date ; ce qui était dû avant reste dû. Pas de remboursement.");
