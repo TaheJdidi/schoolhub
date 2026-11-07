@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { Brouillons } from '../socle/brouillons';
+import { Router, RouterLink, UrlTree } from '@angular/router';
+import { DernieresPages } from '../socle/dernieres-pages';
 import { Icone } from '../socle/icone';
 import { menuDe } from '../socle/menu';
 import { Session } from '../socle/session/session';
@@ -38,11 +38,12 @@ import { BoutonDeDeconnexion } from './bouton-de-deconnexion';
 })
 export class Plus {
   private readonly session = inject(Session);
-  private readonly brouillons = inject(Brouillons);
+  private readonly dernieresPages = inject(DernieresPages);
+  private readonly router = inject(Router);
 
-  /** Comme le menu : on revient au formulaire laissé en cours dans la section. */
-  protected lien(chemin: string): string {
-    return this.brouillons.pageEnCours(chemin) ?? `/${chemin}`;
+  /** Comme le menu : on revient à la dernière page ouverte dans la section. */
+  protected lien(chemin: string): UrlTree {
+    return this.router.parseUrl(this.dernieresPages.derniere(chemin));
   }
 
   protected readonly menu = computed(() => menuDe(this.session.personne()?.role ?? 'Secretaire'));

@@ -1,9 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet, UrlTree } from '@angular/router';
 import { filter, fromEvent, map, merge } from 'rxjs';
-import { Brouillons } from '../socle/brouillons';
+import { DernieresPages } from '../socle/dernieres-pages';
 import { NombreDeDemandes } from '../socle/nombre-de-demandes';
 import { dateDuJour } from '../socle/dates';
 import { Icone } from '../socle/icone';
@@ -49,6 +49,7 @@ export class Cadre {
 
   /** DEM-03 : le nombre de demandes à traiter, à côté de « Demandes d'inscription », relu à chaque page. */
   private readonly nombreDeDemandes = inject(NombreDeDemandes);
+  private readonly dernieresPages = inject(DernieresPages);
   protected readonly demandesATraiter = this.nombreDeDemandes.aTraiter;
 
   /** Le cadre naît pendant une navigation : la fin de celle-ci donne déjà la première lecture. */
@@ -58,7 +59,10 @@ export class Cadre {
         filter((evenement) => evenement instanceof NavigationEnd),
         takeUntilDestroyed(),
       )
-      .subscribe(() => void this.nombreDeDemandes.actualiser());
+      .subscribe(() => {
+        void this.nombreDeDemandes.actualiser();
+        this.dernieresPages.noter(this.router.url);
+      });
   }
 
   protected readonly personne = this.session.personne;
@@ -85,14 +89,13 @@ export class Cadre {
     { initialValue: this.premierSegment() },
   );
 
-  private readonly brouillons = inject(Brouillons);
-
   /**
-   * Le lien d'une section : sa page, ou la page de la section où un formulaire attend (« Nouveau groupe », dans
-   * Professeurs) : on revient là où on en était.
+   * Le lien d'une section : la dernière page qu'on y avait ouverte (« Nouveau groupe », dans Professeurs), pour revenir
+   * là où on en était. Depuis la section même, un clic ramène à sa première page (la liste des professeurs).
    */
-  protected lien(chemin: string): string {
-    return this.brouillons.pageEnCours(chemin) ?? `/${chemin}`;
+  protected lien(chemin: string): UrlTree {
+    // Une adresse avec ses paramètres (« ?professeur=… ») : lue par le routeur, pas prise pour un chemin.
+    return this.router.parseUrl(this.page() === chemin ? `/${chemin}` : this.dernieresPages.derniere(chemin));
   }
 
   protected ongletActif(onglet: EntreeDuMenu): boolean {

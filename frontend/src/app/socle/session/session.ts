@@ -2,6 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Brouillons } from '../brouillons';
+import { DernieresPages } from '../dernieres-pages';
 import { Moi } from './moi';
 
 /** La personne n'est pas encore connue : il faudra demander au serveur. */
@@ -16,6 +17,7 @@ const INCONNUE = Symbol('inconnue');
 export class Session {
   private readonly http = inject(HttpClient);
   private readonly brouillons = inject(Brouillons);
+  private readonly dernieresPages = inject(DernieresPages);
   private readonly etat = signal<Moi | null | typeof INCONNUE>(INCONNUE);
   private enCours: Promise<Moi | null> | null = null;
 
@@ -34,6 +36,7 @@ export class Session {
   oublier(): void {
     this.etat.set(INCONNUE);
     this.brouillons.toutOublier();
+    this.dernieresPages.toutOublier();
   }
 
   /**

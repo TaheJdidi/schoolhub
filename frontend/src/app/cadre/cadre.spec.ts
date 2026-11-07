@@ -5,6 +5,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
 import { dateDuJour } from '../socle/dates';
+import { DernieresPages } from '../socle/dernieres-pages';
 import { Moi } from '../socle/session/moi';
 import { Session } from '../socle/session/session';
 import { PageDeTest } from '../test/page-de-test';
@@ -132,6 +133,16 @@ describe('le cadre', () => {
     const page = await ouvrir('/caisse', AMIRA);
 
     expect(page.querySelector('.rail a[href="/caisse"]')?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('ramène chaque section à la dernière page qu’on y avait ouverte', async () => {
+    TestBed.inject(DernieresPages).noter('/professeurs/groupes/nouveau?professeur=k');
+    const page = await ouvrir('/caisse', AMIRA);
+
+    expect(page.querySelector('.rail a[aria-current]')?.getAttribute('href')).toBe('/caisse');
+    expect(adresses(page.querySelectorAll('.rail a.nav'))).toContain('/professeurs/groupes/nouveau?professeur=k');
+    // La page ouverte devient la dernière de sa section.
+    expect(TestBed.inject(DernieresPages).derniere('caisse')).toBe('/caisse');
   });
 
   it('a les quatre onglets du téléphone', async () => {
