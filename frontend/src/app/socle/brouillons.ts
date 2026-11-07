@@ -1,8 +1,15 @@
 import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 
 /** Où les brouillons sont rangés dans l'onglet. */
 const STOCKAGE = 'schoolhub.brouillons';
+
+/** Un brouillon, et l'adresse de la page où il a été commencé (« /professeurs/groupes/nouveau »). */
+interface Garde {
+  brouillon: unknown;
+  adresse: string | null;
+}
 
 /**
  * Les formulaires commencés puis laissés pour une autre page, ou interrompus par un rechargement : on les retrouve en
@@ -12,7 +19,10 @@ const STOCKAGE = 'schoolhub.brouillons';
  */
 @Injectable({ providedIn: 'root' })
 export class Brouillons {
-  private readonly gardes = new Map<string, unknown>(Object.entries(lireLeStockage()));
+  /** Les brouillons, du plus ancien au plus récent. */
+  private readonly gardes = new Map<string, Garde>(Object.entries(lireLeStockage()));
+  /** Change à chaque brouillon gardé ou oublié : le menu relit alors ses liens. */
+  private readonly version = signal(0);
   /** Les pages ouvertes qui ont un brouillon : chacune sait le garder si l'onglet se recharge ou se ferme. */
   private readonly ouverts = new Set<() => void>();
 
@@ -21,15 +31,27 @@ export class Brouillons {
     globalThis.addEventListener?.('pagehide', () => this.ouverts.forEach((garder) => garder()));
   }
 
-  garder<T>(cle: string, brouillon: T): void {
-    this.gardes.set(cle, JSON.parse(JSON.stringify(brouillon)));
+  garder<T>(cle: string, brouillon: T, adresse: string | null = null): void {
+    // Le plus récent va à la fin.
+    this.gardes.delete(cle);
+    this.gardes.set(cle, { brouillon: JSON.parse(JSON.stringify(brouillon)), adresse });
     this.ecrire();
   }
 
   /** Le brouillon gardé sous cette clé, ou `null`. */
   reprendre<T>(cle: string): T | null {
-    const brouillon = this.gardes.get(cle);
-    return brouillon === undefined ? null : (JSON.parse(JSON.stringify(brouillon)) as T);
+    const garde = this.gardes.get(cle);
+    return garde === undefined ? null : (JSON.parse(JSON.stringify(garde.brouillon)) as T);
+  }
+
+  /**
+   * La page d'une section (« professeurs ») où un formulaire attend, la plus récente : le menu y ramène, au lieu de
+   * la page d'accueil de la section. `null` s'il n'y en a pas.
+   */
+  pageEnCours(section: string): string | null {
+    this.version();
+    const adresses = [...this.gardes.values()].map((g) => g.adresse).reverse();
+    return adresses.find((a) => a?.startsWith(`/${section}/`)) ?? null;
   }
 
   oublier(cle: string): void {
@@ -49,6 +71,7 @@ export class Brouillons {
   }
 
   private ecrire(): void {
+    this.version.update((v) => v + 1);
     try {
       if (this.gardes.size === 0) sessionStorage.removeItem(STOCKAGE);
       else sessionStorage.setItem(STOCKAGE, JSON.stringify(Object.fromEntries(this.gardes)));
@@ -58,14 +81,22 @@ export class Brouillons {
   }
 }
 
-function lireLeStockage(): Record<string, unknown> {
+function lireLeStockage(): Record<string, Garde> {
   try {
     const texte = sessionStorage.getItem(STOCKAGE);
     const lu: unknown = texte ? JSON.parse(texte) : null;
-    return lu && typeof lu === 'object' ? (lu as Record<string, unknown>) : {};
+    if (!lu || typeof lu !== 'object') return {};
+    // Seulement les brouillons bien formés (un ancien format est ignoré).
+    return Object.fromEntries(Object.entries(lu).filter(([, g]) => g && typeof g === 'object' && 'brouillon' in g)) as Record<string, Garde>;
   } catch {
     return {};
   }
+}
+
+/** L'adresse de la page en cours de construction, sans ses paramètres : « /professeurs/groupes/nouveau ». */
+function adresseDeLaPage(): () => string | null {
+  const route = inject(ActivatedRoute, { optional: true });
+  return () => (route ? '/' + route.snapshot.pathFromRoot.flatMap((r) => r.url.map((s) => s.path)).join('/') : null);
 }
 
 /** Garde le brouillon en quittant la page, et aussi si l'onglet se recharge pendant qu'elle est ouverte. */
@@ -113,11 +144,12 @@ type Brouillon<E> = { valeurs: unknown; etat?: E };
 export function garderUnBrouillon<E>(cle: string | (() => string), etat: EtatDuBrouillon<E> & { aGarder: () => boolean }): BrouillonDUnFormulaire {
   const brouillons = inject(Brouillons);
   const laCle = typeof cle === 'string' ? () => cle : cle;
+  const adresse = adresseDeLaPage();
   const repris = signal(false);
   let etatDuDebut: { etat: E } | null = null;
 
   garderEnPartant(brouillons, () => {
-    if (etat.aGarder()) brouillons.garder(laCle(), etat.lire());
+    if (etat.aGarder()) brouillons.garder(laCle(), etat.lire(), adresse());
     else if (repris()) brouillons.oublier(laCle());
   });
 
@@ -155,6 +187,7 @@ export function garderLeBrouillon<E = never>(
 ): BrouillonDUnFormulaire {
   const brouillons = inject(Brouillons);
   const laCle = typeof cle === 'string' ? () => cle : cle;
+  const adresse = adresseDeLaPage();
   const repris = signal(false);
   const lignes = Object.entries(options.lignes ?? {});
   // Le formulaire de la première visite, pour « Recommencer ».
@@ -173,7 +206,7 @@ export function garderLeBrouillon<E = never>(
       if (repris()) brouillons.oublier(laCle());
       return;
     }
-    brouillons.garder<Brouillon<E>>(laCle(), { valeurs: formulaire.getRawValue(), etat: options.etat?.lire() });
+    brouillons.garder<Brouillon<E>>(laCle(), { valeurs: formulaire.getRawValue(), etat: options.etat?.lire() }, adresse());
   });
 
   return {

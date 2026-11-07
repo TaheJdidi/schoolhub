@@ -89,10 +89,25 @@ describe('les brouillons des formulaires', () => {
 
     window.dispatchEvent(new Event('pagehide'));
 
-    expect(JSON.parse(sessionStorage.getItem('schoolhub.brouillons')!)).toEqual({ essai: { valeurs: { nom: 'Karim', lignes: [''] }, etat: true } });
+    expect(JSON.parse(sessionStorage.getItem('schoolhub.brouillons')!)).toEqual({
+      essai: { brouillon: { valeurs: { nom: 'Karim', lignes: [''] }, etat: true }, adresse: null },
+    });
     // Après le rechargement, un nouveau service relit l'onglet.
     TestBed.resetTestingModule();
     expect(TestBed.inject(Brouillons).reprendre('essai')).toEqual({ valeurs: { nom: 'Karim', lignes: [''] }, etat: true });
+  });
+
+  it('donne au menu la page de la section où un formulaire attend, la plus récente', () => {
+    const brouillons = TestBed.inject(Brouillons);
+    brouillons.garder('professeur', {}, '/professeurs');
+    brouillons.garder('nouveau-groupe', {}, '/professeurs/groupes/nouveau');
+    brouillons.garder('eleve-nouveau', {}, '/eleves/nouveau');
+
+    expect(brouillons.pageEnCours('professeurs')).toBe('/professeurs/groupes/nouveau');
+    expect(brouillons.pageEnCours('eleves')).toBe('/eleves/nouveau');
+    expect(brouillons.pageEnCours('caisse')).toBeNull();
+    brouillons.oublier('nouveau-groupe');
+    expect(brouillons.pageEnCours('professeurs')).toBeNull();
   });
 
   it('oublie tout à la déconnexion', () => {

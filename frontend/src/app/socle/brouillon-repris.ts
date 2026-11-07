@@ -14,7 +14,7 @@ import { BrouillonDUnFormulaire } from './brouillons';
     }
   `,
   styles: `
-    .brouillon { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+    .brouillon { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; max-width: 920px; }
     .brouillon .btn { padding: 4px 10px; }
   `,
 })

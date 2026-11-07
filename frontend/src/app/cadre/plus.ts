@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Brouillons } from '../socle/brouillons';
 import { Icone } from '../socle/icone';
 import { menuDe } from '../socle/menu';
 import { Session } from '../socle/session/session';
@@ -17,7 +18,7 @@ import { BoutonDeDeconnexion } from './bouton-de-deconnexion';
         @if ($index === premiereReservee()) {
           <p class="titre">Propriétaire</p>
         }
-        <a class="ligne" [routerLink]="'/' + entree.chemin">
+        <a class="ligne" [routerLink]="lien(entree.chemin)">
           <sh-icone [nom]="entree.icone" />
           <span>{{ entree.libelle }}</span>
         </a>
@@ -37,6 +38,12 @@ import { BoutonDeDeconnexion } from './bouton-de-deconnexion';
 })
 export class Plus {
   private readonly session = inject(Session);
+  private readonly brouillons = inject(Brouillons);
+
+  /** Comme le menu : on revient au formulaire laissé en cours dans la section. */
+  protected lien(chemin: string): string {
+    return this.brouillons.pageEnCours(chemin) ?? `/${chemin}`;
+  }
 
   protected readonly menu = computed(() => menuDe(this.session.personne()?.role ?? 'Secretaire'));
 

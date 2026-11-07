@@ -1,8 +1,9 @@
 import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, fromEvent, map, merge } from 'rxjs';
+import { Brouillons } from '../socle/brouillons';
 import { NombreDeDemandes } from '../socle/nombre-de-demandes';
 import { dateDuJour } from '../socle/dates';
 import { Icone } from '../socle/icone';
@@ -22,7 +23,7 @@ const ONGLETS_DIRECTS = ['aujourdhui', 'guichet', 'caisse'];
 @Component({
   selector: 'sh-cadre',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icone, BoutonDeDeconnexion, RechercheDEleves],
+  imports: [RouterOutlet, RouterLink, Icone, BoutonDeDeconnexion, RechercheDEleves],
   templateUrl: './cadre.html',
   styleUrl: './cadre.css',
 })
@@ -76,13 +77,23 @@ export class Cadre {
   protected readonly onglets = ONGLETS;
 
   /** Le premier segment de l'adresse en cours : « caisse » pour /caisse. */
-  private readonly page = toSignal(
+  protected readonly page = toSignal(
     this.router.events.pipe(
       filter((evenement) => evenement instanceof NavigationEnd),
       map(() => this.premierSegment()),
     ),
     { initialValue: this.premierSegment() },
   );
+
+  private readonly brouillons = inject(Brouillons);
+
+  /**
+   * Le lien d'une section : sa page, ou la page de la section où un formulaire attend (« Nouveau groupe », dans
+   * Professeurs) : on revient là où on en était.
+   */
+  protected lien(chemin: string): string {
+    return this.brouillons.pageEnCours(chemin) ?? `/${chemin}`;
+  }
 
   protected ongletActif(onglet: EntreeDuMenu): boolean {
     const page = this.page();

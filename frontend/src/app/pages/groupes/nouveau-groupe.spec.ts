@@ -6,6 +6,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { envoyer, saisir } from '../../test/formulaires';
 import { PageDeTest } from '../../test/page-de-test';
 import { Professeur } from '../professeurs/professeur';
+import { Brouillons } from '../../socle/brouillons';
 import { NouveauGroupe } from './nouveau-groupe';
 
 describe('la page « Nouveau groupe »', () => {
@@ -408,6 +409,8 @@ describe('la page « Nouveau groupe »', () => {
 
     await harness.navigateByUrl('/eleves');
     harness.fixture.autoDetectChanges();
+    // Le menu « Professeurs » ramène au groupe commencé.
+    expect(TestBed.inject(Brouillons).pageEnCours('professeurs')).toBe('/professeurs/groupes/nouveau');
     await harness.navigateByUrl('/professeurs/groupes/nouveau');
     page = harness.routeNativeElement as HTMLElement;
     (await vi.waitFor(() => http.expectOne('/api/professeurs'))).flush([KARIM, LEILA]);

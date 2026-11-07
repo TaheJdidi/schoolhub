@@ -22,7 +22,7 @@
       @if ($index === premiereReservee()) {
         <p class="railh">Propriétaire</p>
       }
-      <a class="nav" [routerLink]="'/' + entree.chemin" routerLinkActive ariaCurrentWhenActive="page">
+      <a class="nav" [routerLink]="lien(entree.chemin)" [attr.aria-current]="page() === entree.chemin ? 'page' : null">
         <sh-icone [nom]="entree.icone" />
         <span>{{ entree.libelle }}</span>
         @if (entree.chemin === 'demandes' && demandesATraiter()) {
@@ -39,7 +39,7 @@
 
   <nav class="tabbar" aria-label="Onglets">
     @for (onglet of onglets; track onglet.chemin) {
-      <a class="tab" [routerLink]="'/' + onglet.chemin" [attr.aria-current]="ongletActif(onglet) ? 'page' : null">
+      <a class="tab" [routerLink]="lien(onglet.chemin)" [attr.aria-current]="ongletActif(onglet) ? 'page' : null">
         <sh-icone [nom]="onglet.icone" />
         <span>{{ onglet.libelle }}</span>
       </a>
