@@ -4,15 +4,10 @@
     <p class="sub">{{ sousTitre() }}</p>
   </div>
   <div class="boutons-de-tete">
-    <button type="button" class="btn" (click)="importOuvert.set(!importOuvert())">Importer</button>
     <button type="button" class="btn primary" [disabled]="!charge() || envoi()" (click)="ouvrirLAjout()">Ajouter un professeur</button>
   </div>
 </div>
 
-@if (importOuvert()) {
-  <sh-import-de-liste quoi="professeurs" unite="professeur" adresse="/api/imports/professeurs" (importe)="chargerApresImport()"
-    (ferme)="importOuvert.set(false)" />
-}
 
 <div class="filtres" role="group" aria-label="Filtrer les professeurs">
   <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'au-centre'" [disabled]="envoi() || professeurs().length === 0" (click)="filtrer('au-centre')">
@@ -21,8 +16,6 @@
   <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'partis'" [disabled]="envoi() || professeurs().length === 0" (click)="filtrer('partis')">
     Professeurs partis
   </button>
-  <sh-actions-de-liste [titre]="filtre() === 'partis' ? 'Professeurs partis' : 'Professeurs'" [nombre]="visibles().length"
-    exporter="/api/exports/professeurs" [filtres]="{ partis: filtre() === 'partis' }" />
 </div>
 
 <div class="colonnes">

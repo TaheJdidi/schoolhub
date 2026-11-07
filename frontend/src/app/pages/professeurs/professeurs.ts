@@ -1,6 +1,4 @@
 import { HttpClient } from '@angular/common/http';
-import { ActionsDeListe } from '../../socle/actions-de-liste';
-import { ImportDeListe } from '../../socle/import-de-liste';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -37,7 +35,7 @@ import { BadgeDuGroupeComponent } from '../caisse/paiement';
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, ActionsDeListe, ImportDeListe, BrouillonRepris],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, BrouillonRepris],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
@@ -141,13 +139,6 @@ export class Professeurs implements OnInit {
   protected readonly joursAvecGroupe = computed(() => new Set(this.cadresOuverts().flatMap((g) => g.creneaux.map((c) => c.jour))));
 
   /** Les professeurs et les groupes se chargent en même temps. */
-  /** LST-04 : la carte « Importer des professeurs ». */
-  protected readonly importOuvert = signal(false);
-
-  protected async chargerApresImport(): Promise<void> {
-    await this.chargerLesProfesseurs();
-  }
-
   async ngOnInit(): Promise<void> {
     await Promise.all([this.chargerLesProfesseurs(), this.chargerLesGroupes()]);
     this.brouillon.reprendre();
