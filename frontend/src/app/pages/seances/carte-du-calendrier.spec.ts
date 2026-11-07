@@ -145,7 +145,7 @@ describe('la carte du calendrier d’un groupe', () => {
     saisir('input[type="date"]', '2027-12-04', 1);
     bouton('Ouvrir la feuille')!.click();
 
-    expect(naviguer).toHaveBeenCalledWith(['/feuille-d-appel', 'g1'], { queryParams: { du: '2027-11-13', au: '2027-12-04' } });
+    expect(naviguer).toHaveBeenCalledWith(['/professeurs/groupes', 'g1', 'feuille-d-appel'], { queryParams: { du: '2027-11-13', au: '2027-12-04' } });
   });
 
   it("propose les Mois d'une Étude, le Mois en cours d'abord", async () => {
@@ -167,7 +167,7 @@ describe('la carte du calendrier d’un groupe', () => {
     expect(options).toEqual(['Mois 2 (4 séances) · en cours', 'Mois 1 (4 séances)', 'Mois 3 (1 séances)', 'Des dates']);
     bouton('Ouvrir la feuille')!.click();
 
-    expect(naviguer).toHaveBeenCalledWith(['/feuille-d-appel', 'g1'], { queryParams: { du: '2027-10-16', au: '2027-11-06' } });
+    expect(naviguer).toHaveBeenCalledWith(['/professeurs/groupes', 'g1', 'feuille-d-appel'], { queryParams: { du: '2027-10-16', au: '2027-11-06' } });
   });
 
   it("propose la feuille d'appel même pour un groupe fermé", async () => {

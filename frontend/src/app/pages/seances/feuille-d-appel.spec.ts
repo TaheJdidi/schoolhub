@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { PageDeTest } from '../../test/page-de-test';
+import { FicheDuGroupe } from '../groupes/groupe';
 import { FeuilleDAppel as Feuille } from './appel';
 import { FeuilleDAppel } from './feuille-d-appel';
 
@@ -26,8 +27,42 @@ describe("la feuille d'appel", () => {
     ],
   };
 
+  const seance = (date: string, i: number) => ({ id: `s${i}`, date, debut: '10:00', fin: '12:00' });
+  /** Le groupe : une Étude dont le Mois 3 est en cours ; la feuille propose ce Mois d'office. */
+  const FICHE = {
+    id: 'g1',
+    nom: 'Groupe Samedi 10h → 12h',
+    type: 'Etude',
+    professeur: { id: 'k', prenom: 'Karim', nom: 'Ben Salah' },
+    matiere: 'Mathématiques',
+    niveau: { id: 'n9', nom: '9ᵉ année de base' },
+    creneaux: [{ jour: 'Samedi', debut: '10:00', fin: '12:00' }],
+    capacite: 16,
+    eleves: 2,
+    dateDeDebut: '2027-09-18',
+    prixDuMois: 40,
+    mois: [
+      { numero: 3, prix: 40, commence: true, seances: ['2027-11-13', '2027-11-20', '2027-11-27', '2027-12-04'].map(seance) },
+      { numero: 4, prix: 40, commence: false, seances: ['2027-12-11'].map(seance) },
+    ],
+    termine: false,
+    premiereSeance: 9,
+    prixTotal: null,
+    nombreDeSeances: null,
+    seances: [],
+    tranches: [],
+    fermeLe: null,
+    motifDeFermeture: null,
+  } as unknown as FicheDuGroupe;
+
   let http: HttpTestingController;
   let page: HTMLElement;
+
+  async function ouvrir(adresse: string): Promise<void> {
+    const harness = await RouterTestingHarness.create(adresse);
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1'))).flush(FICHE);
+  }
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -41,13 +76,12 @@ describe("la feuille d'appel", () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
-    const harness = await RouterTestingHarness.create('/feuille-d-appel/g1?du=2027-11-13&au=2027-12-04');
-    page = harness.routeNativeElement as HTMLElement;
   });
 
   afterEach(() => http.verify());
 
   it("demande la feuille de la période, puis montre l'en-tête, les cases, les lignes de rattrapage et la consigne", async () => {
+    await ouvrir('/feuille-d-appel/g1?du=2027-11-13&au=2027-12-04');
     (await vi.waitFor(() => http.expectOne('/api/groupes/g1/feuille-d-appel?du=2027-11-13&au=2027-12-04'))).flush(FEUILLE);
     await vi.waitFor(() => expect(page.querySelector('table')).not.toBeNull());
 
@@ -73,7 +107,16 @@ describe("la feuille d'appel", () => {
     expect(page.querySelector('.pied')?.textContent).toContain("Écrivez A dans la case d'un élève absent. Les autres sont présents.");
   });
 
+  it('propose le Mois en cours sans période dans l’adresse', async () => {
+    await ouvrir('/feuille-d-appel/g1');
+
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1/feuille-d-appel?du=2027-11-13&au=2027-12-04'))).flush(FEUILLE);
+    await vi.waitFor(() => expect(page.querySelector('table')).not.toBeNull());
+    expect(page.querySelector('.sub')?.textContent).toContain('Groupe Samedi 10h → 12h · Mathématiques · 9ᵉ année de base');
+  });
+
   it('montre le refus du serveur', async () => {
+    await ouvrir('/feuille-d-appel/g1?du=2027-11-13&au=2027-12-04');
     (await vi.waitFor(() => http.expectOne('/api/groupes/g1/feuille-d-appel?du=2027-11-13&au=2027-12-04'))).flush(
       { message: 'La période fait au plus 3 mois' },
       { status: 400, statusText: 'Bad Request' },

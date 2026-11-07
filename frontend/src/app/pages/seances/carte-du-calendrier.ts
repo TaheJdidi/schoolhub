@@ -26,6 +26,41 @@ interface CreneauSaisi {
  * remplacement) et supplémentaires ; « Ajouter une séance supplémentaire » ; « Changer l'horaire du groupe » à partir
  * d'une date. Après un changement, les messages WhatsApp sont prêts, et la fiche se recharge.
  */
+/** Une période de la feuille d'appel : « La séance du jour », « Mois 2 (4 séances) · en cours »… */
+export interface PeriodeDeLaFeuille {
+  valeur: string;
+  libelle: string;
+  du: string;
+  au: string;
+}
+
+/**
+ * Les périodes proposées pour la feuille d'appel (SEA-08) : la séance du jour s'il y en a une ; pour une Étude, chaque
+ * Mois, le Mois en cours d'abord ; pour une Révision ou une Formation, les 4 prochaines séances.
+ */
+export function periodesDeLaFeuille(fiche: FicheDuGroupe, aujourdhui = dateDuJourLocale()): PeriodeDeLaFeuille[] {
+  const choix: PeriodeDeLaFeuille[] = [];
+  const toutes = [...fiche.mois.flatMap((m) => m.seances), ...fiche.seances];
+  if (toutes.some((s) => s.date === aujourdhui)) choix.push({ valeur: 'jour', libelle: 'La séance du jour', du: aujourdhui, au: aujourdhui });
+  if (fiche.type === 'Etude') {
+    const enCours = fiche.mois.filter((m) => m.commence).at(-1)?.numero;
+    const mois = [...fiche.mois].sort((a, b) => (a.numero === enCours ? -1 : b.numero === enCours ? 1 : a.numero - b.numero));
+    for (const m of mois.filter((m) => m.seances.length > 0)) {
+      choix.push({
+        valeur: `mois-${m.numero}`,
+        libelle: `Mois ${m.numero} (${m.seances.length} séances)${m.numero === enCours ? ' · en cours' : ''}`,
+        du: m.seances[0].date,
+        au: m.seances.at(-1)!.date,
+      });
+    }
+  } else if (fiche.seances.length > 0) {
+    const aVenir = fiche.seances.filter((s) => s.date >= aujourdhui);
+    const quatre = (aVenir.length > 0 ? aVenir : fiche.seances.slice(-4)).slice(0, 4);
+    choix.push({ valeur: 'prochaines', libelle: `${quatre.length} séances, du ${court(quatre[0].date)}`, du: quatre[0].date, au: quatre.at(-1)!.date });
+  }
+  return choix;
+}
+
 @Component({
   selector: 'sh-carte-du-calendrier',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -171,30 +206,7 @@ export class CarteDuCalendrier {
    * Les périodes proposées : la séance du jour s'il y en a une ; pour une Étude, chaque Mois, le Mois en cours d'abord ;
    * pour une Révision ou une Formation, les 4 prochaines séances. Chacune avec ses dates de début et de fin.
    */
-  protected readonly periodes = computed(() => {
-    const fiche = this.fiche();
-    const aujourdhui = dateDuJourLocale();
-    const choix: { valeur: string; libelle: string; du: string; au: string }[] = [];
-    const toutes = [...fiche.mois.flatMap((m) => m.seances), ...fiche.seances];
-    if (toutes.some((s) => s.date === aujourdhui)) choix.push({ valeur: 'jour', libelle: 'La séance du jour', du: aujourdhui, au: aujourdhui });
-    if (fiche.type === 'Etude') {
-      const enCours = fiche.mois.filter((m) => m.commence).at(-1)?.numero;
-      const mois = [...fiche.mois].sort((a, b) => (a.numero === enCours ? -1 : b.numero === enCours ? 1 : a.numero - b.numero));
-      for (const m of mois.filter((m) => m.seances.length > 0)) {
-        choix.push({
-          valeur: `mois-${m.numero}`,
-          libelle: `Mois ${m.numero} (${m.seances.length} séances)${m.numero === enCours ? ' · en cours' : ''}`,
-          du: m.seances[0].date,
-          au: m.seances.at(-1)!.date,
-        });
-      }
-    } else if (fiche.seances.length > 0) {
-      const aVenir = fiche.seances.filter((s) => s.date >= aujourdhui);
-      const quatre = (aVenir.length > 0 ? aVenir : fiche.seances.slice(-4)).slice(0, 4);
-      choix.push({ valeur: 'prochaines', libelle: `${quatre.length} séances, du ${court(quatre[0].date)}`, du: quatre[0].date, au: quatre.at(-1)!.date });
-    }
-    return choix;
-  });
+  protected readonly periodes = computed(() => periodesDeLaFeuille(this.fiche()));
 
   protected ouvrirLaFeuille(): void {
     const choix = this.periodes().find((p) => p.valeur === this.periode());
@@ -203,7 +215,7 @@ export class CarteDuCalendrier {
       this.erreur.set('Choisissez la période');
       return;
     }
-    void this.router.navigate(['/feuille-d-appel', this.fiche().id], { queryParams: { du, au } });
+    void this.router.navigate(['/professeurs/groupes', this.fiche().id, 'feuille-d-appel'], { queryParams: { du, au } });
   }
   protected readonly date_ = signal('');
   protected readonly debut_ = signal('');

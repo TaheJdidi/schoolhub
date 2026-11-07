@@ -1,5 +1,5 @@
-import { Type } from '@angular/core';
-import { Routes } from '@angular/router';
+import { inject, Type } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { Cadre } from './cadre/cadre';
 import { Plus } from './cadre/plus';
 import { AccesReserve } from './pages/acces-reserve/acces-reserve';
@@ -88,7 +88,12 @@ export const routes: Routes = [
   { path: 'recus/impression', loadComponent: recuAImprimer, canActivate: [estConnecte], title: titre('Reçus') },
   { path: 'recus/:id/impression', loadComponent: recuAImprimer, canActivate: [estConnecte], title: titre('Reçu') },
   // SEA-08 : la feuille d'appel à imprimer, sans le menu, pour une personne connectée.
-  { path: 'feuille-d-appel/:id', loadComponent: feuilleDAppel, canActivate: [estConnecte], title: titre("Feuille d'appel") },
+  // La feuille d'appel s'ouvre dans l'application (prototype, écran 4) ; l'ancienne adresse y mène.
+  {
+    path: 'feuille-d-appel/:id',
+    redirectTo: ({ params, queryParams }) =>
+      inject(Router).createUrlTree(['/professeurs/groupes', params['id'], 'feuille-d-appel'], { queryParams }),
+  },
   {
     path: '',
     component: Cadre,
@@ -101,6 +106,7 @@ export const routes: Routes = [
       { path: 'professeurs/groupes/nouveau', component: NouveauGroupe, title: titre('Nouveau groupe') },
       { path: 'professeurs/groupes/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'groupe' }, title: titre('Inscription') },
       // SEA-07 : l'appel d'une séance, sous son groupe.
+      { path: 'professeurs/groupes/:id/feuille-d-appel', loadComponent: feuilleDAppel, title: titre("Feuille d'appel") },
       { path: 'professeurs/groupes/:id/encaissement', loadComponent: encaissementGroupe, title: titre('Encaissement groupé') },
       { path: 'professeurs/groupes/:id/appel/:seance', loadComponent: pageDeLAppel, title: titre('Appel') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
