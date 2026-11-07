@@ -86,7 +86,6 @@ describe('la page « Professeurs »', () => {
     expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah');
     expect(fiche().textContent).toContain('98 401 220');
     expect(fiche().textContent).toContain('karim@exemple.tn');
-    expect(fiche().textContent).toContain('Aucun groupe ouvert');
     expect(boutons(fiche())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
   });
 
@@ -132,7 +131,7 @@ describe('la page « Professeurs »', () => {
 
     expect(liste()[1].getAttribute('aria-pressed')).toBe('true');
     expect(fiche().querySelector('h2')?.textContent).toContain('Leila Khelifi');
-    expect(fiche().textContent).toContain('2 groupes ouverts');
+    expect(fiche().textContent).not.toContain('groupes ouverts');
     expect(fiche().textContent).not.toContain('@');
   });
 
