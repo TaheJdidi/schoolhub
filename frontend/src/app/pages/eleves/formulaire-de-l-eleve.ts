@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, output, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom, merge } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
@@ -9,6 +9,7 @@ import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { ResumeDuGroupe } from '../groupes/groupe';
 import { Niveau } from '../parametres/carte-des-niveaux';
+import { nomComplet, Professeur, trier } from '../professeurs/professeur';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 
 const INCOMPLET = 'Remplissez les champs obligatoires';
@@ -17,7 +18,7 @@ const INCOMPLET = 'Remplissez les champs obligatoires';
  * ELV-02 : le formulaire de la fiche d'un élève, pour la créer (sans `eleve`) ou la modifier. Le téléphone et l'email
  * de l'élève deviennent obligatoires à partir de la 7ᵉ année ; le téléphone du parent, facultatif pour un élève majeur.
  * Si les niveaux n'ont pas pu se charger, rien ne part. Réussi, il rend l'enregistrement au parent. À la création, on
- * peut aussi choisir le groupe où l'inscrire : le parent ouvre alors l'inscription dans ce groupe.
+ * peut aussi choisir le professeur, puis l'un de ses groupes : le parent ouvre alors l'inscription dans ce groupe.
  */
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
@@ -34,7 +35,7 @@ export class FormulaireDeLEleve implements OnInit {
   readonly eleve = input<FicheDeLEleve | null>(null);
   /** La clé du brouillon d'une nouvelle fiche : chaque endroit qui crée un élève garde le sien. */
   readonly brouillonDeLaCreation = input('eleve-nouveau');
-  /** À la création : le champ « Groupe (facultatif) », pour inscrire l'élève juste après. */
+  /** À la création : « Professeur » puis « Groupe » (facultatifs), pour inscrire l'élève juste après. */
   readonly proposerUnGroupe = input(false);
   readonly enregistre = output<EnregistrementDeLEleve & { groupeId: string | null }>();
   readonly annule = output<void>();
@@ -49,11 +50,20 @@ export class FormulaireDeLEleve implements OnInit {
 
   /** Les groupes ouverts du centre, pour « Groupe (facultatif) ». */
   private readonly groupes = signal<ResumeDuGroupe[]>([]);
-  /** Ceux du niveau choisi d'abord, puis les autres ; chaque partie par nom. */
+  private readonly ouverts = computed(() => this.groupes().filter((g) => !g.ferme && !g.termine));
+  private readonly tousLesProfesseurs = signal<Professeur[]>([]);
+  /** Les professeurs au centre qui ont un groupe ouvert : deux professeurs peuvent enseigner la même matière à la même heure. */
+  protected readonly professeurs = computed(() => {
+    const avecUnGroupe = new Set(this.ouverts().map((g) => g.professeurId));
+    return trier(this.tousLesProfesseurs().filter((p) => !p.parti && avecUnGroupe.has(p.id)));
+  });
+  protected readonly nomComplet = nomComplet;
+  /** Les groupes du professeur choisi : ceux du niveau de l'élève d'abord, puis les autres ; chaque partie par nom. */
   protected readonly sectionsDeGroupes = computed(() => {
     const niveau = this.niveaux().find((n) => n.id === this.niveauChoisi())?.nom ?? null;
-    const ouverts = this.groupes()
-      .filter((g) => !g.ferme && !g.termine)
+    const professeur = this.professeurChoisi();
+    const ouverts = this.ouverts()
+      .filter((g) => g.professeurId === professeur)
       .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
     return [
       { titre: 'Groupes de son niveau', groupes: ouverts.filter((g) => niveau !== null && g.niveau === niveau) },
@@ -71,8 +81,11 @@ export class FormulaireDeLEleve implements OnInit {
     majeur: new FormControl(false, { nonNullable: true }),
     telephoneParent: new FormControl('', { nonNullable: true, validators: requis(() => !this.majeur()) }),
     emailParent: new FormControl('', { nonNullable: true }),
+    professeurId: new FormControl('', { nonNullable: true }),
     groupeId: new FormControl('', { nonNullable: true }),
   });
+
+  protected readonly professeurChoisi = toSignal(this.formulaire.controls.professeurId.valueChanges, { initialValue: '' });
 
   /** Laissée pour une autre page, la fiche reprend où elle en était en revenant (une par élève modifié). */
   protected readonly brouillon = garderLeBrouillon(() => {
@@ -84,6 +97,8 @@ export class FormulaireDeLEleve implements OnInit {
     const controles = this.formulaire.controls;
     controles.niveauId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => this.niveauChoisi.set(id));
     controles.majeur.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((majeur) => this.majeur.set(majeur));
+    // Un autre professeur : le groupe se choisit de nouveau parmi les siens.
+    controles.professeurId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.oublierUnGroupeQuiNEstPlusPropose());
     // La classe et « majeur » changent les champs obligatoires.
     merge(controles.niveauId.valueChanges, controles.majeur.valueChanges)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -92,19 +107,28 @@ export class FormulaireDeLEleve implements OnInit {
     this.brouillon.reprendre();
 
     try {
-      const [niveaux, groupes] = await Promise.all([
+      const avecGroupe = this.proposerUnGroupe();
+      const [niveaux, groupes, professeurs] = await Promise.all([
         firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')),
-        this.proposerUnGroupe() ? firstValueFrom(this.http.get<ResumeDuGroupe[]>('/api/groupes')) : Promise.resolve([]),
+        avecGroupe ? firstValueFrom(this.http.get<ResumeDuGroupe[]>('/api/groupes')) : Promise.resolve([]),
+        avecGroupe ? firstValueFrom(this.http.get<Professeur[]>('/api/professeurs')) : Promise.resolve([]),
       ]);
       this.niveaux.set(niveaux);
       this.groupes.set(groupes);
-      // Un groupe fermé entre-temps ne se propose plus.
-      const groupeId = this.formulaire.controls.groupeId;
-      if (!this.sectionsDeGroupes().some((s) => s.groupes.some((g) => g.id === groupeId.value))) groupeId.setValue('');
+      this.tousLesProfesseurs.set(professeurs);
+      // Un professeur parti, ou un groupe fermé, entre-temps : il ne se propose plus.
+      const professeurId = this.formulaire.controls.professeurId;
+      if (!this.professeurs().some((p) => p.id === professeurId.value)) professeurId.setValue('');
+      this.oublierUnGroupeQuiNEstPlusPropose();
       this.charge.set(true);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }
+  }
+
+  private oublierUnGroupeQuiNEstPlusPropose(): void {
+    const groupeId = this.formulaire.controls.groupeId;
+    if (!this.sectionsDeGroupes().some((s) => s.groupes.some((g) => g.id === groupeId.value))) groupeId.setValue('');
   }
 
   /** « Groupe Samedi 10h → 12h · Mathématiques · 9ᵉ année », et « complet » s'il n'a plus de place. */
@@ -133,6 +157,7 @@ export class FormulaireDeLEleve implements OnInit {
         majeur: eleve.majeur,
         telephoneParent: eleve.telephoneParent ?? '',
         emailParent: eleve.emailParent ?? '',
+        professeurId: '',
         groupeId: '',
       });
       this.formulaire.markAsPristine();

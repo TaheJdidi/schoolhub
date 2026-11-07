@@ -182,6 +182,7 @@ describe("les adresses de l'application", () => {
     await ouvrir('/eleves/nouveau', AMIRA);
     http.expectOne('/api/niveaux').flush([]);
     http.expectOne('/api/groupes').flush([]);
+    http.expectOne('/api/professeurs').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Nouvel élève'));
     expect(titre()).toBe('Nouvel élève · SchoolHub');
   });
