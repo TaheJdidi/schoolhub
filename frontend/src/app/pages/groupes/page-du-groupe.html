@@ -15,10 +15,76 @@
       </h1>
       <p class="sub">{{ sousTitre() }}</p>
     </div>
-    <a class="btn primary" [routerLink]="['/professeurs/groupes', fiche.id, 'encaissement']">Encaissement groupé</a>
+    <div class="actions">
+      <a class="btn" [routerLink]="['/feuille-d-appel', fiche.id]">Feuille d'appel</a>
+      <a class="btn primary" [routerLink]="['/professeurs/groupes', fiche.id, 'encaissement']">Encaissement groupé</a>
+    </div>
   </div>
 
-  <div class="cartes">
+  <!-- Comme le prototype (écran 3) : les séances et l'appel à gauche ; les paiements, le groupe et ses élèves à droite. -->
+  <div class="fiche-colonnes">
+    <div class="colonne">
+      <nav class="bande-de-seances" aria-label="Séances du groupe">
+        @if (moisPrecedent(); as precedent) {
+          <button type="button" class="puce-seance mois" (click)="choisirLeMois(precedent)">‹ Mois {{ precedent }}<small>{{ numerosDuMoisAffiche(precedent) }}</small></button>
+        }
+        @for (seance of seancesAffichees(); track seance.id) {
+          <button
+            type="button"
+            class="puce-seance"
+            [class.choisie]="seance.id === seanceChoisie()"
+            [attr.aria-pressed]="seance.id === seanceChoisie()"
+            [class.fait]="etat(seance) === 'appel fait'"
+            [class.a-faire]="etat(seance) === 'appel à faire' && seance.date !== aujourdhui"
+            (click)="choisirLaSeance(seance.id)"
+          >
+            {{ jourDeSeance(seance.date) }}
+            <small>{{ libelleDeLaPuce(seance) }}</small>
+          </button>
+        }
+        @if (moisSuivant(); as suivant) {
+          <button type="button" class="puce-seance mois" (click)="choisirLeMois(suivant)">Mois {{ suivant }} ›<small>{{ etatDuMois(suivant) }}</small></button>
+        }
+      </nav>
+      @if (avancement()) {
+        <p class="aide avancement">{{ avancement() }}</p>
+      }
+
+      <!-- SEA-07 : l'appel de la séance choisie, sur la fiche même. -->
+      @for (id of seanceChoisieEnListe(); track id) {
+        <sh-page-de-l-appel [seance]="id" [integre]="true" />
+      }
+
+      @if (fiche.tranches.length > 0) {
+        <section class="card carte">
+          <h2 class="titre">Les tranches</h2>
+          <div class="liste-seances">
+            @for (tranche of fiche.tranches; track tranche.seance; let rang = $index) {
+              <div class="tranche-du-groupe">
+                Tranche {{ rang + 1 }} · {{ montant(tranche.montant) }} TND, due à la séance {{ tranche.seance }}
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+
+    <div class="colonne">
+      <section class="card carte paiements">
+        <div class="entete">
+          <h2 class="titre">Paiements{{ moisEnCours() ? ' du Mois ' + moisEnCours() : '' }}</h2>
+          <sh-badge-du-groupe [badge]="fiche.badge" />
+        </div>
+        <ul class="couleurs">
+          <li><span class="point AJour" aria-hidden="true"></span>À jour<b class="num">{{ compte('AJour') }}</b></li>
+          <li><span class="point APayer" aria-hidden="true"></span>À payer aujourd'hui<b class="num">{{ compte('APayer') }}</b></li>
+          <li><span class="point Orange" aria-hidden="true"></span>1 séance de retard<b class="num">{{ compte('Orange') }}</b></li>
+          <li><span class="point Rouge" aria-hidden="true"></span>2 séances de retard ou plus<b class="num">{{ compte('Rouge') }}</b></li>
+        </ul>
+        <p class="aide">Une somme due à une séance passe en orange à la séance suivante, puis en rouge à celle d'après.</p>
+        <a class="btn primary large" [routerLink]="['/professeurs/groupes', fiche.id, 'encaissement']">Encaissement groupé</a>
+      </section>
+
     <section class="card carte le-groupe">
       <h2 class="titre">Le groupe</h2>
       @if (enModification()) {
@@ -68,7 +134,22 @@
           </div>
         </form>
       } @else {
-        <p class="resume">{{ horaire() }} · depuis le {{ date(fiche.dateDeDebut) }} · {{ eleves(fiche) }}</p>
+        <dl class="lignes">
+          <dt>Professeur</dt>
+          <dd>{{ fiche.professeur.prenom }} {{ fiche.professeur.nom }}</dd>
+          <dt>Horaire</dt>
+          <dd>{{ horaire() }}</dd>
+          <dt>Type</dt>
+          <dd>{{ types[fiche.type] }}</dd>
+          <dt>Depuis le</dt>
+          <dd>{{ date(fiche.dateDeDebut) }}</dd>
+          <dt>Élèves</dt>
+          <dd>{{ eleves(fiche) }}</dd>
+          @if (moisEnCours(); as mois) {
+            <dt>Mois en cours</dt>
+            <dd>Mois {{ mois }}</dd>
+          }
+        </dl>
         @if (fiche.fermeLe) {
           <p class="resume">Fermé le {{ date(fiche.fermeLe) }} : {{ fiche.motifDeFermeture }}</p>
         } @else {
@@ -117,68 +198,10 @@
       }
     </section>
 
-    @if (fiche.type === 'Etude') {
-    <section class="card carte">
-      <h2 class="titre">Les Mois</h2>
-      @for (mois of fiche.mois; track mois.numero) {
-        <div class="mois">
-          <div class="entete-mois">
-            <b>Mois {{ mois.numero }}</b>
-            <small class="numeros">{{ numerosDuMois(mois.numero, mois.seances.length) }}</small>
-            <span class="prix">{{ montant(mois.prix) }} TND</span>
-            @if (mois.numero === moisEnCours()) {
-              <span class="pill ok">En cours</span>
-            } @else if (mois.commence) {
-              <span class="pill info">Commencé</span>
-            }
-          </div>
-          <div class="seances">
-            @for (seance of mois.seances; track seance.id) {
-              <a class="seance" [class.a-faire]="etat(seance) === 'appel à faire'" [class.fait]="etat(seance) === 'appel fait'"
-                [routerLink]="['/professeurs/groupes', fiche.id, 'appel', seance.id]">
-                {{ jourDeSeance(seance.date) }} <small>{{ seance.nature === 'Remplacement' ? 'remplacement · ' : '' }}{{ etat(seance) }}</small>
-              </a>
-            }
-          </div>
-        </div>
-      }
-    </section>
-    } @else {
-      <section class="card carte">
-        <h2 class="titre">Les séances</h2>
-        @if (avancement()) {
-          <p class="aide avancement">{{ avancement() }}</p>
-        }
-        <div class="liste-seances">
-          @for (seance of fiche.seances; track seance.id) {
-            <a class="seance-numerotee" [routerLink]="['/professeurs/groupes', fiche.id, 'appel', seance.id]">
-              <b>Séance {{ seance.numero }}</b>
-              <span>{{ jourDeSeance(seance.date) }}</span>
-              <span>{{ heure(seance.debut) }} → {{ heure(seance.fin) }}</span>
-              @if (seance.prix !== null) {
-                <span class="prix">{{ montant(seance.prix) }} TND</span>
-              }
-              <small class="etat">{{ seance.nature === 'Remplacement' ? 'remplacement · ' : '' }}{{ etat(seance) }}</small>
-            </a>
-          }
-        </div>
-      </section>
-      @if (fiche.tranches.length > 0) {
-        <section class="card carte">
-          <h2 class="titre">Les tranches</h2>
-          <div class="liste-seances">
-            @for (tranche of fiche.tranches; track tranche.seance; let rang = $index) {
-              <div class="tranche-du-groupe">
-                Tranche {{ rang + 1 }} · {{ montant(tranche.montant) }} TND, due à la séance {{ tranche.seance }}
-              </div>
-            }
-          </div>
-        </section>
-      }
-    }
-
     <!-- SEA-03 à SEA-06 : les séances annulées et supplémentaires, et les changements du calendrier. -->
     <sh-carte-du-calendrier [fiche]="fiche" [modifiable]="!fiche.fermeLe && !fiche.termine" (modifie)="recharger()" />
+
+    </div>
   </div>
 } @else if (introuvable()) {
   <div class="pagehead">

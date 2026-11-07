@@ -1,6 +1,6 @@
 import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
@@ -28,6 +28,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, MessagesDuChangement, BrouillonRepris],
+  host: { '[class.integre]': 'integre()' },
   template: `
     @if (introuvable()) {
       <div class="pagehead">
@@ -38,6 +39,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
         </div>
       </div>
     } @else if (appel(); as appel) {
+      @if (!integre()) {
       <div class="pagehead">
         <div>
           <nav class="fil" aria-label="Fil d'Ariane">
@@ -48,11 +50,21 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
           <p class="sub">{{ appel.groupe.matiere }} · {{ appel.professeur }} · {{ heure(appel.debut) }} → {{ heure(appel.fin) }}</p>
         </div>
       </div>
+      }
 
       <div class="cartes">
         <section class="card carte">
           <div class="entete">
-            <h2 class="titre">{{ appel.appelFait ? 'Appel fait' : 'Appel à faire' }}</h2>
+            <h2 class="titre">
+              @if (integre()) {
+                Appel · {{ court(appel.date) }}
+              } @else {
+                {{ appel.appelFait ? 'Appel fait' : 'Appel à faire' }}
+              }
+            </h2>
+            @if (integre()) {
+              <span class="pill" [class.ok]="appel.appelFait" [class.warn]="!appel.appelFait && appel.ouvert">{{ appel.appelFait ? 'Appel fait' : appel.ouvert ? 'Appel à faire' : 'À venir' }}</span>
+            }
             @if (appel.eleves.length > 0) {
               <span class="compte">{{ presents() }} présents · {{ absents().length }} {{ absents().length > 1 ? 'absents' : 'absent' }}</span>
             }
@@ -266,13 +278,29 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     .absent-a-prevenir .pill { justify-self: start; }
     .actions.debut { justify-content: flex-start; }
     .eleve small.origine { color: var(--ink-2); font-weight: 400; }
+    /* Dans la fiche du groupe (prototype, écran 3) : une ligne par élève, « Présent » ou « Absent » à droite. */
+    :host(.integre) .eleves { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    :host(.integre) .eleve { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 10px 2px;
+      border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+    :host(.integre) .eleve:first-child { border-top: 0; }
+    :host(.integre) .eleve > small:first-of-type { grid-column: 2; grid-row: 1; padding: 3px 12px; border: 1px solid var(--line-2);
+      border-radius: 999px; color: var(--ink-2); font-weight: 500; }
+    :host(.integre) .eleve.absent { background: none; }
+    :host(.integre) .eleve.absent > small:first-of-type { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+    :host(.integre) .eleve small.origine { grid-column: 1; }
     .en-rattrapage { display: grid; gap: 4px; }
     .retirer { justify-self: start; font-size: 12.5px; padding: 2px 8px; }
   `,
 })
 export class PageDeLAppel implements OnInit {
   private readonly http = inject(HttpClient);
-  private readonly seanceId = inject(ActivatedRoute).snapshot.paramMap.get('seance') ?? '';
+  private readonly route = inject(ActivatedRoute);
+  /** Dans la fiche du groupe (prototype, écran 3) : la séance choisie, sans l'en-tête de la page. */
+  readonly seance = input<string | null>(null);
+  readonly integre = input(false);
+  private get seanceId(): string {
+    return this.seance() ?? this.route.snapshot.paramMap.get('seance') ?? '';
+  }
 
   protected readonly heure = heure;
   protected readonly appel = signal<AppelDeLaSeance | null>(null);

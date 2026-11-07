@@ -91,7 +91,11 @@ describe('la fiche d’un groupe', () => {
     await vi.waitFor(() => expect(page.querySelector('h1')).not.toBeNull());
   }
 
-  afterEach(() => http.verify());
+  /** L'appel de la séance choisie se demande à part (prototype, écran 3) : un test qui ne s'en sert pas le laisse sans réponse. */
+  afterEach(() => {
+    http.match((r) => /^\/api\/seances\/[^/]+\/appel$/.test(r.url)).forEach((r) => r.flush({ message: 'Séance introuvable' }, { status: 404, statusText: 'Not Found' }));
+    http.verify();
+  });
 
   const attendre = (texte: string) => vi.waitFor(() => expect(page.textContent).toContain(texte));
   const carte = () => page.querySelector('.le-groupe') as HTMLElement;
@@ -118,31 +122,31 @@ describe('la fiche d’un groupe', () => {
     expect(fil.querySelector('a')?.getAttribute('href')).toBe('/professeurs');
     expect(fil.textContent).toContain('Karim Ben Salah');
     expect(carte().textContent).toContain('Samedi de 10h à 12h');
-    expect(carte().textContent).toContain('depuis le 18/09/2027');
+    expect(carte().textContent).toContain('18/09/2027');
     expect(carte().textContent).toContain('0 élève sur 16');
     // CAI-04 : l'encaissement groupé, depuis l'en-tête.
     const encaissement = [...page.querySelectorAll('.pagehead a')].find((a) => a.textContent?.trim() === 'Encaissement groupé');
     expect(encaissement?.getAttribute('href')).toBe(`/professeurs/groupes/${FICHE.id}/encaissement`);
   });
 
-  it('montre les Mois, leur prix et leurs séances', async () => {
+  /** Les puces de la bande des séances : leur jour, sans leur état. */
+  const puces = () => [...page.querySelectorAll('.puce-seance:not(.mois)')].map((p) => p.firstChild?.textContent?.trim());
+  const etats = () => [...page.querySelectorAll('.puce-seance:not(.mois) small')].map((p) => p.textContent?.trim());
+
+  it("montre les séances d'un Mois, et passe au Mois suivant", async () => {
     await ouvrir();
 
-    const mois = [...page.querySelectorAll('.mois')] as HTMLElement[];
-    expect(mois).toHaveLength(2);
-    expect(mois[0].textContent).toContain('Mois 1');
-    expect(mois[0].textContent).toContain('40,000 TND');
-    // SEA-02 : le dernier Mois commencé est le Mois en cours.
-    expect(mois[0].querySelector('.pill')?.textContent?.trim()).toBe('En cours');
-    expect(mois[0].textContent).toContain('séances 1 à 4');
-    expect([...mois[0].querySelectorAll('.seance')].map((s) => s.firstChild?.textContent?.trim())).toEqual([
-      'sam. 18/09',
-      'sam. 25/09',
-      'sam. 02/10',
-      'sam. 09/10',
-    ]);
-    expect(mois[1].textContent).toContain('45,000 TND');
-    expect(mois[1].querySelector('.pill')).toBeNull();
+    // Les séances du Mois de la séance choisie (ici la première : elles sont toutes à venir), et la puce du Mois 2.
+    expect(puces()).toEqual(['sam. 18/09', 'sam. 25/09', 'sam. 02/10', 'sam. 09/10']);
+    expect(page.querySelector('.puce-seance[aria-pressed="true"]')?.firstChild?.textContent?.trim()).toBe('sam. 18/09');
+    const suivant = page.querySelector('.puce-seance.mois') as HTMLButtonElement;
+    expect(suivant.textContent).toContain('Mois 2 ›');
+    suivant.click();
+    await harness.fixture.whenStable();
+    expect(puces()[0]).toBe('sam. 16/10');
+    expect(page.querySelector('.puce-seance.mois')?.textContent).toContain('‹ Mois 1');
+    // SEA-07 : l'appel de la séance choisie s'ouvre sur la fiche même.
+    expect(page.querySelector('sh-page-de-l-appel')).not.toBeNull();
   });
 
   it('modifie le nom, la capacité et le prix', async () => {
@@ -283,12 +287,9 @@ describe('la fiche d’un groupe', () => {
       await ouvrir({ ...REVISION, seances: REVISION.seances.map((s, i) => ({ ...s, appelFait: i === 0 })) });
 
       expect(page.querySelector('.avancement')?.textContent).toContain('Séance 2 sur 3');
-      expect([...page.querySelectorAll('.seance-numerotee .etat')].map((e) => e.textContent?.trim())).toEqual([
-        'appel fait',
-        'appel à faire',
-        'à venir',
-      ]);
-      expect(page.querySelector('.seance-numerotee')?.getAttribute('href')).toBe(`/professeurs/groupes/${REVISION.id}/appel/${REVISION.seances[0].id}`);
+      expect(etats()).toEqual(['appel fait', "aujourd'hui", 'à venir']);
+      // La séance du jour est choisie : son appel s'ouvre sur la fiche.
+      expect(page.querySelector('.puce-seance[aria-pressed="true"]')?.firstChild?.textContent?.trim()).toBe('sam. 27/05');
     });
   });
 
@@ -296,19 +297,16 @@ describe('la fiche d’un groupe', () => {
     await ouvrir(REVISION);
 
     expect(page.querySelector('.sub')?.textContent).toContain('Révision, 50,000 TND les 3 séances, ou 16,667 TND la séance');
-    expect(page.querySelectorAll('.mois')).toHaveLength(0);
-    expect(lignes('.seance-numerotee')).toEqual([
-      'Séance 1 sam. 20/05 10h → 12h 16,667 TND',
-      'Séance 2 sam. 27/05 10h → 12h 16,667 TND',
-      'Séance 3 sam. 03/06 10h → 12h 16,666 TND',
-    ]);
+    // Toutes les séances d'une Révision, sans puce de Mois.
+    expect(page.querySelectorAll('.puce-seance.mois')).toHaveLength(0);
+    expect(puces()).toEqual(['sam. 20/05', 'sam. 27/05', 'sam. 03/06']);
   });
 
   it('montre une Formation déjà en cours et ses tranches', async () => {
     await ouvrir(FORMATION);
 
     expect(page.querySelector('.sub')?.textContent).toContain('Mathématiques · Karim Ben Salah · Formation, 300,000 TND, en une fois ou en 3 tranches');
-    expect(lignes('.seance-numerotee')).toEqual(['Séance 9 sam. 20/05 10h → 12h', 'Séance 10 sam. 27/05 10h → 12h']);
+    expect(puces()).toEqual(['sam. 20/05', 'sam. 27/05']);
     expect(lignes('.tranche-du-groupe')).toEqual([
       'Tranche 1 · 100,000 TND, due à la séance 1',
       'Tranche 2 · 100,000 TND, due à la séance 5',
@@ -347,7 +345,9 @@ describe('la fiche d’un groupe', () => {
   it('montre une Étude déjà en cours à partir de son Mois en cours', async () => {
     await ouvrir({ ...FICHE, premiereSeance: 17, mois: FICHE.mois.map((m, i) => ({ ...m, numero: 5 + i })) });
 
-    expect(page.querySelector('.mois')?.textContent).toContain('Mois 5');
+    // La bande montre le Mois 5 (le premier), et propose le Mois 6.
+    expect(page.querySelector('.puce-seance.mois')?.textContent).toContain('Mois 6');
+    expect(page.textContent).not.toContain('Mois 4');
   });
 
   // ----- Fermer le groupe (GRP-08) -----

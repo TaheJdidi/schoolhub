@@ -13,6 +13,7 @@ import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
 import { CarteDuCalendrier } from '../seances/carte-du-calendrier';
+import { PageDeLAppel } from '../seances/page-de-l-appel';
 import { BadgeDuGroupeComponent, BoutonDeRappel, enRetard, PastilleDeCouleur } from '../caisse/paiement';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
 
@@ -52,7 +53,7 @@ const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe, BrouillonRepris],
+  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe, BrouillonRepris, PageDeLAppel],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -62,6 +63,7 @@ export class PageDuGroupe implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly eleves = eleves;
+  protected readonly types = TYPES;
   protected readonly modeCourt = modeCourt;
   /** Les élèves inscrits, par nom puis prénom (ELV-03). */
   protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
@@ -145,6 +147,78 @@ export class PageDuGroupe implements OnInit {
   });
 
   /** « séances 9 à 12 » : les numéros des séances d'un Mois. */
+  // ----- La bande des séances et l'appel de la séance choisie (prototype, écran 3) -----
+
+  /** Toutes les séances du groupe, avec leur Mois pour une Étude. */
+  private readonly toutesLesSeances = computed(() => {
+    const fiche = this.fiche();
+    if (!fiche) return [];
+    return fiche.type === 'Etude'
+      ? fiche.mois.flatMap((mois) => mois.seances.map((seance) => ({ ...seance, mois: mois.numero as number | null })))
+      : fiche.seances.map((seance) => ({ ...seance, mois: null as number | null }));
+  });
+  private readonly seanceDemandee = signal<string | null>(null);
+  /** La séance choisie : celle qu'on a touchée, sinon celle du jour, sinon la dernière passée, sinon la première. */
+  protected readonly seanceChoisie = computed(() => {
+    const seances = this.toutesLesSeances();
+    const demandee = this.seanceDemandee();
+    if (demandee && seances.some((s) => s.id === demandee)) return demandee;
+    return (
+      seances.find((s) => s.date === this.aujourdhui) ??
+      seances.filter((s) => s.date < this.aujourdhui).at(-1) ??
+      seances[0]
+    )?.id ?? null;
+  });
+  protected readonly seanceChoisieEnListe = computed(() => {
+    const id = this.seanceChoisie();
+    return id ? [id] : [];
+  });
+  /** Le Mois montré dans la bande : celui de la séance choisie (une Étude) ; `null` montre toutes les séances. */
+  private readonly moisAffiche = computed(() => this.toutesLesSeances().find((s) => s.id === this.seanceChoisie())?.mois ?? null);
+  protected readonly seancesAffichees = computed(() => {
+    const mois = this.moisAffiche();
+    return mois === null ? this.toutesLesSeances() : this.toutesLesSeances().filter((s) => s.mois === mois);
+  });
+  protected readonly moisPrecedent = computed(() => {
+    const mois = this.moisAffiche();
+    return mois !== null && this.fiche()?.mois.some((m) => m.numero === mois - 1) ? mois - 1 : null;
+  });
+  protected readonly moisSuivant = computed(() => {
+    const mois = this.moisAffiche();
+    return mois !== null && this.fiche()?.mois.some((m) => m.numero === mois + 1) ? mois + 1 : null;
+  });
+
+  protected choisirLaSeance(id: string): void {
+    this.seanceDemandee.set(id);
+  }
+
+  protected choisirLeMois(numero: number): void {
+    const premiere = this.fiche()?.mois.find((m) => m.numero === numero)?.seances[0];
+    if (premiere) this.seanceDemandee.set(premiere.id);
+  }
+
+  /** « appel fait », « aujourd'hui », « à venir » ou « appel à faire ». */
+  protected libelleDeLaPuce(seance: { date: string; appelFait?: boolean; nature?: string }): string {
+    const etat = this.etat(seance);
+    const libelle = seance.date === this.aujourdhui && etat !== 'appel fait' ? "aujourd'hui" : etat;
+    return seance.nature === 'Remplacement' ? `remplacement · ${libelle}` : libelle;
+  }
+
+  /** « séances 1 à 4 » pour la puce du Mois d'avant. */
+  protected numerosDuMoisAffiche(numero: number): string {
+    return this.numerosDuMois(numero, this.fiche()?.mois.find((m) => m.numero === numero)?.seances.length ?? 4);
+  }
+
+  /** « à venir » ou « en cours » pour la puce du Mois d'après. */
+  protected etatDuMois(numero: number): string {
+    return this.fiche()?.mois.find((m) => m.numero === numero)?.commence ? 'commencé' : 'à venir';
+  }
+
+  /** Le nombre d'élèves de cette couleur (CAI-01), les inscriptions arrêtées à part. */
+  protected compte(couleur: string): number {
+    return this.inscriptions().filter((i) => !i.arreteLe && i.couleur === couleur).length;
+  }
+
   protected numerosDuMois(numero: number, nombre: number): string {
     const premiere = (numero - 1) * 4 + 1;
     return nombre === 1 ? `séance ${premiere}` : `séances ${premiere} à ${premiere + nombre - 1}`;

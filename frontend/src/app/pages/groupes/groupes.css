@@ -62,3 +62,30 @@
 .seance-numerotee { color: var(--ink); text-decoration: none; }
 .numeros { color: var(--ink-3); font-size: 12.5px; }
 .avancement { margin: 0; font-weight: 500; }
+
+/* La fiche d'un groupe, comme le prototype (écran 3) : les séances et l'appel à gauche ; à droite, les paiements,
+   le groupe, ses élèves et son calendrier. Une colonne sur un téléphone. */
+.fiche-colonnes { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1000px) { .fiche-colonnes { grid-template-columns: minmax(0, 1fr); } }
+.colonne { display: grid; gap: 16px; min-width: 0; }
+.bande-de-seances { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce-seance { display: grid; gap: 1px; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.puce-seance small { color: var(--ink-3); font-size: 11.5px; font-weight: 400; }
+.puce-seance:hover { background: var(--sunk); }
+.puce-seance.fait small { color: var(--ok); }
+.puce-seance.a-faire small { color: var(--warn); }
+.puce-seance.choisie { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.puce-seance.choisie small { color: var(--accent-ink); }
+.puce-seance.mois { color: var(--ink-2); font-weight: 500; }
+.paiements .couleurs { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.paiements .couleurs li { display: flex; align-items: center; gap: 10px; }
+.paiements .couleurs b { margin-left: auto; font-weight: 500; }
+.point { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.point.AJour { background: var(--ok); }
+.point.APayer { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+.point.Orange { background: var(--warn); }
+.point.Rouge { background: var(--bad); }
+.btn.large { width: 100%; }
+.lignes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; margin: 0; }
+.lignes dt { color: var(--ink-2); }
+.lignes dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
