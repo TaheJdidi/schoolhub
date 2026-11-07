@@ -27,16 +27,21 @@ export async function telechargerUnFichier(http: HttpClient, adresse: string, fi
 /**
  * LST-01 et LST-02 : « Imprimer » et « Exporter (Excel) » d'une liste, avec le filtre en cours. À l'impression, une page
  * A4 porte le nom du centre, le nom de la liste, la date et le nombre de lignes ; les boutons, les menus et les champs
- * ne s'impriment pas. L'export télécharge le fichier que le serveur prépare (`/api/exports/…`).
+ * ne s'impriment pas. L'export télécharge le fichier que le serveur prépare (`/api/exports/…`). Une liste vide n'a rien
+ * à imprimer ni à exporter : les deux boutons sont grisés.
  */
 @Component({
   selector: 'sh-actions-de-liste',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="actions-de-liste sans-impression">
-      <button type="button" class="btn sm" (click)="imprimer()">Imprimer</button>
+      <button type="button" class="btn sm" [disabled]="nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="imprimer()">
+        Imprimer
+      </button>
       @if (exporter()) {
-        <button type="button" class="btn sm" [disabled]="envoi()" (click)="telecharger()">Exporter (Excel)</button>
+        <button type="button" class="btn sm" [disabled]="envoi() || nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="telecharger()">
+          Exporter (Excel)
+        </button>
       }
     </div>
     @if (erreur(); as erreur) {

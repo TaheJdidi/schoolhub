@@ -60,11 +60,11 @@ import { PastilleDeCouleur } from '../caisse/paiement';
       <div class="filtres-eleves">
         <label class="f">
           Filtrer la liste
-          <input class="inp" (input)="filtrer($event)" placeholder="Nom, prénom ou téléphone" aria-label="Filtrer la liste" autocomplete="off" />
+          <input class="inp" [disabled]="aucunEleve()" (input)="filtrer($event)" placeholder="Nom, prénom ou téléphone" aria-label="Filtrer la liste" autocomplete="off" />
         </label>
         <label class="f">
           Niveau
-          <select class="inp" (change)="niveau.set($any($event.target).value)">
+          <select class="inp" [disabled]="aucunEleve()" (change)="niveau.set($any($event.target).value)">
             <option value="">Tous</option>
             @for (n of niveaux(); track n) {
               <option [value]="n">{{ n }}</option>
@@ -191,6 +191,8 @@ export class Eleves implements OnInit {
   private listesChargees = false;
   /** Les niveaux des élèves du centre, dans l'ordre où ils viennent. */
   protected readonly niveaux = computed(() => [...new Set(this.tous().map((e) => e.niveau))].sort((a, b) => a.localeCompare(b, 'fr')));
+  /** Aucun élève dans le centre : rien à filtrer, ni à imprimer ou exporter. */
+  protected readonly aucunEleve = computed(() => this.tous().length === 0);
   protected readonly visibles = computed(() => (this.trouves() ?? this.tous()).filter((e) => !this.niveau() || e.niveau === this.niveau()));
   protected readonly titreDeLaListe = computed(() => (this.niveau() ? `Élèves de ${this.niveau()}` : 'Élèves'));
   protected readonly sousTitre = computed(() => (this.charge() ? nombreDEleves(this.tous().length) : ''));

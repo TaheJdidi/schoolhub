@@ -15,10 +15,10 @@
 }
 
 <div class="filtres" role="group" aria-label="Filtrer les professeurs">
-  <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'au-centre'" [disabled]="envoi()" (click)="filtrer('au-centre')">
+  <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'au-centre'" [disabled]="envoi() || professeurs().length === 0" (click)="filtrer('au-centre')">
     Au centre
   </button>
-  <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'partis'" [disabled]="envoi()" (click)="filtrer('partis')">
+  <button type="button" class="filtre" [attr.aria-pressed]="filtre() === 'partis'" [disabled]="envoi() || professeurs().length === 0" (click)="filtrer('partis')">
     Professeurs partis
   </button>
   <sh-actions-de-liste [titre]="filtre() === 'partis' ? 'Professeurs partis' : 'Professeurs'" [nombre]="visibles().length"

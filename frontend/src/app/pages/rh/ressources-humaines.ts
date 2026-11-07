@@ -82,7 +82,7 @@ export interface SalairesDuMois {
     <section class="card carte">
       <div class="entete">
         <h2 class="titre">{{ partis() ? 'Employés partis' : 'Employés' }}</h2>
-        <button type="button" class="btn sm" (click)="partis.set(!partis())">{{ partis() ? 'Au centre' : 'Partis' }}</button>
+        <button type="button" class="btn sm" [disabled]="employes().length === 0" (click)="partis.set(!partis())">{{ partis() ? 'Au centre' : 'Partis' }}</button>
         <sh-actions-de-liste titre="Employés" [nombre]="visibles().length" exporter="/api/exports/employes" />
       </div>
       @for (employe of visibles(); track employe.id) {
@@ -162,7 +162,7 @@ export interface SalairesDuMois {
   styles: `
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
-    .champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     .actions.debut { justify-content: flex-start; }
     .entete { display: flex; justify-content: space-between; align-items: end; gap: 10px; flex-wrap: wrap; }

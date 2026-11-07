@@ -162,7 +162,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
   styles: `
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
-    .champs, .filtres { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+    .champs, .filtres { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
     .caisse { display: inline-flex; gap: 8px; align-items: center; font-weight: 500; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     .defile { overflow-x: auto; }

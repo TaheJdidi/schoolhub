@@ -82,10 +82,24 @@ describe('les brouillons des formulaires', () => {
     expect(page.coches()).toEqual([]);
   });
 
+  it("survit à un rechargement : la page ouverte garde son brouillon quand l'onglet part", () => {
+    const fixture = TestBed.createComponent(PageAvecFormulaire);
+    fixture.componentInstance.formulaire.controls.nom.setValue('Karim');
+    fixture.componentInstance.formulaire.markAsDirty();
+
+    window.dispatchEvent(new Event('pagehide'));
+
+    expect(JSON.parse(sessionStorage.getItem('schoolhub.brouillons')!)).toEqual({ essai: { valeurs: { nom: 'Karim', lignes: [''] }, etat: true } });
+    // Après le rechargement, un nouveau service relit l'onglet.
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(Brouillons).reprendre('essai')).toEqual({ valeurs: { nom: 'Karim', lignes: [''] }, etat: true });
+  });
+
   it('oublie tout à la déconnexion', () => {
     const brouillons = TestBed.inject(Brouillons);
     brouillons.garder('essai', { nom: 'Karim' });
     brouillons.toutOublier();
     expect(brouillons.reprendre('essai')).toBeNull();
+    expect(sessionStorage.getItem('schoolhub.brouillons')).toBeNull();
   });
 });

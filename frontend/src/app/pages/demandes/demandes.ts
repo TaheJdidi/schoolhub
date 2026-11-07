@@ -38,7 +38,7 @@ export const QR_CODE = '/api/demandes/qr-code';
           <div class="filtres">
             <label>
               <span class="sr">Niveau</span>
-              <select class="inp" aria-label="Niveau" (change)="filtrerLeNiveau($event)">
+              <select class="inp" aria-label="Niveau" [disabled]="aucuneDemande()" (change)="filtrerLeNiveau($event)">
                 <option value="">Tous les niveaux</option>
                 @for (niveau of niveaux(); track niveau) {
                   <option [value]="niveau" [selected]="niveau === niveau_()">{{ niveau }}</option>
@@ -47,7 +47,7 @@ export const QR_CODE = '/api/demandes/qr-code';
             </label>
             <label>
               <span class="sr">Matière</span>
-              <select class="inp" aria-label="Matière" (change)="filtrerLaMatiere($event)">
+              <select class="inp" aria-label="Matière" [disabled]="aucuneDemande()" (change)="filtrerLaMatiere($event)">
                 <option value="">Toutes les matières</option>
                 @for (matiere of matieres(); track matiere) {
                   <option [value]="matiere" [selected]="matiere === matiere_()">{{ matiere }}</option>
@@ -151,6 +151,8 @@ export class Demandes implements OnInit {
   private derniereListe = 0;
 
   /** Les niveaux et les matières des demandes de l'onglet, pour les filtres. */
+  /** Aucune demande dans cet onglet : rien à filtrer. */
+  protected readonly aucuneDemande = computed(() => (this.demandes() ?? []).length === 0);
   protected readonly niveaux = computed(() => [...new Set((this.demandes() ?? []).map((d) => d.niveau.nom))].sort((a, b) => a.localeCompare(b, 'fr')));
   protected readonly matieres = computed(() =>
     [...new Set((this.demandes() ?? []).flatMap((d) => d.matieres.map((m) => m.matiere)))].sort((a, b) => a.localeCompare(b, 'fr')),

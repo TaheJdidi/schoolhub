@@ -27,7 +27,7 @@
 .groupes { margin: 0; color: var(--ink-2); }
 .question { margin: 0; }
 /* Les champs du formulaire passent les uns sous les autres sur un téléphone. */
-.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+.champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
 /* Les groupes du professeur, dans des cadres (GRP-02) */

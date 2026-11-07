@@ -157,7 +157,7 @@ export interface PartsDuCentre {
     .chiffres div.warn { border-color: var(--warn); }
     .chiffres span { color: var(--ink-2); font-size: 12.5px; }
     .chiffres b { font-size: 20px; }
-    .champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+    .champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     .entete { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
     .resume { color: var(--ink-2); font-size: 13px; }

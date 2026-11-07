@@ -57,6 +57,9 @@ describe('la page « Élèves »', () => {
 
     expect(page.querySelector('.sub')?.textContent?.trim()).toBe('Aucun élève');
     expect(page.querySelector('.liste')?.textContent).toContain("Aucun élève pour l'instant. Ajoutez le premier.");
+    // Rien à filtrer, ni à imprimer ou exporter.
+    const filtres = page.querySelector('.filtres-eleves')!;
+    expect([...filtres.querySelectorAll('input, select, button')].every((c) => (c as HTMLInputElement).disabled)).toBe(true);
   });
 
   it('filtre la liste par la recherche', async () => {

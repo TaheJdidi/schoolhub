@@ -3,7 +3,7 @@
 .page .note { margin: 0; }
 
 .invitation { display: grid; gap: 14px; padding: 16px; }
-.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 

@@ -12,6 +12,12 @@ import { Moi } from './session/moi';
 })
 class Hote {}
 
+@Component({
+  imports: [ActionsDeListe],
+  template: `<sh-actions-de-liste titre="Élèves" [nombre]="0" exporter="/api/exports/eleves" />`,
+})
+class HoteDUneListeVide {}
+
 describe('imprimer et exporter une liste', () => {
   it("prépare l'en-tête d'impression, et télécharge l'export avec le filtre en cours", async () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
@@ -39,5 +45,17 @@ describe('imprimer et exporter une liste', () => {
     expect(creerUnLien).toHaveBeenCalled();
     http.verify();
     vi.restoreAllMocks();
+  });
+
+  it("grise « Imprimer » et « Exporter » d'une liste vide", () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const fixture = TestBed.createComponent(HoteDUneListeVide);
+    fixture.autoDetectChanges();
+
+    const boutons = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(boutons.map((b) => [b.textContent?.trim(), b.disabled, b.title])).toEqual([
+      ['Imprimer', true, 'La liste est vide'],
+      ['Exporter (Excel)', true, 'La liste est vide'],
+    ]);
   });
 });
