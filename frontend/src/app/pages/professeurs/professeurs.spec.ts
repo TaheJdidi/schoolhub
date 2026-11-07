@@ -83,7 +83,7 @@ describe('la page « Professeurs »', () => {
 
     expect(noms()).toEqual(['Karim Ben Salah', 'Leila Khelifi']);
     expect(liste()[0].textContent).toContain('Aucun groupe ouvert');
-    expect(liste()[1].textContent).toContain('2 groupes ouverts');
+    expect(liste()[1].textContent).toContain('2 groupes');
     expect(page.querySelector('.sub')?.textContent).toContain('2 professeurs');
     expect(liste()[0].getAttribute('aria-pressed')).toBe('true');
     expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah');
@@ -385,8 +385,9 @@ describe('la page « Professeurs »', () => {
     expect(cadres()[0].textContent).toContain('0 élève sur 16');
     expect(cadres()[0].getAttribute('href')).toBe('/professeurs/groupes/g1');
     expect(cadres()[1].textContent).toContain('Groupe Dimanche 8h → 10h');
-    expect(cadres()[1].textContent).not.toContain('·');
-    expect(cadres()[1].textContent?.trim()).toMatch(/0 élève$/);
+    // Sans niveau : la matière, puis les élèves.
+    expect(cadres()[1].textContent).not.toContain('année');
+    expect(cadres()[1].textContent?.trim()).toContain('Mathématiques · 0 élève');
 
     await choisir('Leila Khelifi');
     expect(cadres().map((c) => c.textContent)).toEqual([expect.stringContaining('Physique du lundi')]);

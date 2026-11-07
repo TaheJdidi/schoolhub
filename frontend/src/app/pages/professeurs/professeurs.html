@@ -30,7 +30,7 @@
           (click)="choisir(professeur)"
         >
           <span class="nom">{{ nomComplet(professeur) }}</span>
-          <small>{{ groupesOuverts(professeur.groupesOuverts) }}</small>
+          <small>{{ resume(professeur) }}</small>
         </button>
       } @empty {
         <p class="vide">
@@ -93,35 +93,29 @@
         </div>
       </form>
     } @else if (choisi(); as professeur) {
-      <section class="card carte fiche">
+      <!-- Comme le prototype : le nom, « Matière · téléphone », puis ses groupes ; les actions restent discrètes à droite. -->
+      <section class="fiche">
         <div class="entete-fiche">
-          <span class="initiales" aria-hidden="true">{{ initiales(professeur.prenom, professeur.nom) }}</span>
           <div class="identite">
             <div class="entete">
               <h2 class="titre">{{ nomComplet(professeur) }}</h2>
-              @if (professeur.matiere) {
-                <span class="tag">{{ professeur.matiere }}</span>
-              }
               @if (professeur.parti) {
                 <span class="pill muted">Parti</span>
               }
             </div>
             <p class="coordonnees">
-              {{ professeur.telephone }}
-              @if (professeur.email) {
-                · {{ professeur.email }}
-              }
+              {{ [professeur.matiere, professeur.telephone, professeur.email].filter(estRempli).join(' · ') }}
             </p>
           </div>
           @if (!aConfirmer()) {
             <div class="actions">
-              <button type="button" class="btn" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
+              <button type="button" class="btn sm" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
               @if (professeur.parti) {
-                <button type="button" class="btn" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
+                <button type="button" class="btn sm" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
               } @else {
-                <button type="button" class="btn" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
+                <button type="button" class="btn sm" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
               }
-              <button type="button" class="btn danger" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
+              <button type="button" class="btn sm danger" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
             </div>
           }
         </div>
@@ -166,11 +160,15 @@
             <div class="cadres">
               @for (groupe of groupesAffiches(); track groupe.id) {
                 <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
-                  <span class="tag">{{ types[groupe.type] }}</span>
+                  <span class="haut-du-cadre">
+                    <span class="tag">{{ types[groupe.type] }}</span>
+                    <sh-badge-du-groupe [badge]="groupe.badge" />
+                  </span>
                   <b>{{ groupe.nom }}</b>
-                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}}</small>
-                  <small>{{ eleves(groupe) }}</small>
-                  <sh-badge-du-groupe [badge]="groupe.badge" />
+                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}} · {{ eleves(groupe) }}</small>
+                  @if (prochaineSeance(groupe); as prochaine) {
+                    <small class="pied-du-cadre">◷ Prochaine séance : {{ prochaine }}</small>
+                  }
                 </a>
               } @empty {
                 <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>

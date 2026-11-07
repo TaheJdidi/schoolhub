@@ -1,7 +1,7 @@
 /* La liste à gauche, la fiche à droite, comme la maquette ; sur un téléphone, la fiche passe sous la liste. */
 .filtres { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .filtre { padding: 5px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
-.filtre[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 500; }
+.filtre[aria-pressed='true'] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 500; }
 
 .colonnes { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 760px) {
@@ -20,12 +20,13 @@
 
 .cote { display: grid; gap: 12px; min-width: 0; }
 /* La fiche (style A) : les initiales, le nom et le téléphone, les boutons à droite ; ses groupes sous un trait. */
-.entete-fiche { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.initiales { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; font-size: 15px; }
+.fiche { display: grid; gap: 14px; }
+.entete-fiche { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
 .identite { display: grid; gap: 2px; flex: 1 1 180px; min-width: 0; }
+.fiche .titre { font-size: 19px; }
 .entete-fiche .actions { margin-left: auto; }
 .btn.danger { color: var(--bad); }
-.groupes-du-professeur { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.groupes-du-professeur { display: grid; gap: 12px; }
 .groupes-du-professeur .titre { font-size: 15px; }
 .carte { display: grid; gap: 14px; padding: 16px; }
 .entete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -42,12 +43,14 @@
 .entete-groupes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .jours { margin-bottom: 0; }
 .filtre.off { color: var(--ink-3); border-style: dashed; }
-.cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.cadre { display: grid; gap: 4px; align-content: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
+.cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.cadre { display: grid; gap: 6px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; min-width: 0; }
 .cadre:hover { border-color: var(--line-2); background: var(--sunk); }
 .cadre b { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .cadre small { color: var(--ink-2); font-size: 12.5px; }
-.tag { justify-self: start; padding: 1px 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 500; }
+.tag { justify-self: start; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.haut-du-cadre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.pied-du-cadre { margin-top: 4px; }
 .etiquettes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .anciens summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
 .anciens .cadres { margin-top: 10px; }

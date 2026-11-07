@@ -1,3 +1,4 @@
+import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -8,9 +9,9 @@ import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
-import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
+import { eleves, heure, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
+import { FRANCAIS } from '../../socle/francais';
 import { AUTRE_MATIERE, listeDesMatieres, normaliser } from '../groupes/matieres';
-import { initiales } from '../../socle/personnes';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
 
 const ADRESSE = '/api/professeurs';
@@ -46,7 +47,7 @@ export class Professeurs implements OnInit {
   /** PRT-04 : la part du centre d'un professeur ne se montre qu'au propriétaire. */
 
   protected readonly groupesOuverts = groupesOuverts;
-  protected readonly initiales = initiales;
+  protected readonly estRempli = (texte: string | null | undefined) => !!texte;
   protected readonly nomComplet = nomComplet;
   protected readonly eleves = eleves;
   protected readonly jours = JOURS;
@@ -142,6 +143,37 @@ export class Professeurs implements OnInit {
   async ngOnInit(): Promise<void> {
     await Promise.all([this.chargerLesProfesseurs(), this.chargerLesGroupes()]);
     this.brouillon.reprendre();
+  }
+
+  /** « Mathématiques · 4 groupes », comme le prototype ; « Aucun groupe ouvert » sans groupe. */
+  protected resume(professeur: Professeur): string {
+    const groupes = professeur.groupesOuverts === 0 ? 'Aucun groupe ouvert' : `${professeur.groupesOuverts} groupe${professeur.groupesOuverts > 1 ? 's' : ''}`;
+    return professeur.matiere ? `${professeur.matiere} · ${groupes}` : groupes;
+  }
+
+  /**
+   * « aujourd'hui à 10h » ou « sam. 14/11 à 10h » : le prochain créneau de la semaine, d'après les créneaux du groupe.
+   * Les séances annulées ou déplacées ne comptent pas ici : la fiche du groupe les montre.
+   */
+  protected prochaineSeance(groupe: ResumeDuGroupe, maintenant = new Date()): string | null {
+    if (groupe.termine || groupe.ferme || groupe.creneaux.length === 0) return null;
+    const minutes = (texte: string) => Number(texte.slice(0, 2)) * 60 + Number(texte.slice(3, 5));
+    const ordre = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    let meilleure: { date: Date; debut: string } | null = null;
+    for (const creneau of groupe.creneaux) {
+      const date = new Date(maintenant);
+      let ecart = (ordre.indexOf(creneau.jour) - maintenant.getDay() + 7) % 7;
+      if (ecart === 0 && maintenant.getHours() * 60 + maintenant.getMinutes() >= minutes(creneau.fin)) ecart = 7;
+      date.setDate(date.getDate() + ecart);
+      date.setHours(0, 0, 0, 0);
+      const plusTot = !meilleure || date < meilleure.date || (+date === +meilleure.date && creneau.debut < meilleure.debut);
+      if (plusTot) meilleure = { date, debut: creneau.debut };
+    }
+    if (!meilleure) return null;
+    const aujourdhui = new Date(maintenant);
+    aujourdhui.setHours(0, 0, 0, 0);
+    const quand = +meilleure.date === +aujourdhui ? "aujourd'hui" : formatDate(meilleure.date, 'EEE dd/MM', FRANCAIS);
+    return `${quand} à ${heure(meilleure.debut)}`;
   }
 
   protected filtrer(filtre: Filtre): void {
