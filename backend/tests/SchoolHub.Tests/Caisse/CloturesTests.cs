@@ -1,5 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using SchoolHub.Modules.Achats;
 using SchoolHub.Modules.Caisse;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
@@ -7,6 +10,7 @@ using SchoolHub.Modules.Inscriptions;
 using SchoolHub.Modules.Professeurs;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
+using SchoolHub.Socle.Donnees;
 using SchoolHub.Socle.Journal;
 using SchoolHub.Tests.Outils;
 
@@ -141,6 +145,36 @@ public sealed class CloturesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal(Le27, cloture.Jour);
         Assert.Empty((await ControleAsync("")).NonCloturees);
         Assert.Single((await MaCaisseAsync(_amira)).Ouvertes);
+    }
+
+    [Fact]
+    public async Task La_migration_range_les_anciens_recus_dans_une_cloture_historique()
+    {
+        // Le 27 : deux reçus d'Amira (l'un annulé), une sortie de caisse ; un reçu de Sonia.
+        await EncaisserAsync(_amira, Mois(3));
+        var annule = await EncaisserAsync(_amira, Assurance);
+        Assert.Equal(HttpStatusCode.OK, (await _amira.PostAsJsonAsync($"/api/recus/{annule.Id}/annulation", new AnnulationDuRecu("Erreur"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await _amira.PostAsJsonAsync("/api/achats", new AchatSaisi(Le27, "Papier", "Materiel", 15m, null, true))).StatusCode);
+        await EncaisserAsync(_sonia, Assurance);
+        // Le 28, la migration passe : la caisse du jour reste ouverte.
+        _application.Horloge.SetUtcNow(Aujourdhui.AddDays(1));
+        _amira = await _application.ClientConnecteAsync(_compteDAmira);
+        _hedi = await _application.ClientConnecteAsync(_compteDeHedi);
+
+        await _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<SchoolHubDbContext>().Database.ExecuteSqlRawAsync(CloturesHistoriques.Sql("DATE '2027-11-28'")));
+        // Une seconde fois ne change rien.
+        await _application.DansUnScopeAsync(services =>
+            services.GetRequiredService<SchoolHubDbContext>().Database.ExecuteSqlRawAsync(CloturesHistoriques.Sql("DATE '2027-11-28'")));
+
+        var controle = await ControleAsync("");
+        Assert.Empty(controle.NonCloturees);
+        Assert.Equal(0m, controle.ARecuperer);
+        Assert.Equal([("Amira Jlassi", 40m, 15m, 25m, 25m, 0m, true), ("Sonia Mabrouk", 20m, 0m, 20m, 20m, 0m, true)],
+            controle.Clotures.OrderBy(c => c.Secretaire).Select(c => (c.Secretaire, c.Encaisse, c.Sorties, c.Attendu, c.Compte, c.Ecart, c.ArgentRecu)));
+        Assert.All(controle.Clotures, c => Assert.Equal((Le27, 1), (c.Jour, c.Rang)));
+        var caisse = await MaCaisseAsync(_amira);
+        Assert.Equal(Le27.AddDays(1), Assert.Single(caisse.Ouvertes).Jour);
     }
 
     [Theory]
