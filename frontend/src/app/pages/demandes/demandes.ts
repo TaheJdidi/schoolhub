@@ -93,11 +93,18 @@ export const QR_CODE = '/api/demandes/qr-code';
       <section class="card carte">
         <h2 class="titre">Le lien public du centre</h2>
         @if (lien(); as lien) {
-          <a class="lien" [href]="lien" target="_blank" rel="noopener">{{ lien }}</a>
-          <img class="qr-code" [src]="qrCode" alt="QR code du formulaire public du centre" width="220" height="220" />
+          <!-- Comme le prototype (écran 10) : le QR code à gauche ; le lien, « Copier » et l'usage à droite. -->
+          <div class="lien-et-qr">
+            <img class="qr-code" [src]="qrCode" alt="QR code du formulaire public du centre" width="104" height="104" />
+            <div class="cote-du-lien">
+              <a class="lien" [href]="lien" target="_blank" rel="noopener">{{ lien }}</a>
+              <button type="button" class="btn sm" (click)="copier(lien)">Copier le lien</button>
+              <p class="aide">À afficher au guichet ou à partager sur la page Facebook du centre.</p>
+            </div>
+          </div>
           <div class="actions">
-            <button type="button" class="btn" (click)="copier(lien)">Copier le lien</button>
-            <a class="btn primary" routerLink="/demandes/affiche">Imprimer l'affiche</a>
+            <a class="btn large" [href]="lien" target="_blank" rel="noopener">Ouvrir le formulaire public</a>
+            <a class="btn primary large" routerLink="/demandes/affiche">Imprimer l'affiche</a>
           </div>
         }
         @if (copie()) {
@@ -129,9 +136,16 @@ export const QR_CODE = '/api/demandes/qr-code';
     .deux small { color: var(--ink-2); font-size: 12.5px; overflow-wrap: anywhere; }
     .date { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
     .vide { margin: 0; color: var(--ink-2); }
-    .lien { color: var(--accent); overflow-wrap: anywhere; }
-    .qr-code { width: 220px; max-width: 100%; height: auto; image-rendering: pixelated; }
-    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lien-et-qr { display: flex; gap: 14px; align-items: flex-start; }
+    .cote-du-lien { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+    .lien { padding: 6px 10px; border-radius: 8px; background: var(--sunk); color: var(--ink); font-family: var(--font-mono); font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
+    .lien:hover { text-decoration: underline; }
+    .aide { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+    .qr-code { flex: none; width: 104px; height: 104px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; image-rendering: pixelated; }
+    .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    /* Les cartes ont leur titre séparé par un trait, comme le prototype. */
+    .carte > .titre, .carte > .entete { margin: -16px -16px 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+    .titre { font-size: 15px !important; }
     .note { margin: 0; }
   `,
 })
