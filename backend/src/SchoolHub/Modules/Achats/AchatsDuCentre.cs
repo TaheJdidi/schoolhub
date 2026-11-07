@@ -76,7 +76,8 @@ public sealed class AchatsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
     /// <summary>RHA-04 : modifie un achat (l'auteur le jour même avant sa clôture, ou le propriétaire).</summary>
     public async Task<IssueDeLAchat> ModifierAsync(Compte auteur, Guid id, AchatSaisi saisie)
     {
-        var achat = await contexte.Achats.SingleOrDefaultAsync(x => x.Id == id);
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var achat = await AchatVerrouilleAsync(id);
         if (achat is null)
             return Refus(StatusCodes.Status404NotFound, AchatIntrouvable);
         if (await PourquoiPasModifiableAsync(achat, auteur) is { } raison)
@@ -94,13 +95,15 @@ public sealed class AchatsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         if (etaitSortie || achat.PayeDepuisLaCaisse)
             NoterLaSortie(auteur, achat, avant, achat.PayeDepuisLaCaisse ? $"Sortie, {SaisieDuGroupe.EcrireUnMontant(achat.Montant)} TND" : "Hors caisse");
         await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
         return new IssueDeLAchat(await DecrireAsync(achat, auteur), StatusCodes.Status200OK, null);
     }
 
     /// <summary>RHA-04 : supprime un achat saisi par erreur (mêmes droits que pour le modifier) ; une sortie va au journal.</summary>
     public async Task<IssueDeLAchat> SupprimerAsync(Compte auteur, Guid id)
     {
-        var achat = await contexte.Achats.SingleOrDefaultAsync(x => x.Id == id);
+        await using var transaction = await contexte.Database.BeginTransactionAsync();
+        var achat = await AchatVerrouilleAsync(id);
         if (achat is null)
             return Refus(StatusCodes.Status404NotFound, AchatIntrouvable);
         if (await PourquoiPasModifiableAsync(achat, auteur) is { } raison)
@@ -109,6 +112,7 @@ public sealed class AchatsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
             NoterLaSortie(auteur, achat, $"Sortie, {SaisieDuGroupe.EcrireUnMontant(achat.Montant)} TND", "Supprimée");
         contexte.Achats.Remove(achat);
         await contexte.SaveChangesAsync();
+        await transaction.CommitAsync();
         return new IssueDeLAchat(null, StatusCodes.Status204NoContent, null);
     }
 
@@ -143,6 +147,18 @@ public sealed class AchatsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         contexte.FacturesDAchat.RemoveRange(await contexte.FacturesDAchat.Where(f => f.AchatId == id).ToListAsync());
         await contexte.SaveChangesAsync();
         return new IssueDeLAchat(await DecrireAsync(achat, auteur), StatusCodes.Status200OK, null);
+    }
+
+    /// <summary>
+    /// L'achat, une fois verrouillée la caisse de son auteur, comme la clôture (CAI-09) : un changement et une clôture
+    /// passent l'une après l'autre, et la clôture ne fige jamais une sortie changée ou supprimée pendant qu'elle se fait.
+    /// </summary>
+    private async Task<Achat?> AchatVerrouilleAsync(Guid id)
+    {
+        if (await contexte.Achats.Where(x => x.Id == id).Select(x => (Guid?)x.AuteurId).SingleOrDefaultAsync() is not { } auteurId)
+            return null;
+        await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM comptes WHERE id = {auteurId} FOR NO KEY UPDATE");
+        return await contexte.Achats.SingleOrDefaultAsync(x => x.Id == id);
     }
 
     /// <summary>La facture d'un achat de ce centre ; <c>null</c> s'il n'y en a pas.</summary>

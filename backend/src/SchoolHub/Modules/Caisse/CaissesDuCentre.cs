@@ -51,7 +51,7 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
                 var encaisse = Encaisse(recus);
                 var sortiesDuJour = sorties.Where(a => a.Jour == jour).Sum(a => a.Montant);
                 return new CaisseOuverte(jour, rangs.GetValueOrDefault(jour) + 1, encaisse, sortiesDuJour, encaisse - sortiesDuJour, recus.Count(r => r.AnnuleLe is null),
-                    jour < aujourdhui);
+                    jour < aujourdhui, recus.Count(r => r.AnnuleLe is not null));
             })
             .ToList();
         var clotures = await contexte.CloturesDeCaisse.Where(c => c.CompteId == compte.Id && c.Jour == aujourdhui).OrderBy(c => c.Rang).ToListAsync();
@@ -165,9 +165,10 @@ public sealed record ArgentRecuSaisi(bool? Recu);
 
 /// <summary>
 /// CAI-09 : une caisse pas encore clôturée : son jour, son rang dans le jour, l'encaissé, les sorties, les espèces
-/// attendues, le nombre de reçus valables, et si elle est oubliée (d'un jour passé).
+/// attendues, le nombre de reçus valables, si elle est oubliée (d'un jour passé), et le nombre de reçus annulés : une
+/// caisse qui n'a que des reçus annulés se clôture aussi.
 /// </summary>
-public sealed record CaisseOuverte(DateOnly Jour, int Rang, decimal Encaisse, decimal Sorties, decimal Attendu, int Recus, bool Oubliee);
+public sealed record CaisseOuverte(DateOnly Jour, int Rang, decimal Encaisse, decimal Sorties, decimal Attendu, int Recus, bool Oubliee, int Annules);
 
 /// <summary>Une clôture, telle que « Ma caisse » et le contrôle la montrent.</summary>
 public sealed record ClotureDecrite(

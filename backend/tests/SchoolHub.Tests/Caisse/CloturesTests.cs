@@ -85,7 +85,8 @@ public sealed class CloturesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         var caisse = await MaCaisseAsync(_amira);
 
         var ouverte = Assert.Single(caisse.Ouvertes);
-        Assert.Equal((Le27, 1, 40m, 0m, 40m, 1, false), (ouverte.Jour, ouverte.Rang, ouverte.Encaisse, ouverte.Sorties, ouverte.Attendu, ouverte.Recus, ouverte.Oubliee));
+        Assert.Equal((Le27, 1, 40m, 0m, 40m, 1, false, 1),
+            (ouverte.Jour, ouverte.Rang, ouverte.Encaisse, ouverte.Sorties, ouverte.Attendu, ouverte.Recus, ouverte.Oubliee, ouverte.Annules));
         Assert.Empty(caisse.Clotures);
         // Sonia a sa propre caisse, vide.
         Assert.Equal(0m, Assert.Single((await MaCaisseAsync(_sonia)).Ouvertes).Encaisse);

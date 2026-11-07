@@ -190,6 +190,10 @@ public sealed partial class RecusDuCentre(
     public async Task<IssueDuRecu> AnnulerAsync(Compte auteur, Guid id, AnnulationDuRecu saisie)
     {
         await using var transaction = await contexte.Database.BeginTransactionAsync();
+        // La caisse de son auteur d'abord, comme la clôture (CAI-09) : une annulation et une clôture passent l'une après
+        // l'autre, et la clôture ne compte jamais un reçu annulé pendant qu'elle se fait.
+        if (await contexte.Recus.Where(r => r.Id == id).Select(r => (Guid?)r.AuteurId).SingleOrDefaultAsync() is { } auteurDuRecu)
+            await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM comptes WHERE id = {auteurDuRecu} AND centre_id = {CentreId} FOR NO KEY UPDATE");
         await contexte.Database.ExecuteSqlAsync($"SELECT 1 FROM recus WHERE id = {id} AND centre_id = {CentreId} FOR UPDATE");
         var recu = await contexte.Recus.SingleOrDefaultAsync(r => r.Id == id);
         if (recu is null)

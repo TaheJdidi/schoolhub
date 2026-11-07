@@ -319,7 +319,7 @@ describe("l'encaissement groupé", () => {
   });
 });
 
-const OUVERTE: CaisseOuverte = { jour: '2027-11-27', rang: 1, encaisse: 845, sorties: 0, attendu: 845, recus: 12, oubliee: false };
+const OUVERTE: CaisseOuverte = { jour: '2027-11-27', rang: 1, encaisse: 845, sorties: 0, attendu: 845, recus: 12, oubliee: false, annules: 0 };
 
 const CLOTURE: Cloture = {
   id: 'c1',
@@ -434,6 +434,13 @@ describe('« Ma caisse » et sa clôture du soir', () => {
 
     expect(page.querySelector('sh-ma-caisse h2')?.textContent).toContain('Caisse du 26/11');
     expect(page.querySelector('sh-ma-caisse .note.warn')?.textContent).toContain("n'est pas clôturée");
+  });
+
+  it("propose de clôturer une caisse du jour qui n'a que des reçus annulés", async () => {
+    await ouvrir({ ouvertes: [{ ...OUVERTE, encaisse: 0, attendu: 0, recus: 0, annules: 1 }], clotures: [] });
+
+    expect(bouton(page, 'Clôturer ma caisse')).toBeTruthy();
+    expect(page.textContent).not.toContain('Rien à clôturer pour le moment');
   });
 });
 

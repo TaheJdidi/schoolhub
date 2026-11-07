@@ -26,7 +26,7 @@ describe("l'accueil « Aujourd'hui »", () => {
     const page = harness.routeNativeElement as HTMLElement;
 
     (await vi.waitFor(() => http.expectOne('/api/seances/du-jour'))).flush([SEANCE, { ...SEANCE, seanceId: 's2', debut: '14:00', fin: '16:00', etat: 'Annulee' }]);
-    http.expectOne('/api/caisse').flush({ ouvertes: [{ jour: '2027-11-27', rang: 1, encaisse: 845, sorties: 45, attendu: 800, recus: 12, oubliee: false }], clotures: [] });
+    http.expectOne('/api/caisse').flush({ ouvertes: [{ jour: '2027-11-27', rang: 1, encaisse: 845, sorties: 45, attendu: 800, recus: 12, oubliee: false, annules: 0 }], clotures: [] });
     http.expectOne('/api/bibliotheque').flush({ presents: 7, capacite: 30, entrees: 11 });
     http.expectOne('/api/seances/a-recopier').flush([]);
     http.expectOne('/api/eleves/en-rouge').flush([]);

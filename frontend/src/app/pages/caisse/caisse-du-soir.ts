@@ -15,6 +15,8 @@ export interface CaisseOuverte {
   recus: number;
   /** D'un jour passé : oubliée. */
   oubliee: boolean;
+  /** Le nombre de reçus annulés : une caisse qui n'a que ceux-là se clôture aussi. */
+  annules: number;
 }
 
 /** Une clôture de caisse. */
