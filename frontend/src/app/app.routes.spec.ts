@@ -29,6 +29,8 @@ describe("les adresses de l'application", () => {
   afterEach(() => {
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
+    http.match('/api/seances/du-jour').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/bibliotheque').forEach((requete) => requete.flush({ presents: 0, capacite: null, entrees: 0 }));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
     http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
@@ -200,7 +202,7 @@ describe("les adresses de l'application", () => {
 
     expect(adresseActuelle()).toBe('/aujourdhui');
     expect(texte()).toContain('Bonjour Amira');
-    expect(texte()).toContain("Les séances du jour s'afficheront ici.");
+    expect(texte()).toContain('Séances du jour');
     expect(titre()).toBe("Aujourd'hui · SchoolHub");
   });
 

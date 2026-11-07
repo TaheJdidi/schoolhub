@@ -13,6 +13,7 @@ public static class SeancesEndpoints
     {
         var seances = api.MapGroup("/seances");
         seances.MapGet("/a-recopier", (AppelsDuCentre appels) => appels.ARecopierAsync());
+        seances.MapGet("/du-jour", (AppelsDuCentre appels) => appels.DuJourAsync());
         seances.MapGet("/{id:guid}/appel", LireAsync);
         seances.MapPut("/{id:guid}/appel", EnregistrerAsync);
         seances.MapPost("/{id:guid}/absences/{inscription:guid}/prevenu", PrevenirAsync);
@@ -184,3 +185,9 @@ public sealed record ChangementDuCalendrier(string Texte, List<MessagesDUnEleve>
 
 /// <summary>SEA-09 : une séance passée encore « appel à faire ».</summary>
 public sealed record AppelARecopier(Guid SeanceId, DateOnly Date, string Debut, string Fin, GroupeDeLAppel Groupe, string Professeur);
+
+/// <summary>
+/// SEA-01 : une séance d'aujourd'hui sur l'accueil : ses heures, son groupe, son professeur, le nombre d'élèves attendus,
+/// et son état (« AppelFait », « AppelAFaire », « Annulee »).
+/// </summary>
+public sealed record SeanceDuJour(Guid SeanceId, string Debut, string Fin, GroupeDeLAppel Groupe, string Professeur, int Attendus, string Etat);

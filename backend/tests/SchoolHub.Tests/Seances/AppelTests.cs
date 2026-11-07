@@ -82,6 +82,20 @@ public sealed class AppelTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Les_seances_du_jour_sur_l_accueil()
+    {
+        var seance = Assert.Single((await _secretaire.GetFromJsonAsync<List<SeanceDuJour>>("/api/seances/du-jour"))!);
+
+        // Adem et Lina sont attendus ; Sami arrive le 04/12.
+        Assert.Equal(("10:00", "12:00", "Mathématiques", "Karim Ben Salah", 2, "AppelAFaire"),
+            (seance.Debut, seance.Fin, seance.Groupe.Matiere, seance.Professeur, seance.Attendus, seance.Etat));
+
+        await EnregistrerAsync(seance.SeanceId, []);
+
+        Assert.Equal("AppelFait", Assert.Single((await _secretaire.GetFromJsonAsync<List<SeanceDuJour>>("/api/seances/du-jour"))!).Etat);
+    }
+
+    [Fact]
     public async Task Enregistrer_l_appel()
     {
         var seance = await SeanceAsync(_maths, new DateOnly(2027, 11, 27));

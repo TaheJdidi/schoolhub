@@ -225,6 +225,36 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         }).ToList();
     }
 
+    /// <summary>
+    /// SEA-01 : les séances d'aujourd'hui, heure par heure : le groupe, le professeur, le nombre d'élèves attendus (les
+    /// inscrits ce jour-là et ceux en rattrapage), et leur état : « AppelFait », « AppelAFaire » ou « Annulee ».
+    /// </summary>
+    public async Task<List<SeanceDuJour>> DuJourAsync()
+    {
+        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var seances = await contexte.Seances.Where(s => s.Date == aujourdhui).OrderBy(s => s.Debut).ThenBy(s => s.Id).ToListAsync();
+        var groupeIds = seances.Select(s => s.GroupeId).Distinct().ToList();
+        var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
+        var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
+        var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
+        var inscrits = await contexte.Inscriptions
+            .Where(i => groupeIds.Contains(i.GroupeId) && i.DebutLe <= aujourdhui && (i.ArreteLe == null || i.ArreteLe >= aujourdhui))
+            .GroupBy(i => i.GroupeId).Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
+            .ToDictionaryAsync(g => g.GroupeId, g => g.Nombre);
+        var seanceIds = seances.Select(s => s.Id).ToList();
+        var rattrapages = await contexte.Rattrapages.Where(r => seanceIds.Contains(r.SeanceId))
+            .GroupBy(r => r.SeanceId).Select(g => new { SeanceId = g.Key, Nombre = g.Count() })
+            .ToDictionaryAsync(g => g.SeanceId, g => g.Nombre);
+
+        return seances.Select(s =>
+        {
+            var groupe = groupes[s.GroupeId];
+            var etat = s.AnnuleeLe is not null ? "Annulee" : s.AppelFaitLe is not null ? "AppelFait" : "AppelAFaire";
+            return new SeanceDuJour(s.Id, Heure(s.Debut), Heure(s.Fin), new GroupeDeLAppel(groupe.Id, groupe.Nom, groupe.Type.ToString(), matieres[groupe.MatiereId]),
+                professeurs[groupe.ProfesseurId], inscrits.GetValueOrDefault(groupe.Id) + rattrapages.GetValueOrDefault(s.Id), etat);
+        }).ToList();
+    }
+
     private void NoterLesCorrections(Compte auteur, Seance seance, List<Attendu> attendus, HashSet<Guid> avant, HashSet<Guid> apres, ContexteDuGroupe groupe)
     {
         foreach (var attendu in attendus.Where(a => avant.Contains(a.Inscription.Id) != apres.Contains(a.Inscription.Id)))
