@@ -20,6 +20,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
     private const string TelephoneObligatoire = "Le téléphone est obligatoire";
     private const string TelephonePasValable = "Le téléphone doit avoir 8 chiffres";
     private const string EmailPasValable = "Cet email n'est pas valable";
+    private const string MatiereTropLongue = "La matière fait au plus 100 caractères";
     private const string Introuvable = "Professeur introuvable";
     private const string FermerSesGroupes = "Fermez d'abord ses groupes";
     private const string ADesGroupes = "Ce professeur a eu des groupes : marquez-le parti";
@@ -35,7 +36,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
             return refus;
 
         var avertissement = await AvertissementAsync(fiche.Telephone, sauf: null);
-        var professeur = new Professeur(fiche.Prenom, fiche.Nom, fiche.Telephone, fiche.Email);
+        var professeur = new Professeur(fiche.Prenom, fiche.Nom, fiche.Telephone, fiche.Email, fiche.Matiere);
         contexte.Professeurs.Add(professeur);
         await contexte.SaveChangesAsync();
         return IssueSurUnProfesseur.Reussie(professeur, StatusCodes.Status201Created, avertissement);
@@ -53,7 +54,7 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
 
         // Le professeur lui-même ne compte pas : garder son téléphone ne le met pas en double.
         var avertissement = await AvertissementAsync(fiche.Telephone, sauf: id);
-        professeur!.Modifier(fiche.Prenom, fiche.Nom, fiche.Telephone, fiche.Email);
+        professeur!.Modifier(fiche.Prenom, fiche.Nom, fiche.Telephone, fiche.Email, fiche.Matiere);
         await contexte.SaveChangesAsync();
         return IssueSurUnProfesseur.Reussie(professeur, avertissement: avertissement);
     }
@@ -135,14 +136,15 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
 
     /// <summary>
     /// Les champs dans l'ordre du formulaire, sans les espaces autour : le premier refusé donne la réponse.
-    /// Le téléphone revient en 8 chiffres, et un email vide devient <c>null</c>.
+    /// Le téléphone revient en 8 chiffres, et un email ou une matière vides deviennent <c>null</c>.
     /// </summary>
-    internal static ((string Prenom, string Nom, string Telephone, string? Email) Fiche, IssueSurUnProfesseur? Refus) VerifierLaFiche(
+    internal static ((string Prenom, string Nom, string Telephone, string? Email, string? Matiere) Fiche, IssueSurUnProfesseur? Refus) VerifierLaFiche(
         FicheDuProfesseur saisie)
     {
         var prenom = saisie.Prenom?.Trim() ?? "";
         var nom = saisie.Nom?.Trim() ?? "";
         var email = string.IsNullOrWhiteSpace(saisie.Email) ? null : saisie.Email.Trim();
+        var matiere = string.IsNullOrWhiteSpace(saisie.Matiere) ? null : saisie.Matiere.Trim();
 
         string? refus = null;
         string? telephone = null;
@@ -160,9 +162,11 @@ public sealed class ProfesseursDuCentre(SchoolHubDbContext contexte, TimeProvide
             refus = TelephonePasValable;
         else if (email is not null && !AdresseEmail.EstValable(email))
             refus = EmailPasValable;
+        else if (matiere is not null && matiere.Length > Matiere.LongueurMaximaleDuNom)
+            refus = MatiereTropLongue;
 
         return refus is null
-            ? ((prenom, nom, telephone!, email), null)
+            ? ((prenom, nom, telephone!, email, matiere), null)
             : (default, IssueSurUnProfesseur.Refusee(StatusCodes.Status400BadRequest, refus));
     }
 

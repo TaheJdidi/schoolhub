@@ -15,6 +15,7 @@ describe('la page « Professeurs »', () => {
     id: 'k',
     prenom: 'Karim',
     nom: 'Ben Salah',
+    matiere: 'Mathématiques',
     telephone: '98 401 220',
     email: 'karim@exemple.tn',
     parti: false,
@@ -223,10 +224,13 @@ describe('la page « Professeurs »', () => {
   const NADIA: Professeur = { id: 'n', prenom: 'Nadia', nom: 'Bouzid', telephone: '97 112 846', email: null, parti: false, groupesOuverts: 0 };
   const champ = (nom: string) => page.querySelector(`[formcontrolname="${nom}"]`) as HTMLInputElement;
 
-  async function remplir(prenom: string, nom: string, telephone: string): Promise<void> {
+  async function remplir(prenom: string, nom: string, telephone: string, matiere = 'Mathématiques'): Promise<void> {
     saisir(page, '[formcontrolname="prenom"]', prenom);
     saisir(page, '[formcontrolname="nom"]', nom);
     saisir(page, '[formcontrolname="telephone"]', telephone);
+    const liste = page.querySelector('select[name="choix-de-la-matiere"]') as HTMLSelectElement;
+    liste.value = matiere;
+    liste.dispatchEvent(new Event('change'));
     await harness.fixture.whenStable();
   }
 
@@ -244,7 +248,7 @@ describe('la page « Professeurs »', () => {
     await remplir(' Nadia ', 'Bouzid', '97 112 846');
     envoyer(page);
     const requete = http.expectOne({ method: 'POST', url: ADRESSE });
-    expect(requete.request.body).toEqual({ prenom: 'Nadia', nom: 'Bouzid', telephone: '97 112 846', email: '' });
+    expect(requete.request.body).toEqual({ prenom: 'Nadia', nom: 'Bouzid', telephone: '97 112 846', email: '', matiere: 'Mathématiques' });
     requete.flush({ professeur: NADIA, avertissement: null }, { status: 201, statusText: 'Created' });
 
     await attendre('Professeur ajouté');
@@ -261,7 +265,7 @@ describe('la page « Professeurs »', () => {
     await remplir('Nadia', 'Bouzid', '  ');
     envoyer(page);
 
-    await attendre('Remplissez le prénom, le nom et le téléphone');
+    await attendre('Remplissez le prénom, le nom, le téléphone et la matière');
     expect(page.querySelector('.cote .note.bad')).not.toBeNull();
   });
 
@@ -296,7 +300,7 @@ describe('la page « Professeurs »', () => {
     saisir(page, '[formcontrolname="nom"]', 'Ben Salah Jr');
     envoyer(page);
     const requete = http.expectOne({ method: 'PUT', url: `${ADRESSE}/k` });
-    expect(requete.request.body).toEqual({ prenom: 'Karim', nom: 'Ben Salah Jr', telephone: '98 401 220', email: 'karim@exemple.tn' });
+    expect(requete.request.body).toEqual({ prenom: 'Karim', nom: 'Ben Salah Jr', telephone: '98 401 220', email: 'karim@exemple.tn', matiere: 'Mathématiques' });
     requete.flush({ professeur: { ...KARIM, nom: 'Ben Salah Jr' }, avertissement: null });
 
     await attendre('Fiche enregistrée');

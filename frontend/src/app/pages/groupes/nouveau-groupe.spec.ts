@@ -22,7 +22,7 @@ describe('la page « Nouveau groupe »', () => {
   let page: HTMLElement;
   let harness: RouterTestingHarness;
 
-  async function ouvrir(niveaux: typeof NIVEAUX | 'erreur' = NIVEAUX): Promise<void> {
+  async function ouvrir(niveaux: typeof NIVEAUX | 'erreur' = NIVEAUX, professeurs: Professeur[] = [KARIM, SAMI, LEILA]): Promise<void> {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -36,7 +36,7 @@ describe('la page « Nouveau groupe »', () => {
     http = TestBed.inject(HttpTestingController);
     harness = await RouterTestingHarness.create('/professeurs/groupes/nouveau?professeur=k');
     page = harness.routeNativeElement as HTMLElement;
-    (await vi.waitFor(() => http.expectOne('/api/professeurs'))).flush([KARIM, SAMI, LEILA]);
+    (await vi.waitFor(() => http.expectOne('/api/professeurs'))).flush(professeurs);
     const requeteDesNiveaux = http.expectOne('/api/niveaux');
     if (niveaux === 'erreur') requeteDesNiveaux.flush({ message: 'Erreur du serveur' }, { status: 500, statusText: 'Erreur' });
     else requeteDesNiveaux.flush(niveaux);
@@ -484,5 +484,19 @@ describe('la page « Nouveau groupe »', () => {
     await harness.fixture.whenStable();
     expect(champ('debut').value).toBe('10:00');
     expect(champ('debut').classList).not.toContain('ng-invalid');
+  });
+  it('prend la matière du professeur, sans la faire choisir ; un professeur sans matière la fait choisir', async () => {
+    await ouvrir(NIVEAUX, [{ ...KARIM, matiere: 'Physique' }, SAMI, LEILA]);
+
+    // Karim vient de l'adresse : sa matière est là, en lecture.
+    const matiere = page.querySelector('input[name="matiere-du-professeur"]') as HTMLInputElement;
+    expect(matiere.value).toBe('Physique');
+    expect(matiere.readOnly).toBe(true);
+    expect(listeDesMatieres()).toBeNull();
+
+    // Leila n'a pas de matière : la liste revient, vide.
+    await choisirOption('professeurId', LEILA.id);
+    expect(page.querySelector('input[name="matiere-du-professeur"]')).toBeNull();
+    expect(listeDesMatieres().value).toBe('');
   });
 });

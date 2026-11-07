@@ -39,26 +39,34 @@
         }
       </select>
     </label>
-    <label class="f">
-      Matière
-      <select
-        class="inp"
-        name="choix-de-la-matiere"
-        [class.manquant]="formulaire.controls.matiere.invalid && !matiereALaMain()"
-        (change)="choisirLaMatiere($event)"
-      >
-        <option value="" [selected]="optionDeLaMatiere() === ''">Choisissez la matière</option>
-        @for (nom of listeDesMatieres(); track nom) {
-          <option [value]="nom" [selected]="optionDeLaMatiere() === nom">{{ nom }}</option>
-        }
-        <option [value]="AUTRE_MATIERE" [selected]="optionDeLaMatiere() === AUTRE_MATIERE">Autre matière…</option>
-      </select>
-    </label>
-    @if (matiereALaMain()) {
+    @if (matiereDuProfesseur(); as matiere) {
+      <!-- La matière du professeur : elle ne se choisit pas, elle se change sur sa fiche. -->
       <label class="f">
-        Nom de la matière
-        <input formControlName="matiere" autocomplete="off" placeholder="Par exemple : Robotique" />
+        Matière
+        <input class="inp" name="matiere-du-professeur" [value]="matiere" readonly />
       </label>
+    } @else {
+      <label class="f">
+        Matière
+        <select
+          class="inp"
+          name="choix-de-la-matiere"
+          [class.manquant]="formulaire.controls.matiere.invalid && !matiereALaMain()"
+          (change)="choisirLaMatiere($event)"
+        >
+          <option value="" [selected]="optionDeLaMatiere() === ''">Choisissez la matière</option>
+          @for (nom of listeDesMatieres(); track nom) {
+            <option [value]="nom" [selected]="optionDeLaMatiere() === nom">{{ nom }}</option>
+          }
+          <option [value]="AUTRE_MATIERE" [selected]="optionDeLaMatiere() === AUTRE_MATIERE">Autre matière…</option>
+        </select>
+      </label>
+      @if (matiereALaMain()) {
+        <label class="f">
+          Nom de la matière
+          <input formControlName="matiere" autocomplete="off" placeholder="Par exemple : Robotique" />
+        </label>
+      }
     }
     <label class="f">
       {{ type() === 'Formation' ? 'Niveau (facultatif)' : 'Niveau' }}

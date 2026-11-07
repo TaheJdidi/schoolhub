@@ -1202,6 +1202,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("email");
 
+                    b.Property<string>("Matiere")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("matiere");
+
                     b.Property<string>("Nom")
                         .IsRequired()
                         .HasMaxLength(100)

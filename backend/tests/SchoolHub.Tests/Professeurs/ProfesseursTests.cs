@@ -50,7 +50,7 @@ public sealed class ProfesseursTests(PostgreSqlDeTest postgreSql) : IAsyncLifeti
         var enregistrement = await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>();
         var id = enregistrement!.Professeur.Id;
         Assert.Equal($"/api/professeurs/{id}", reponse.Headers.Location?.ToString());
-        Assert.Equal(new ProfesseurDuCentre(id, "Karim", "Ben Salah", "98 401 220", "karim@exemple.tn", false, 0), enregistrement.Professeur);
+        Assert.Equal(new ProfesseurDuCentre(id, "Karim", "Ben Salah", "98 401 220", "karim@exemple.tn", null, false, 0), enregistrement.Professeur);
         Assert.Null(enregistrement.Avertissement);
         Assert.Equal([enregistrement.Professeur], await ListeAsync(_client));
     }
@@ -70,6 +70,24 @@ public sealed class ProfesseursTests(PostgreSqlDeTest postgreSql) : IAsyncLifeti
 
         Assert.Equal(("Karim", "Ben Salah", "karim@exemple.tn"),
             (enregistrement.Professeur.Prenom, enregistrement.Professeur.Nom, enregistrement.Professeur.Email));
+    }
+
+    [Fact]
+    public async Task La_matiere_du_professeur_est_gardee_et_se_modifie()
+    {
+        var enregistrement = await AjouterAsync(_client, Karim with { Matiere = " Mathématiques " });
+        Assert.Equal("Mathématiques", enregistrement.Professeur.Matiere);
+
+        var reponse = await _client.PutAsJsonAsync($"{Adresse}/{enregistrement.Professeur.Id}", Karim with { Matiere = "Physique" });
+        Assert.Equal("Physique", (await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>())!.Professeur.Matiere);
+
+        // Vide, ou trop longue.
+        reponse = await _client.PutAsJsonAsync($"{Adresse}/{enregistrement.Professeur.Id}", Karim with { Matiere = "  " });
+        Assert.Null((await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>())!.Professeur.Matiere);
+        await VerifierLeRefusAsync(
+            await _client.PutAsJsonAsync($"{Adresse}/{enregistrement.Professeur.Id}", Karim with { Matiere = new string('a', 101) }),
+            HttpStatusCode.BadRequest,
+            "La matière fait au plus 100 caractères");
     }
 
     [Theory]
@@ -214,7 +232,7 @@ public sealed class ProfesseursTests(PostgreSqlDeTest postgreSql) : IAsyncLifeti
         var reponse = await _client.PutAsJsonAsync($"{Adresse}/{karim.Id}", new FicheDuProfesseur("Karim", "Ben Salah Jr", "22 918 004", null));
 
         Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
-        var attendu = new ProfesseurDuCentre(karim.Id, "Karim", "Ben Salah Jr", "22 918 004", null, false, 0);
+        var attendu = new ProfesseurDuCentre(karim.Id, "Karim", "Ben Salah Jr", "22 918 004", null, null, false, 0);
         Assert.Equal(new EnregistrementDuProfesseur(attendu, null), await reponse.Content.ReadFromJsonAsync<EnregistrementDuProfesseur>());
         Assert.Equal([attendu], await ListeAsync(_client));
     }

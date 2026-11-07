@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { ImportDeListe } from '../../socle/import-de-liste';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -10,6 +11,7 @@ import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
+import { AUTRE_MATIERE, listeDesMatieres, normaliser } from '../groupes/matieres';
 import { initiales } from '../../socle/personnes';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
 
@@ -79,7 +81,30 @@ export class Professeurs implements OnInit {
     nom: new FormControl('', { nonNullable: true, validators: requis() }),
     telephone: new FormControl('', { nonNullable: true, validators: requis() }),
     email: new FormControl('', { nonNullable: true }),
+    matiere: new FormControl('', { nonNullable: true, validators: requis() }),
   });
+
+  /** La matière du professeur : les matières courantes et celles du centre, ou « Autre matière… » écrite à la main. */
+  protected readonly listeDesMatieres = computed(() =>
+    listeDesMatieres([...this.professeurs().map((p) => p.matiere ?? null), ...this.groupes().map((g) => g.matiere)]),
+  );
+  protected readonly AUTRE_MATIERE = AUTRE_MATIERE;
+  protected readonly autreMatiere = signal(false);
+  private readonly matiereSaisie = toSignal(this.formulaire.controls.matiere.valueChanges, { initialValue: '' });
+  protected readonly matiereALaMain = computed(() => {
+    const saisie = normaliser(this.matiereSaisie());
+    return this.autreMatiere() || (saisie !== '' && !this.listeDesMatieres().some((nom) => normaliser(nom) === saisie));
+  });
+  protected readonly optionDeLaMatiere = computed(() => (this.matiereALaMain() ? AUTRE_MATIERE : this.matiereSaisie()));
+
+  protected choisirLaMatiere(evenement: Event): void {
+    const choix = (evenement.target as HTMLSelectElement).value;
+    const autre = choix === AUTRE_MATIERE;
+    this.autreMatiere.set(autre);
+    const matiere = this.formulaire.controls.matiere;
+    matiere.setValue(autre ? '' : choix);
+    matiere.markAsDirty();
+  }
 
   /** Une fiche commencée, puis laissée pour une autre page, se retrouve en revenant. */
   protected readonly brouillon = garderLeBrouillon('professeur', this.formulaire, {
@@ -152,6 +177,7 @@ export class Professeurs implements OnInit {
   protected ouvrirLAjout(): void {
     this.revenirALaFiche();
     this.formulaire.reset();
+    this.autreMatiere.set(false);
     this.modifieId = null;
     this.mode.set('ajout');
   }
@@ -163,7 +189,9 @@ export class Professeurs implements OnInit {
       nom: professeur.nom,
       telephone: professeur.telephone,
       email: professeur.email ?? '',
+      matiere: professeur.matiere ?? '',
     });
+    this.autreMatiere.set(false);
     this.modifieId = professeur.id;
     this.mode.set('modification');
   }
@@ -174,11 +202,11 @@ export class Professeurs implements OnInit {
   }
 
   protected enregistrer(): Promise<void> {
-    const { prenom, nom, telephone, email } = this.formulaire.getRawValue();
-    const fiche = { prenom: prenom.trim(), nom: nom.trim(), telephone: telephone.trim(), email: email.trim() };
-    if (!fiche.prenom || !fiche.nom || !fiche.telephone) {
+    const { prenom, nom, telephone, email, matiere } = this.formulaire.getRawValue();
+    const fiche = { prenom: prenom.trim(), nom: nom.trim(), telephone: telephone.trim(), email: email.trim(), matiere: matiere.trim() };
+    if (!fiche.prenom || !fiche.nom || !fiche.telephone || !fiche.matiere) {
       this.succes.set(null);
-      this.erreur.set('Remplissez le prénom, le nom et le téléphone');
+      this.erreur.set('Remplissez le prénom, le nom, le téléphone et la matière');
       return Promise.resolve();
     }
 

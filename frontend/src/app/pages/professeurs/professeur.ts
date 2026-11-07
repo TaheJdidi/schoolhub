@@ -5,6 +5,8 @@ export interface Professeur {
   nom: string;
   telephone: string;
   email: string | null;
+  /** La matière qu'il enseigne : un nouveau groupe la prend d'office. Vide pour un professeur ajouté avant. */
+  matiere?: string | null;
   /** Le professeur a quitté le centre (GRP-03). */
   parti: boolean;
   /** Toujours 0 en attendant les groupes (GRP-04). */

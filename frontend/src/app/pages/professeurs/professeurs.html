@@ -72,6 +72,27 @@
             Email (facultatif)
             <input type="email" formControlName="email" autocomplete="off" inputmode="email" />
           </label>
+          <label class="f">
+            Matière
+            <select
+              class="inp"
+              name="choix-de-la-matiere"
+              [class.manquant]="formulaire.controls.matiere.invalid && !matiereALaMain()"
+              (change)="choisirLaMatiere($event)"
+            >
+              <option value="" [selected]="optionDeLaMatiere() === ''">Choisissez la matière</option>
+              @for (nom of listeDesMatieres(); track nom) {
+                <option [value]="nom" [selected]="optionDeLaMatiere() === nom">{{ nom }}</option>
+              }
+              <option [value]="AUTRE_MATIERE" [selected]="optionDeLaMatiere() === AUTRE_MATIERE">Autre matière…</option>
+            </select>
+          </label>
+          @if (matiereALaMain()) {
+            <label class="f">
+              Nom de la matière
+              <input formControlName="matiere" autocomplete="off" placeholder="Par exemple : Robotique" />
+            </label>
+          }
         </div>
         <div class="actions">
           <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
@@ -85,6 +106,9 @@
           <div class="identite">
             <div class="entete">
               <h2 class="titre">{{ nomComplet(professeur) }}</h2>
+              @if (professeur.matiere) {
+                <span class="tag">{{ professeur.matiere }}</span>
+              }
               @if (professeur.parti) {
                 <span class="pill muted">Parti</span>
               }

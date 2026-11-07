@@ -68,8 +68,8 @@ public static class ProfesseursEndpoints
     }
 }
 
-/// <summary>Ce que la page envoie pour ajouter ou modifier un professeur.</summary>
-public sealed record FicheDuProfesseur(string? Prenom, string? Nom, string? Telephone, string? Email);
+/// <summary>Ce que la page envoie pour ajouter ou modifier un professeur ; la matière est facultative pour l'API.</summary>
+public sealed record FicheDuProfesseur(string? Prenom, string? Nom, string? Telephone, string? Email, string? Matiere = null);
 
 /// <summary>Un professeur tel que l'API le décrit, avec son téléphone groupé (« 98 401 220 »).</summary>
 public sealed record ProfesseurDuCentre(
@@ -78,6 +78,7 @@ public sealed record ProfesseurDuCentre(
     string Nom,
     string Telephone,
     string? Email,
+    string? Matiere,
     bool Parti,
     int GroupesOuverts)
 {
@@ -87,6 +88,7 @@ public sealed record ProfesseurDuCentre(
         professeur.Nom,
         TelephoneTunisien.Grouper(professeur.Telephone),
         professeur.Email,
+        professeur.Matiere,
         professeur.Parti,
         groupesOuverts);
 }

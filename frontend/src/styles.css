@@ -49,6 +49,8 @@ svg.lucide{width:18px;height:18px;flex:none;stroke-width:1.8}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 /* Un champ ou un filtre désactivé (une liste vide n'a rien à filtrer) se voit : fond grisé, texte pâle. */
 .inp:disabled,.f input:disabled,.f select:disabled,.f textarea:disabled{background:var(--sunk);color:var(--ink-3);cursor:not-allowed}
+/* Un champ en lecture (la matière que donne le professeur) : grisé, sans curseur de saisie. */
+.inp[readonly],.f input[readonly]{background:var(--sunk);color:var(--ink-2);cursor:default}
 .filtre:disabled{opacity:.55;cursor:not-allowed}
 .lnk{background:none;border:0;padding:0;color:var(--ink);font-weight:500;cursor:pointer;text-align:left;text-decoration:none}
 .lnk:hover{color:var(--accent);text-decoration:underline}

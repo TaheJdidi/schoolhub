@@ -12,6 +12,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { lireUnNombre } from '../../socle/montants';
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { nomComplet, Professeur } from '../professeurs/professeur';
+import { AUTRE_MATIERE, listeDesMatieres, normaliser } from './matieres';
 import { FicheDuGroupe, Jour, JOURS, jourDeLaDate, nomPropose, TypeDeGroupe, TYPES } from './groupe';
 
 const INCOMPLET: Record<TypeDeGroupe, string> = {
@@ -26,36 +27,6 @@ const NOMBRE_ILLISIBLE = 'Écrivez le nombre de séances, par exemple 10';
 const TRANCHE_ILLISIBLE = 'Écrivez le montant et la séance de chaque tranche, par exemple 100,000 à la séance 1';
 const CAPACITE_ILLISIBLE = 'Écrivez la capacité en nombre de places, par exemple 16';
 const OU_EN_EST_IL = 'Indiquez où en est le groupe';
-
-/** Les matières proposées à tout centre, même neuf ; celles du centre s'y ajoutent. */
-export const MATIERES_PROPOSEES = [
-  'Allemand',
-  'Anglais',
-  'Arabe',
-  'Chimie',
-  'Économie',
-  'Éducation islamique',
-  'Espagnol',
-  'Éveil scientifique',
-  'Français',
-  'Gestion',
-  'Histoire-Géographie',
-  'Informatique',
-  'Italien',
-  'Mathématiques',
-  'Philosophie',
-  'Physique',
-  'Sciences de la vie et de la terre',
-  'Sciences expérimentales',
-  'Sciences physiques',
-  'Technologie',
-];
-
-/** L'option « Autre matière… » de la liste. */
-export const AUTRE_MATIERE = 'autre';
-
-/** « mathématiques » et « Mathématiques » sont la même matière, comme au serveur. */
-const normaliser = (nom: string) => nom.trim().normalize('NFKC').toLowerCase();
 
 /** Une matière du centre, proposée dans la liste. */
 interface Matiere {
@@ -139,9 +110,7 @@ export class NouveauGroupe implements OnInit {
   protected readonly matieres = signal<Matiere[]>([]);
   /** Les matières proposées et celles du centre, une seule fois chacune, dans l'ordre alphabétique. */
   protected readonly listeDesMatieres = computed(() => {
-    const parNom = new Map(MATIERES_PROPOSEES.map((nom) => [normaliser(nom), nom]));
-    for (const matiere of this.matieres()) parNom.set(normaliser(matiere.nom), matiere.nom);
-    return [...parNom.values()].sort((a, b) => a.localeCompare(b, 'fr'));
+    return listeDesMatieres(this.matieres().map((m) => m.nom));
   });
   /** « Autre matière… » est choisie : la matière s'écrit à la main. */
   protected readonly autreMatiere = signal(false);
@@ -199,6 +168,11 @@ export class NouveauGroupe implements OnInit {
   });
 
   private readonly matiereSaisie = toSignal(this.formulaire.controls.matiere.valueChanges, { initialValue: '' });
+  private readonly professeurChoisi = toSignal(this.formulaire.controls.professeurId.valueChanges, { initialValue: '' });
+  /** La matière du professeur choisi : le groupe la prend d'office. Sans elle (professeur ajouté avant), elle se choisit. */
+  protected readonly matiereDuProfesseur = computed(
+    () => this.professeurs().find((p) => p.id === this.professeurChoisi())?.matiere ?? null,
+  );
   /** La matière s'écrit à la main : « Autre matière… » est choisie, ou la matière reprise n'est pas dans la liste. */
   protected readonly matiereALaMain = computed(() => {
     const saisie = normaliser(this.matiereSaisie());
@@ -229,6 +203,20 @@ export class NouveauGroupe implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    // Le professeur choisi donne sa matière au groupe.
+    // Un professeur sans matière : celle du professeur d'avant ne reste pas, elle se choisit.
+    let matiereDonnee = '';
+    this.formulaire.controls.professeurId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
+      const controle = this.formulaire.controls.matiere;
+      const matiere = this.professeurs().find((p) => p.id === id)?.matiere ?? '';
+      if (matiere) {
+        this.autreMatiere.set(false);
+        controle.setValue(matiere);
+      } else if (matiereDonnee && controle.value === matiereDonnee) {
+        controle.setValue('');
+      }
+      matiereDonnee = matiere;
+    });
     merge(this.creneaux.valueChanges, this.dates.valueChanges)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.proposerLeNom());
