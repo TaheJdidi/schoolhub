@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -26,6 +27,30 @@ const GROUPES = [
   { id: 'gn', nom: 'Groupe Jeudi', type: 'Etude', professeurId: 'n', matiere: 'Physique', niveau: '9ᵉ année de base', creneaux: [], capacite: null, eleves: 0, termine: false, ferme: false },
 ];
 const professeur = (id: string, prenom: string, nom: string, parti = false) => ({ id, prenom, nom, telephone: '98 000 000', email: null, parti, groupesOuverts: 0 });
+/** La fiche de la Révision de Karim, « g7 » : deux séances à venir, un mode à choisir. */
+const seance = (date: string, numero: number) => ({ id: `s${numero}`, numero, date, debut: '08:00:00', fin: '10:00:00', prix: null });
+const REVISION = {
+  id: 'g7',
+  nom: 'Groupe Lundi 8h → 10h',
+  type: 'Revision',
+  professeur: { id: 'k', prenom: 'Karim', nom: 'Ben Salah' },
+  matiere: 'Arabe',
+  niveau: { id: 'n7', nom: '7ᵉ année de base' },
+  creneaux: [],
+  capacite: null,
+  eleves: 0,
+  dateDeDebut: null,
+  prixDuMois: null,
+  mois: [],
+  termine: false,
+  premiereSeance: 1,
+  prixTotal: 100,
+  nombreDeSeances: 2,
+  seances: [seance('2099-01-05', 1), seance('2099-01-12', 2)],
+  tranches: [],
+  fermeLe: null,
+  motifDeFermeture: null,
+};
 const PROFESSEURS = [professeur('l', 'Leila', 'Trabelsi'), professeur('k', 'Karim', 'Ben Salah'), professeur('s', 'Sami', 'Gharbi'), professeur('n', 'Nadia', 'Ayari', true)];
 
 describe('la création d’un élève', () => {
@@ -117,7 +142,22 @@ describe('la création d’un élève', () => {
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1'));
   });
 
-  it("fait choisir le professeur, puis l'un de ses groupes ouverts, et ouvre l'inscription dans ce groupe", async () => {
+  async function choisir(nom: string, valeur: string): Promise<void> {
+    const liste = page.querySelector(`[formcontrolname="${nom}"]`) as HTMLSelectElement;
+    liste.value = valeur;
+    liste.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+  }
+
+  /** Karim, puis sa Révision : sa fiche arrive, avec ses modes et ses séances. */
+  async function choisirLaRevision(): Promise<void> {
+    await choisir('professeurId', 'k');
+    await choisir('groupeId', 'g7');
+    http.expectOne('/api/groupes/g7').flush(REVISION);
+    await vi.waitFor(() => expect(page.querySelector('[formcontrolname="debutLe"]')).not.toBeNull());
+  }
+
+  it("fait choisir le professeur, puis l'un de ses groupes ouverts, et inscrit l'élève avec sa fiche", async () => {
     await ouvrir();
     await remplir();
 
@@ -135,15 +175,43 @@ describe('la création d’un élève', () => {
       ['Autres groupes', 'Groupe Lundi 8h → 10h · Arabe · 7ᵉ année de base'],
     ]);
 
-    liste.value = 'g7';
-    liste.dispatchEvent(new Event('change'));
-    await harness.fixture.whenStable();
-    envoyer(page);
+    await choisir('groupeId', 'g7');
+    http.expectOne('/api/groupes/g7').flush(REVISION);
+    await vi.waitFor(() => expect(page.querySelector('[formcontrolname="mode"]')).not.toBeNull());
+    const options = (nom: string) => [...(page.querySelector(`[formcontrolname="${nom}"]`) as HTMLSelectElement).options].map((o) => o.textContent?.trim());
+    expect(options('mode')).toEqual(['Choisissez le mode', 'À la séance', 'En totalité']);
+    expect((page.querySelector('[formcontrolname="debutLe"]') as HTMLSelectElement).value).toBe('2099-01-05');
 
+    // Sans mode, rien ne part.
+    envoyer(page);
+    await attendre('Remplissez les champs obligatoires');
+
+    await choisir('mode', 'ALaSeance');
+    envoyer(page);
     const requete = http.expectOne({ method: 'POST', url: '/api/eleves' });
     expect(requete.request.body.groupeId).toBeUndefined();
     requete.flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
+    const inscription = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/inscriptions' }));
+    expect(inscription.request.body).toEqual({ eleveId: 'e1', groupeId: 'g7', mode: 'ALaSeance', debutLe: '2099-01-05' });
+    inscription.flush({ inscription: { id: 'i1' }, aPayerALArrivee: [], avertissement: null, texte: '', messages: [] });
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1/inscription'));
+    expect((TestBed.inject(Location).getState() as { confirmation?: { inscription: { id: string } } }).confirmation?.inscription.id).toBe('i1');
+  });
+
+  it("rouvre l'inscription dans le groupe, avec le refus, si le serveur refuse l'inscription", async () => {
+    await ouvrir();
+    await remplir();
+    await choisirLaRevision();
+    await choisir('mode', 'EnTotalite');
+
+    envoyer(page);
+    http.expectOne('/api/eleves').flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
+    (await vi.waitFor(() => http.expectOne('/api/inscriptions'))).flush(
+      { message: "Ce groupe est fermé : on n'y inscrit plus" },
+      { status: 409, statusText: 'Conflict' },
+    );
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1/inscription?groupe=g7'));
+    expect((TestBed.inject(Location).getState() as { erreur?: string }).erreur).toBe("Ce groupe est fermé : on n'y inscrit plus");
   });
 
   it('refuse un formulaire incomplet', async () => {

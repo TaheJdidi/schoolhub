@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { EnregistrementDeLEleve } from './eleve';
-import { FormulaireDeLEleve } from './formulaire-de-l-eleve';
+import { EleveEnregistre, FormulaireDeLEleve } from './formulaire-de-l-eleve';
 
 /**
  * ELV-02 : créer la fiche d'un élève ; réussie, la page ouvre la fiche, avec l'avertissement « Doublon possible ». Si un
- * groupe est choisi, elle ouvre plutôt l'inscription dans ce groupe (ELV-03), avec le même avertissement.
+ * groupe était choisi, l'élève y est inscrit en même temps (ELV-03) : la page montre la confirmation de l'inscription
+ * (à payer, messages WhatsApp) ; refusée, elle rouvre l'inscription dans ce groupe avec le refus.
  */
 @Component({
   selector: 'sh-nouvel-eleve',
@@ -26,13 +26,18 @@ import { FormulaireDeLEleve } from './formulaire-de-l-eleve';
 export class NouvelEleve {
   private readonly router = inject(Router);
 
-  protected ouvrirLaFiche(enregistrement: EnregistrementDeLEleve & { groupeId: string | null }): void {
-    const state = { avertissement: enregistrement.avertissement };
-    if (enregistrement.groupeId) {
-      void this.router.navigate(['/eleves', enregistrement.eleve.id, 'inscription'], { queryParams: { groupe: enregistrement.groupeId }, state });
-      return;
+  protected ouvrirLaFiche(enregistrement: EleveEnregistre): void {
+    const { eleve, avertissement, groupeId, inscription, refusDeLInscription } = enregistrement;
+    if (inscription) {
+      void this.router.navigate(['/eleves', eleve.id, 'inscription'], { state: { avertissement, confirmation: inscription } });
+    } else if (groupeId) {
+      void this.router.navigate(['/eleves', eleve.id, 'inscription'], {
+        queryParams: { groupe: groupeId },
+        state: { avertissement, erreur: refusDeLInscription },
+      });
+    } else {
+      void this.router.navigate(['/eleves', eleve.id], { state: { avertissement } });
     }
-    void this.router.navigate(['/eleves', enregistrement.eleve.id], { state });
   }
 
   protected revenir(): void {

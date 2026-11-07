@@ -8,25 +8,23 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
 import { EleveTrouve, FicheDeLEleve } from '../eleves/eleve';
-import { dateDuJourLocale, eleves, FicheDuGroupe, heure, TYPES } from '../groupes/groupe';
+import { eleves, FicheDuGroupe, TYPES } from '../groupes/groupe';
 import {
   CAPACITE_ATTEINTE,
+  datesDuGroupe,
+  DateDeDebut,
   EnregistrementDeLInscription,
   estComplet,
   GroupePossible,
   InscriptionDeLEleve,
   MessageWhatsApp,
   ModeDeTarification,
+  modesDuGroupe,
+  premiereSeanceProposee,
 } from './inscription';
 
 const CHOISIR_L_ELEVE_ET_LE_GROUPE = "Choisissez l'élève et le groupe";
 const CHOISIR_LE_MODE = 'Choisissez le mode de tarification';
-
-/** Une séance que l'élève peut choisir comme première : sa date « 2027-11-20 » et « samedi 20/11/2027 · 10h ». */
-interface DateDeDebut {
-  date: string;
-  libelle: string;
-}
 
 /**
  * ELV-03 : inscrire un élève dans un groupe, depuis sa fiche (on choisit le groupe) ou depuis le groupe (on cherche
@@ -126,43 +124,26 @@ export class PageDInscription implements OnInit {
   protected readonly capaciteAtteinte = CAPACITE_ATTEINTE;
 
   /** Les modes à choisir : aucun pour une Étude, ni pour une Formation sans tranches. */
-  protected readonly modes = computed<{ mode: ModeDeTarification; libelle: string }[]>(() => {
-    const groupe = this.groupe();
-    if (groupe?.type === 'Revision') {
-      return [
-        { mode: 'ALaSeance', libelle: 'À la séance' },
-        { mode: 'EnTotalite', libelle: 'En totalité' },
-      ];
-    }
-    if (groupe?.type === 'Formation' && groupe.tranches.length > 0) {
-      return [
-        { mode: 'EnUneFois', libelle: 'En une fois' },
-        { mode: 'EnTranches', libelle: `En ${groupe.tranches.length} tranches` },
-      ];
-    }
-    return [];
-  });
+  protected readonly modes = computed(() => modesDuGroupe(this.groupe()));
 
   /** Les séances du groupe, une par jour, dans l'ordre. */
-  protected readonly dates = computed<DateDeDebut[]>(() => {
-    const groupe = this.groupe();
-    if (!groupe) return [];
-    const seances = groupe.type === 'Etude' ? groupe.mois.flatMap((mois) => mois.seances) : groupe.seances;
-    const vues = new Set<string>();
-    return seances
-      .filter((seance) => !vues.has(seance.date) && vues.add(seance.date))
-      .map((seance) => ({ date: seance.date, libelle: `${formatDate(seance.date, 'EEEE dd/MM/yyyy', FRANCAIS)} · ${heure(seance.debut)}` }));
-  });
+  protected readonly dates = computed<DateDeDebut[]>(() => datesDuGroupe(this.groupe()));
 
   constructor() {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.minuterie));
   }
 
   async ngOnInit(): Promise<void> {
-    const etat = this.location.getState() as { avertissement?: string | null } | null;
+    // Depuis « Nouvel élève » : l'avertissement de la création, et l'inscription faite avec elle, ou son refus.
+    const etat = this.location.getState() as {
+      avertissement?: string | null;
+      confirmation?: EnregistrementDeLInscription;
+      erreur?: string;
+    } | null;
     this.avertissement.set(etat?.avertissement ?? null);
-    if (etat?.avertissement !== undefined) {
-      const { avertissement: _lu, ...reste } = etat;
+    if (etat?.confirmation) this.confirmation.set(etat.confirmation);
+    if (etat?.avertissement !== undefined || etat?.confirmation || etat?.erreur) {
+      const { avertissement: _a, confirmation: _c, erreur: _e, ...reste } = etat;
       this.location.replaceState(this.location.path(), '', reste);
     }
     try {
@@ -201,6 +182,8 @@ export class PageDInscription implements OnInit {
         this.erreur.set(messageDErreur(erreur));
       }
     }
+    // L'inscription faite avec la création a été refusée : la page la propose de nouveau, avec le refus.
+    if (etat?.erreur && !this.erreur()) this.erreur.set(etat.erreur);
   }
 
   // ----- Depuis le groupe : chercher l'élève -----
@@ -254,9 +237,7 @@ export class PageDInscription implements OnInit {
   private montrerLeGroupe(fiche: FicheDuGroupe): void {
     this.groupe.set(fiche);
     this.mode.set(null);
-    const aujourdhui = dateDuJourLocale();
-    const dates = this.dates();
-    this.debutLe.set((dates.find((d) => d.date >= aujourdhui) ?? dates.at(-1))?.date ?? null);
+    this.debutLe.set(premiereSeanceProposee(this.dates()));
   }
 
   protected choisirLeMode(mode: ModeDeTarification): void {

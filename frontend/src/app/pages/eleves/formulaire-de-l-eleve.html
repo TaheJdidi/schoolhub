@@ -91,9 +91,30 @@
           </select>
         </label>
       }
+      @if (ficheDuGroupe()) {
+        @if (modes().length > 0) {
+          <label class="f">
+            Mode de tarification
+            <select class="inp" formControlName="mode">
+              <option value="">Choisissez le mode</option>
+              @for (mode of modes(); track mode.mode) {
+                <option [value]="mode.mode">{{ mode.libelle }}</option>
+              }
+            </select>
+          </label>
+        }
+        <label class="f">
+          Première séance
+          <select class="inp" formControlName="debutLe">
+            @for (date of dates(); track date.date) {
+              <option [value]="date.date">{{ date.libelle }}</option>
+            }
+          </select>
+        </label>
+      }
     </div>
-    @if (formulaire.controls.groupeId.value) {
-      <p class="aide">Après « Enregistrer », l'inscription dans ce groupe s'ouvre : vous y choisissez la première séance.</p>
+    @if (ficheDuGroupe()) {
+      <p class="aide">« Enregistrer » crée la fiche et inscrit l'élève dans ce groupe.</p>
     }
   }
 

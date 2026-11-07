@@ -130,7 +130,7 @@ describe('la fiche d’un élève', () => {
     expect(contacts).toContain('98 401 220');
     expect(contacts).toContain('Collège Ibn Khaldoun');
     expect(contacts).not.toContain('Élève majeur');
-    expect(page.textContent).toContain('Aucune inscription : cet élève vient seulement à la bibliothèque.');
+    expect(page.textContent).toContain("Aucune inscription : cet élève n'est dans aucun groupe pour l'instant.");
     expect(page.querySelector('.assurance')?.textContent).toContain('Sans objet : aucune inscription en Étude cette année.');
     expect(page.querySelector('.inscriptions a[href="/eleves/e1/inscription"]')?.textContent).toContain('Inscrire dans un groupe');
   });

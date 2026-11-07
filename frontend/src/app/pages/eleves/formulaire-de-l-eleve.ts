@@ -7,18 +7,28 @@ import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
-import { ResumeDuGroupe } from '../groupes/groupe';
+import { FicheDuGroupe, ResumeDuGroupe } from '../groupes/groupe';
+import { datesDuGroupe, EnregistrementDeLInscription, modesDuGroupe, premiereSeanceProposee } from '../inscriptions/inscription';
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { nomComplet, Professeur, trier } from '../professeurs/professeur';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 
 const INCOMPLET = 'Remplissez les champs obligatoires';
+const GROUPE_EN_CHARGEMENT = 'Le groupe se charge encore, un instant';
+
+/** Ce que le formulaire rend : la fiche, et l'inscription faite avec elle (ou son refus) si un groupe était choisi. */
+export type EleveEnregistre = EnregistrementDeLEleve & {
+  groupeId: string | null;
+  inscription: EnregistrementDeLInscription | null;
+  refusDeLInscription: string | null;
+};
 
 /**
  * ELV-02 : le formulaire de la fiche d'un élève, pour la créer (sans `eleve`) ou la modifier. Le téléphone et l'email
  * de l'élève deviennent obligatoires à partir de la 7ᵉ année ; le téléphone du parent, facultatif pour un élève majeur.
  * Si les niveaux n'ont pas pu se charger, rien ne part. Réussi, il rend l'enregistrement au parent. À la création, on
- * peut aussi choisir le professeur, puis l'un de ses groupes : le parent ouvre alors l'inscription dans ce groupe.
+ * peut aussi choisir le professeur, puis l'un de ses groupes, le mode et la première séance : « Enregistrer » crée la
+ * fiche, puis inscrit l'élève dans ce groupe.
  */
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
@@ -35,9 +45,9 @@ export class FormulaireDeLEleve implements OnInit {
   readonly eleve = input<FicheDeLEleve | null>(null);
   /** La clé du brouillon d'une nouvelle fiche : chaque endroit qui crée un élève garde le sien. */
   readonly brouillonDeLaCreation = input('eleve-nouveau');
-  /** À la création : « Professeur » puis « Groupe » (facultatifs), pour inscrire l'élève juste après. */
+  /** À la création : « Professeur » puis « Groupe » (facultatifs), pour inscrire l'élève en même temps. */
   readonly proposerUnGroupe = input(false);
-  readonly enregistre = output<EnregistrementDeLEleve & { groupeId: string | null }>();
+  readonly enregistre = output<EleveEnregistre>();
   readonly annule = output<void>();
 
   protected readonly niveaux = signal<Niveau[]>([]);
@@ -71,6 +81,12 @@ export class FormulaireDeLEleve implements OnInit {
     ].filter((section) => section.groupes.length > 0);
   });
 
+  /** La fiche du groupe choisi : ses modes et ses séances. */
+  protected readonly ficheDuGroupe = signal<FicheDuGroupe | null>(null);
+  protected readonly modes = computed(() => modesDuGroupe(this.ficheDuGroupe()));
+  protected readonly dates = computed(() => datesDuGroupe(this.ficheDuGroupe()));
+  private dernierGroupe = 0;
+
   protected readonly formulaire = new FormGroup({
     prenom: new FormControl('', { nonNullable: true, validators: requis() }),
     nom: new FormControl('', { nonNullable: true, validators: requis() }),
@@ -83,9 +99,13 @@ export class FormulaireDeLEleve implements OnInit {
     emailParent: new FormControl('', { nonNullable: true }),
     professeurId: new FormControl('', { nonNullable: true }),
     groupeId: new FormControl('', { nonNullable: true }),
+    // Le mode, pour une Révision ou une Formation à tranches ; la première séance, dès qu'un groupe est choisi.
+    mode: new FormControl('', { nonNullable: true, validators: requis(() => this.modes().length > 0) }),
+    debutLe: new FormControl('', { nonNullable: true, validators: requis(() => this.ficheDuGroupe() !== null) }),
   });
 
   protected readonly professeurChoisi = toSignal(this.formulaire.controls.professeurId.valueChanges, { initialValue: '' });
+
 
   /** Laissée pour une autre page, la fiche reprend où elle en était en revenant (une par élève modifié). */
   protected readonly brouillon = garderLeBrouillon(() => {
@@ -99,6 +119,11 @@ export class FormulaireDeLEleve implements OnInit {
     controles.majeur.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((majeur) => this.majeur.set(majeur));
     // Un autre professeur : le groupe se choisit de nouveau parmi les siens.
     controles.professeurId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.oublierUnGroupeQuiNEstPlusPropose());
+    // Un autre groupe : son mode se choisit de nouveau, et sa première séance est proposée.
+    controles.groupeId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
+      controles.mode.setValue('');
+      void this.chargerLeGroupe(id);
+    });
     // La classe et « majeur » changent les champs obligatoires.
     merge(controles.niveauId.valueChanges, controles.majeur.valueChanges)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -120,9 +145,31 @@ export class FormulaireDeLEleve implements OnInit {
       const professeurId = this.formulaire.controls.professeurId;
       if (!this.professeurs().some((p) => p.id === professeurId.value)) professeurId.setValue('');
       this.oublierUnGroupeQuiNEstPlusPropose();
+      // Un brouillon repris garde son groupe, son mode et sa première séance s'ils valent encore.
+      if (this.formulaire.controls.groupeId.value) await this.chargerLeGroupe(this.formulaire.controls.groupeId.value);
       this.charge.set(true);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
+    }
+  }
+
+  /** La fiche du groupe choisi ; seule la dernière réponse compte. */
+  private async chargerLeGroupe(id: string): Promise<void> {
+    const numero = ++this.dernierGroupe;
+    this.ficheDuGroupe.set(null);
+    const { mode, debutLe } = this.formulaire.controls;
+    if (!id) {
+      debutLe.setValue('');
+      return;
+    }
+    try {
+      const fiche = await firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${id}`));
+      if (numero !== this.dernierGroupe) return;
+      this.ficheDuGroupe.set(fiche);
+      if (!this.modes().some((m) => m.mode === mode.value)) mode.setValue('');
+      if (!this.dates().some((d) => d.date === debutLe.value)) debutLe.setValue(premiereSeanceProposee(this.dates()) ?? '');
+    } catch (erreur) {
+      if (numero === this.dernierGroupe) this.erreur.set(messageDErreur(erreur));
     }
   }
 
@@ -159,6 +206,8 @@ export class FormulaireDeLEleve implements OnInit {
         emailParent: eleve.emailParent ?? '',
         professeurId: '',
         groupeId: '',
+        mode: '',
+        debutLe: '',
       });
       this.formulaire.markAsPristine();
     }
@@ -182,7 +231,14 @@ export class FormulaireDeLEleve implements OnInit {
     };
     const contactsDeLEleve = !this.propresContacts() || (fiche.telephoneEleve && fiche.emailEleve);
     const contactDuParent = fiche.majeur || fiche.telephoneParent;
-    if (!fiche.prenom || !fiche.nom || !fiche.niveauId || !contactsDeLEleve || !contactDuParent) {
+    const eleve = this.eleve();
+    const groupe = eleve ? null : this.ficheDuGroupe();
+    if (!eleve && valeurs.groupeId && !groupe) {
+      this.erreur.set(GROUPE_EN_CHARGEMENT);
+      return;
+    }
+    const inscriptionIncomplete = groupe !== null && ((this.modes().length > 0 && !valeurs.mode) || !valeurs.debutLe);
+    if (!fiche.prenom || !fiche.nom || !fiche.niveauId || !contactsDeLEleve || !contactDuParent || inscriptionIncomplete) {
       this.erreur.set(INCOMPLET);
       return;
     }
@@ -190,14 +246,30 @@ export class FormulaireDeLEleve implements OnInit {
     this.envoi.set(true);
     this.erreur.set(null);
     try {
-      const eleve = this.eleve();
       const enregistrement = await firstValueFrom(
         eleve
           ? this.http.put<EnregistrementDeLEleve>(`/api/eleves/${eleve.id}`, fiche)
           : this.http.post<EnregistrementDeLEleve>('/api/eleves', fiche),
       );
       this.brouillon.oublier();
-      this.enregistre.emit({ ...enregistrement, groupeId: eleve ? null : valeurs.groupeId || null });
+      // La fiche est créée : l'inscription part ensuite. Refusée (groupe fermé entre-temps…), la fiche reste créée.
+      let inscription: EnregistrementDeLInscription | null = null;
+      let refusDeLInscription: string | null = null;
+      if (groupe) {
+        try {
+          inscription = await firstValueFrom(
+            this.http.post<EnregistrementDeLInscription>('/api/inscriptions', {
+              eleveId: enregistrement.eleve.id,
+              groupeId: groupe.id,
+              mode: valeurs.mode || null,
+              debutLe: valeurs.debutLe,
+            }),
+          );
+        } catch (erreur) {
+          refusDeLInscription = messageDErreur(erreur);
+        }
+      }
+      this.enregistre.emit({ ...enregistrement, groupeId: groupe?.id ?? null, inscription, refusDeLInscription });
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     } finally {

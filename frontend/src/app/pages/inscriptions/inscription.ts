@@ -1,5 +1,7 @@
+import { formatDate } from '@angular/common';
+import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
-import { TypeDeGroupe } from '../groupes/groupe';
+import { dateDuJourLocale, FicheDuGroupe, heure, TypeDeGroupe } from '../groupes/groupe';
 
 /** La façon dont l'élève paie son inscription, telle que l'API l'écrit. */
 export type ModeDeTarification = 'ParMois' | 'ALaSeance' | 'EnTotalite' | 'EnUneFois' | 'EnTranches';
@@ -103,6 +105,45 @@ export interface APayer {
 export const CAPACITE_ATTEINTE = "Ce groupe a atteint sa capacité. L'inscription reste possible.";
 
 /** Un groupe qui compte déjà autant d'élèves que sa capacité. */
+/** Une séance que l'élève peut choisir comme première : sa date « 2027-11-20 » et « samedi 20/11/2027 · 10h ». */
+export interface DateDeDebut {
+  date: string;
+  libelle: string;
+}
+
+/** Les modes à choisir : aucun pour une Étude, ni pour une Formation sans tranches. */
+export function modesDuGroupe(groupe: FicheDuGroupe | null): { mode: ModeDeTarification; libelle: string }[] {
+  if (groupe?.type === 'Revision') {
+    return [
+      { mode: 'ALaSeance', libelle: 'À la séance' },
+      { mode: 'EnTotalite', libelle: 'En totalité' },
+    ];
+  }
+  if (groupe?.type === 'Formation' && groupe.tranches.length > 0) {
+    return [
+      { mode: 'EnUneFois', libelle: 'En une fois' },
+      { mode: 'EnTranches', libelle: `En ${groupe.tranches.length} tranches` },
+    ];
+  }
+  return [];
+}
+
+/** Les séances du groupe, une par jour, dans l'ordre. */
+export function datesDuGroupe(groupe: FicheDuGroupe | null): DateDeDebut[] {
+  if (!groupe) return [];
+  const seances = groupe.type === 'Etude' ? groupe.mois.flatMap((mois) => mois.seances) : groupe.seances;
+  const vues = new Set<string>();
+  return seances
+    .filter((seance) => !vues.has(seance.date) && vues.add(seance.date))
+    .map((seance) => ({ date: seance.date, libelle: `${formatDate(seance.date, 'EEEE dd/MM/yyyy', FRANCAIS)} · ${heure(seance.debut)}` }));
+}
+
+/** La première séance proposée : celle du jour, ou la suivante, ou la dernière. */
+export function premiereSeanceProposee(dates: DateDeDebut[]): string | null {
+  const aujourdhui = dateDuJourLocale();
+  return (dates.find((d) => d.date >= aujourdhui) ?? dates.at(-1))?.date ?? null;
+}
+
 export function estComplet(groupe: { eleves: number; capacite: number | null }): boolean {
   return groupe.capacite !== null && groupe.eleves >= groupe.capacite;
 }
