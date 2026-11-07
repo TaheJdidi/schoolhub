@@ -137,12 +137,22 @@ describe('la page d’un reçu', () => {
 
   afterEach(() => http.verify());
 
+  /** « Imprimer », « WhatsApp » ou « Email » : les trois façons de remettre le reçu (prototype, écran 6). */
+  async function onglet(libelle: string): Promise<void> {
+    ([...page.querySelectorAll('[role="tab"]')].find((o) => o.textContent?.trim() === libelle) as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(page.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(libelle));
+  }
+
   it('montre le reçu et les trois façons de le remettre', async () => {
     await ouvrir(RECU);
 
+    // WhatsApp d'abord : l'aperçu du message, puis un bouton par destinataire.
     expect(page.querySelector('.texte-du-message')?.textContent).toContain('Reçu n° 12 · Centre Les Jasmins');
-    expect(page.querySelector('a[href="/recus/r1/impression"]')?.textContent).toContain('Imprimer (A5)');
     expect(page.querySelector('.destinataire a')?.getAttribute('href')).toBe('https://wa.me/21698401220?text=a');
+    expect(page.querySelector('.souche')?.textContent).toContain('12');
+    await onglet('Imprimer');
+    expect(page.querySelector('a[href="/recus/r1/impression"]')?.textContent).toContain('Imprimer (A5)');
+    await onglet('Email');
     expect(page.textContent).toContain('Envoyé à parent.miled@exemple.tn.');
 
     bouton(page, "Renvoyer l'email")!.click();
@@ -152,6 +162,7 @@ describe('la page d’un reçu', () => {
 
   it('dit quand aucun email n’est connu', async () => {
     await ouvrir({ ...RECU, emails: [] });
+    await onglet('Email');
 
     expect(page.textContent).toContain('Aucun email n’est connu pour cet élève. Ajoutez-en un sur sa fiche, ou utilisez WhatsApp.');
     expect(bouton(page, "Renvoyer l'email")).toBeUndefined();
@@ -160,15 +171,14 @@ describe('la page d’un reçu', () => {
   it('annule le reçu avec un motif', async () => {
     await ouvrir(RECU);
 
-    bouton(page, 'Annuler ce reçu')!.click();
-    await vi.waitFor(() => expect(bouton(page, "Confirmer l'annulation")).toBeDefined());
-    bouton(page, "Confirmer l'annulation")!.click();
+    // Le motif d'abord, comme le prototype : sans lui, rien ne part.
+    bouton(page, 'Annuler le reçu n° 12')!.click();
     await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain("Écrivez le motif de l'annulation"));
 
     const motif = page.querySelector('input[placeholder="Mauvais élève sélectionné"]') as HTMLInputElement;
     motif.value = 'Mauvais élève sélectionné';
     motif.dispatchEvent(new Event('input'));
-    bouton(page, "Confirmer l'annulation")!.click();
+    bouton(page, 'Annuler le reçu n° 12')!.click();
     const requete = http.expectOne({ method: 'POST', url: '/api/recus/r1/annulation' });
     expect(requete.request.body).toEqual({ motif: 'Mauvais élève sélectionné' });
     requete.flush({ ...RECU, annule: true, motifDAnnulation: 'Mauvais élève sélectionné', annulable: false });
@@ -181,7 +191,7 @@ describe('la page d’un reçu', () => {
     await ouvrir({ ...RECU, annulable: false, pourquoiPasAnnulable: "Ce reçu date d'avant aujourd'hui : seul le propriétaire peut l'annuler" });
 
     expect(page.textContent).toContain("Ce reçu date d'avant aujourd'hui : seul le propriétaire peut l'annuler");
-    expect(bouton(page, 'Annuler ce reçu')).toBeUndefined();
+    expect(bouton(page, 'Annuler le reçu n° 12')).toBeUndefined();
   });
 });
 
