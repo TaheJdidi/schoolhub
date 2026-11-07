@@ -41,13 +41,20 @@
     </label>
     <label class="f">
       Matière
-      <input formControlName="matiere" list="matieres-du-centre" autocomplete="off" />
-      <datalist id="matieres-du-centre">
-        @for (matiere of matieres(); track matiere.id) {
-          <option [value]="matiere.nom"></option>
+      <select class="inp" name="choix-de-la-matiere" (change)="choisirLaMatiere($event)">
+        <option value="" [selected]="optionDeLaMatiere() === ''">Choisissez la matière</option>
+        @for (nom of listeDesMatieres(); track nom) {
+          <option [value]="nom" [selected]="optionDeLaMatiere() === nom">{{ nom }}</option>
         }
-      </datalist>
+        <option [value]="AUTRE_MATIERE" [selected]="optionDeLaMatiere() === AUTRE_MATIERE">Autre matière…</option>
+      </select>
     </label>
+    @if (matiereALaMain()) {
+      <label class="f">
+        Nom de la matière
+        <input formControlName="matiere" autocomplete="off" placeholder="Par exemple : Robotique" />
+      </label>
+    }
     <label class="f">
       {{ type() === 'Formation' ? 'Niveau (facultatif)' : 'Niveau' }}
       <select class="inp" formControlName="niveauId">

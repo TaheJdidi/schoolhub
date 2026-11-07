@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom, merge } from 'rxjs';
@@ -24,7 +24,37 @@ const TRANCHE_ILLISIBLE = 'Écrivez le montant et la séance de chaque tranche, 
 const CAPACITE_ILLISIBLE = 'Écrivez la capacité en nombre de places, par exemple 16';
 const OU_EN_EST_IL = 'Indiquez où en est le groupe';
 
-/** Une matière du centre, proposée pendant la frappe. */
+/** Les matières proposées à tout centre, même neuf ; celles du centre s'y ajoutent. */
+export const MATIERES_PROPOSEES = [
+  'Allemand',
+  'Anglais',
+  'Arabe',
+  'Chimie',
+  'Économie',
+  'Éducation islamique',
+  'Espagnol',
+  'Éveil scientifique',
+  'Français',
+  'Gestion',
+  'Histoire-Géographie',
+  'Informatique',
+  'Italien',
+  'Mathématiques',
+  'Philosophie',
+  'Physique',
+  'Sciences de la vie et de la terre',
+  'Sciences expérimentales',
+  'Sciences physiques',
+  'Technologie',
+];
+
+/** L'option « Autre matière… » de la liste. */
+export const AUTRE_MATIERE = 'autre';
+
+/** « mathématiques » et « Mathématiques » sont la même matière, comme au serveur. */
+const normaliser = (nom: string) => nom.trim().normalize('NFKC').toLowerCase();
+
+/** Une matière du centre, proposée dans la liste. */
 interface Matiere {
   id: string;
   nom: string;
@@ -85,6 +115,15 @@ export class NouveauGroupe implements OnInit {
   protected readonly professeurs = signal<Professeur[]>([]);
   protected readonly niveaux = signal<Niveau[]>([]);
   protected readonly matieres = signal<Matiere[]>([]);
+  /** Les matières proposées et celles du centre, une seule fois chacune, dans l'ordre alphabétique. */
+  protected readonly listeDesMatieres = computed(() => {
+    const parNom = new Map(MATIERES_PROPOSEES.map((nom) => [normaliser(nom), nom]));
+    for (const matiere of this.matieres()) parNom.set(normaliser(matiere.nom), matiere.nom);
+    return [...parNom.values()].sort((a, b) => a.localeCompare(b, 'fr'));
+  });
+  /** « Autre matière… » est choisie : la matière s'écrit à la main. */
+  protected readonly autreMatiere = signal(false);
+  protected readonly AUTRE_MATIERE = AUTRE_MATIERE;
   /** Les trois listes sont arrivées : sans elles, rien ne part. */
   protected readonly charge = signal(false);
   protected readonly envoi = signal(false);
@@ -119,15 +158,40 @@ export class NouveauGroupe implements OnInit {
   protected readonly brouillon = garderLeBrouillon('nouveau-groupe', this.formulaire, {
     lignes: { creneaux: () => nouveauCreneau(), dates: nouvelleDate, tranches: nouvelleTranche },
     etat: {
-      lire: () => ({ type: this.type(), modeDesDates: this.modeDesDates(), dejaCommence: this.dejaCommence(), nomChoisi: this.nomChoisi }),
+      lire: () => ({
+        type: this.type(),
+        modeDesDates: this.modeDesDates(),
+        dejaCommence: this.dejaCommence(),
+        nomChoisi: this.nomChoisi,
+        autreMatiere: this.autreMatiere(),
+      }),
       ecrire: (etat) => {
         this.type.set(etat.type);
         this.modeDesDates.set(etat.modeDesDates);
         this.dejaCommence.set(etat.dejaCommence);
         this.nomChoisi = etat.nomChoisi;
+        this.autreMatiere.set(etat.autreMatiere ?? false);
       },
     },
   });
+
+  private readonly matiereSaisie = toSignal(this.formulaire.controls.matiere.valueChanges, { initialValue: '' });
+  /** La matière s'écrit à la main : « Autre matière… » est choisie, ou la matière reprise n'est pas dans la liste. */
+  protected readonly matiereALaMain = computed(() => {
+    const saisie = normaliser(this.matiereSaisie());
+    return this.autreMatiere() || (saisie !== '' && !this.listeDesMatieres().some((nom) => normaliser(nom) === saisie));
+  });
+  /** L'option choisie dans la liste. */
+  protected readonly optionDeLaMatiere = computed(() => (this.matiereALaMain() ? AUTRE_MATIERE : this.matiereSaisie()));
+
+  protected choisirLaMatiere(evenement: Event): void {
+    const choix = (evenement.target as HTMLSelectElement).value;
+    const autre = choix === AUTRE_MATIERE;
+    this.autreMatiere.set(autre);
+    const matiere = this.formulaire.controls.matiere;
+    matiere.setValue(autre ? '' : choix);
+    matiere.markAsDirty();
+  }
 
   protected get creneaux(): FormArray<ReturnType<typeof nouveauCreneau>> {
     return this.formulaire.controls.creneaux;

@@ -129,21 +129,25 @@
                 </select>
               </label>
               <label class="f">
-                Établissement scolaire <span class="opt">(facultatif)</span>
+                <span>Établissement scolaire <span class="opt">(facultatif)</span></span>
                 <input formControlName="etablissement" autocomplete="off" />
               </label>
               <label class="f">
-                Téléphone de l'élève
-                @if (!propresContacts()) {
-                  <span class="opt">(facultatif avant la 7ᵉ année)</span>
-                }
+                <span>
+                  Téléphone de l'élève
+                  @if (!propresContacts()) {
+                    <span class="opt">(facultatif avant la 7ᵉ année)</span>
+                  }
+                </span>
                 <input formControlName="telephoneEleve" inputmode="tel" autocomplete="off" />
               </label>
               <label class="f">
-                Email de l'élève
-                @if (!propresContacts()) {
-                  <span class="opt">(facultatif avant la 7ᵉ année)</span>
-                }
+                <span>
+                  Email de l'élève
+                  @if (!propresContacts()) {
+                    <span class="opt">(facultatif avant la 7ᵉ année)</span>
+                  }
+                </span>
                 <input type="email" formControlName="emailEleve" inputmode="email" autocomplete="off" />
               </label>
             </div>
@@ -154,14 +158,16 @@
             </label>
             <div class="champs">
               <label class="f">
-                Téléphone WhatsApp du parent
-                @if (majeur()) {
-                  <span class="opt">(facultatif pour un élève majeur)</span>
-                }
+                <span>
+                  Téléphone WhatsApp du parent
+                  @if (majeur()) {
+                    <span class="opt">(facultatif pour un élève majeur)</span>
+                  }
+                </span>
                 <input formControlName="telephoneParent" inputmode="tel" autocomplete="off" />
               </label>
               <label class="f">
-                Email du parent <span class="opt">(facultatif)</span>
+                <span>Email du parent <span class="opt">(facultatif)</span></span>
                 <input type="email" formControlName="emailParent" inputmode="email" autocomplete="off" />
               </label>
             </div>

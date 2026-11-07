@@ -76,8 +76,17 @@ describe('la page « Nouveau groupe »', () => {
     await harness.fixture.whenStable();
   }
 
+  const listeDesMatieres = () => page.querySelector('select[name="choix-de-la-matiere"]') as HTMLSelectElement;
+
+  async function choisirLaMatiere(valeur: string): Promise<void> {
+    const liste = listeDesMatieres();
+    liste.value = valeur;
+    liste.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+  }
+
   async function remplir(): Promise<void> {
-    saisir(page, '[formcontrolname="matiere"]', 'Mathématiques');
+    await choisirLaMatiere('Mathématiques');
     await choisirOption('niveauId', 'n9');
     await taper('debut', '10:00');
     await taper('fin', '12:00');
@@ -92,7 +101,7 @@ describe('la page « Nouveau groupe »', () => {
     expect(options('professeurId')).toEqual(['Choisissez le professeur', 'Karim Ben Salah', 'Leila Khelifi']);
     expect(champ('professeurId').value).toBe('k');
     expect(options('niveauId')).toEqual(['Choisissez le niveau', '9ᵉ année de base', 'Université, 1ʳᵉ année']);
-    expect([...page.querySelectorAll('datalist option')].map((o) => o.getAttribute('value'))).toEqual(['Mathématiques']);
+    expect([...listeDesMatieres().options].map((o) => o.value)).toContain('Mathématiques');
     expect(page.querySelectorAll('.creneau')).toHaveLength(1);
     expect(boutons()).not.toContain('Retirer');
   });
@@ -219,7 +228,7 @@ describe('la page « Nouveau groupe »', () => {
   }
 
   async function remplirUneRevision(): Promise<void> {
-    saisir(page, '[formcontrolname="matiere"]', 'Mathématiques');
+    await choisirLaMatiere('Mathématiques');
     await choisirOption('niveauId', 'n9');
     saisir(page, '[formcontrolname="prixTotal"]', '50');
     saisir(page, '[formcontrolname="nombreDeSeances"]', '3');
@@ -306,7 +315,7 @@ describe('la page « Nouveau groupe »', () => {
     await ouvrir();
     await choisirLeType('Formation');
     expect(libelles().some((l) => l?.startsWith('Niveau (facultatif)'))).toBe(true);
-    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    await choisirLaMatiere('Informatique');
     saisir(page, '[formcontrolname="prixTotal"]', '300');
     saisir(page, '[formcontrolname="nombreDeSeances"]', '10');
     await taper('debut', '10:00');
@@ -393,7 +402,7 @@ describe('la page « Nouveau groupe »', () => {
   it('refuse une tranche illisible', async () => {
     await ouvrir();
     await choisirLeType('Formation');
-    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    await choisirLaMatiere('Informatique');
     saisir(page, '[formcontrolname="prixTotal"]', '300');
     saisir(page, '[formcontrolname="nombreDeSeances"]', '10');
     await taper('debut', '10:00');
@@ -412,7 +421,7 @@ describe('la page « Nouveau groupe »', () => {
   it("reprend le groupe commencé après une visite d'une autre page, et « Recommencer » le vide", async () => {
     await ouvrir();
     await choisirLeType('Formation');
-    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    await choisirLaMatiere('Informatique');
     await cliquer('Ajouter une tranche');
     await taper('montant', '100');
 
@@ -426,13 +435,32 @@ describe('la page « Nouveau groupe »', () => {
 
     await attendre('Vous reprenez le groupe que vous aviez commencé.');
     expect(page.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe('Formation');
-    expect(champ('matiere').value).toBe('Informatique');
+    expect(listeDesMatieres().value).toBe('Informatique');
     expect(champ('professeurId').value).toBe('k');
     expect(champs('montant').map((m) => m.value)).toEqual(['100']);
 
     await cliquer('Recommencer');
     expect(page.textContent).not.toContain('Vous reprenez');
     expect(page.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe('Étude');
-    expect(champ('matiere').value).toBe('');
+    expect(listeDesMatieres().value).toBe('');
+  });
+
+  it('propose les matières courantes et celles du centre, et « Autre matière… » pour en écrire une', async () => {
+    await ouvrir();
+    const matieres = [...listeDesMatieres().options].map((o) => o.textContent?.trim());
+    expect(matieres[0]).toBe('Choisissez la matière');
+    expect(matieres).toEqual(expect.arrayContaining(['Arabe', 'Français', 'Mathématiques', 'Philosophie', 'Physique', 'Sciences expérimentales']));
+    expect(matieres.filter((m) => m === 'Mathématiques')).toHaveLength(1);
+    expect(matieres.at(-1)).toBe('Autre matière…');
+    expect(champ('matiere')).toBeUndefined();
+
+    await choisirLaMatiere('autre');
+    saisir(page, '[formcontrolname="matiere"]', 'Robotique');
+    await harness.fixture.whenStable();
+    expect(listeDesMatieres().value).toBe('autre');
+    expect(champ('matiere').value).toBe('Robotique');
+
+    await choisirLaMatiere('Arabe');
+    expect(champ('matiere')).toBeUndefined();
   });
 });
