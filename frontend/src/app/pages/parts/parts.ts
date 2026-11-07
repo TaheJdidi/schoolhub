@@ -67,10 +67,10 @@ export interface PartsDuCentre {
     @if (parts(); as parts) {
       <div class="chiffres">
         <div [class.warn]="parts.resteAVerser > 0">
-          <span>Reste à verser</span><b class="num">{{ montant(parts.resteAVerser) }} TND</b>
+          <span>Reste à verser</span><b><span class="num">{{ montant(parts.resteAVerser) }}</span><small> TND</small></b>
         </div>
-        <div><span>Déjà versé</span><b class="num">{{ montant(parts.dejaVerse) }} TND</b></div>
-        <div><span>Avances pas encore déduites</span><b class="num">{{ montant(parts.avancesRestantes) }} TND</b></div>
+        <div><span>Déjà versé</span><b><span class="num">{{ montant(parts.dejaVerse) }}</span><small> TND</small></b></div>
+        <div><span>Avances pas encore déduites</span><b><span class="num">{{ montant(parts.avancesRestantes) }}</span><small> TND</small></b></div>
       </div>
 
       @if (avance()) {
@@ -95,8 +95,11 @@ export interface PartsDuCentre {
         </section>
       }
 
+      <!-- Comme le prototype (écran 12) : un seul tableau, chaque professeur ouvert par une bande grise. -->
+      @if (parts.professeurs.length > 0) {
+      <div class="card tableau-des-parts">
       @for (professeur of parts.professeurs; track professeur.id) {
-        <section class="card carte" [attr.aria-label]="professeur.nom">
+        <section class="professeur" [attr.aria-label]="professeur.nom">
           <div class="entete">
             <h2 class="titre">{{ professeur.nom }} · part du centre {{ pourcent(professeur.pourcentage) }}</h2>
             <span class="resume">
@@ -108,6 +111,10 @@ export interface PartsDuCentre {
           </div>
           <div class="defile">
             <table>
+              <colgroup>
+                <col class="c-groupe" /><col class="c-periode" /><col class="c-montant" /><col class="c-montant" />
+                <col class="c-montant" /><col class="c-montant" /><col class="c-payee" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Groupe</th><th>Période</th><th class="r">Montant du groupe</th><th class="r">Part du centre</th>
@@ -137,7 +144,9 @@ export interface PartsDuCentre {
             </table>
           </div>
         </section>
-      } @empty {
+      }
+      </div>
+      } @else {
         <p class="vide">Pas encore de part : une ligne naît quand un Mois, une Révision ou une Formation est fini.</p>
       }
     }
@@ -153,10 +162,20 @@ export interface PartsDuCentre {
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
     .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-    .chiffres div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
-    .chiffres div.warn { border-color: var(--warn); }
-    .chiffres span { color: var(--ink-2); font-size: 12.5px; }
-    .chiffres b { font-size: 20px; }
+    .chiffres div { display: grid; gap: 4px; padding: 16px 18px; border-radius: 14px; background: var(--sunk); }
+    .chiffres div > span { color: var(--ink-2); font-size: 13px; }
+    .chiffres b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
+    .chiffres b small { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink-2); }
+    .chiffres div.warn b { color: var(--warn); }
+    .tableau-des-parts { padding: 0; overflow: hidden; }
+    .professeur .entete { padding: 9px 12px; background: var(--sunk); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .professeur:first-child .entete { border-top: 0; }
+    .professeur .titre { font-size: 13.5px; font-weight: 600; }
+    /* Les en-têtes de colonnes une seule fois, en haut : les tableaux des professeurs ont les mêmes colonnes. */
+    .professeur:not(:first-child) thead { display: none; }
+    table { table-layout: fixed; }
+    .c-groupe { width: 24%; } .c-periode { width: 22%; } .c-montant { width: 11%; } .c-payee { width: 11%; }
+    th, td { padding: 9px 12px !important; white-space: normal !important; }
     .champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     .entete { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
