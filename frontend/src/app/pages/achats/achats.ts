@@ -1,11 +1,12 @@
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
+import { Icone } from '../../socle/icone';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
@@ -43,7 +44,9 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
 @Component({
   selector: 'sh-achats',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ActionsDeListe, BrouillonRepris],
+  imports: [ReactiveFormsModule, ActionsDeListe, BrouillonRepris, Icone],
+  // Un clic ailleurs referme le menu « ⋮ » ouvert.
+  host: { '(document:click)': 'fermerLesMenus($event)' },
   template: `
     <div class="pagehead">
       <div>
@@ -84,10 +87,31 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
       </form>
     }
 
+    @if (liste(); as liste) {
+      <!-- Le résumé de la période, en haut (croquis A) : le total, chaque catégorie, et ce qui est sorti de la caisse. -->
+      <div class="chiffres">
+        <div>
+          <span>Total {{ parAnnee() ? "de l'année" : 'du mois' }}</span>
+          <b class="num">{{ montant(liste.total) }} <small>TND</small></b>
+        </div>
+        <div>
+          <span>Matériel</span>
+          <b class="num">{{ montant(liste.totalMateriel) }}</b>
+        </div>
+        <div>
+          <span>Service</span>
+          <b class="num">{{ montant(liste.totalService) }}</b>
+        </div>
+        <div class="caisse-sortie">
+          <span>Sorti de la caisse</span>
+          <b class="num">{{ montant(sortiDeLaCaisse()) }}</b>
+        </div>
+      </div>
+    }
+
     <section class="card carte">
-      <!-- « Imprimer » et « Exporter » à gauche, les filtres en haut à droite. -->
+      <!-- Les filtres à gauche, « Imprimer » et « Exporter » à droite. -->
       <div class="barre">
-      <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
       <div class="filtres">
         <label class="f">
           Période
@@ -109,12 +133,13 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
           </select>
         </label>
       </div>
+      <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
       </div>
       @if (liste(); as liste) {
-        <div class="defile">
+        <div>
           <table>
             <thead>
-              <tr><th>Date</th><th>Libellé</th><th>Catégorie</th><th class="r">Montant</th><th></th></tr>
+              <tr><th>Date</th><th>Libellé</th><th class="categorie">Catégorie</th><th class="r">Montant</th><th class="menu-col" aria-label="Actions"></th></tr>
             </thead>
             <tbody>
               @for (achat of liste.achats; track achat.id) {
@@ -127,17 +152,23 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
                     }
                     <br /><small>{{ achat.fournisseur ? achat.fournisseur + ' · ' : '' }}{{ achat.auteur }}</small>
                   </td>
-                  <td>{{ libelleDe(achat.categorie) }}</td>
+                  <td class="categorie">{{ libelleDe(achat.categorie) }}</td>
                   <td class="r num">{{ montant(achat.montant) }}</td>
-                  <td class="boutons">
-                    @if (achat.aUneFacture) {
-                      <a class="btn sm" [href]="'/api/achats/' + achat.id + '/facture'" target="_blank" rel="noopener">Facture</a>
-                    }
-                    <button type="button" class="btn sm" (click)="refaire(achat)">Refaire</button>
-                    @if (achat.modifiable) {
-                      <button type="button" class="btn sm" (click)="modifier(achat)">Modifier</button>
-                      <button type="button" class="btn sm" [disabled]="envoi()" (click)="supprimer(achat)">Supprimer</button>
-                    }
+                  <td class="menu-col">
+                    <!-- Les actions de la ligne, rangées dans un menu « ⋮ » pour laisser la place au tableau. -->
+                    <details class="menu" #menu>
+                      <summary class="btn sm ghost" [attr.aria-label]="'Actions pour « ' + achat.libelle + ' »'"><sh-icone nom="ellipsis-vertical" /></summary>
+                      <div class="liste-menu" role="menu">
+                        @if (achat.aUneFacture) {
+                          <a role="menuitem" [href]="'/api/achats/' + achat.id + '/facture'" target="_blank" rel="noopener" (click)="menu.open = false">Voir la facture</a>
+                        }
+                        <button type="button" role="menuitem" (click)="menu.open = false; refaire(achat)">Refaire</button>
+                        @if (achat.modifiable) {
+                          <button type="button" role="menuitem" (click)="menu.open = false; modifier(achat)">Modifier</button>
+                          <button type="button" role="menuitem" class="danger" [disabled]="envoi()" (click)="menu.open = false; supprimer(achat)">Supprimer</button>
+                        }
+                      </div>
+                    </details>
                   </td>
                 </tr>
               } @empty {
@@ -145,9 +176,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
               }
             </tbody>
             <tfoot>
-              <tr><td colspan="3">Matériel</td><td class="r num">{{ montant(liste.totalMateriel) }}</td><td></td></tr>
-              <tr><td colspan="3">Service</td><td class="r num">{{ montant(liste.totalService) }}</td><td></td></tr>
-              <tr class="total"><td colspan="3">Total</td><td class="r num">{{ montant(liste.total) }} TND</td><td></td></tr>
+              <tr class="fin"><td colspan="2">Total</td><td class="categorie"></td><td class="r num">{{ montant(liste.total) }} TND</td><td></td></tr>
             </tfoot>
           </table>
         </div>
@@ -166,20 +195,46 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
     .champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
-    .barre { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; }
-    .filtres { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: end; gap: 10px; margin-left: auto; }
-    .filtres .f { width: 170px; }
+    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    /* Comme les chiffres de la Bibliothèque : sur fond gris, en grand. */
+    .chiffres div { display: grid; gap: 4px; padding: 14px 18px; border-radius: 14px; background: var(--sunk); }
+    .chiffres span { color: var(--ink-2); font-size: 13px; }
+    .chiffres b { font-family: var(--font-display); font-size: 24px; font-weight: 600; line-height: 1.2; }
+    .chiffres b small { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+    .chiffres .caisse-sortie b { color: var(--warn); }
+    .barre { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .filtres { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+    .filtres .f { width: 160px; }
     .caisse { display: inline-flex; gap: 8px; align-items: center; font-weight: 500; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
-    .defile { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    th, td { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+    th, td { text-align: left; padding: 9px 8px; border-top: 1px solid var(--line); vertical-align: middle; }
     th { color: var(--ink-2); font-weight: 500; border-top: 0; }
     td small { color: var(--ink-2); }
-    .r { text-align: right; white-space: nowrap; }
-    .boutons { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-    tfoot td { color: var(--ink-2); }
-    tfoot .total td { color: var(--ink); font-weight: 600; }
+    th:first-child, td:first-child { width: 96px; white-space: nowrap; }
+    .categorie { width: 120px; }
+    .r { text-align: right; white-space: nowrap; width: 110px; }
+    .menu-col { width: 44px; text-align: right; }
+    tfoot td { border-top: 2px solid var(--line-2); font-weight: 600; }
+    .menu { position: relative; display: inline-block; }
+    .menu summary { list-style: none; padding: 4px 6px; color: var(--ink-2); }
+    .menu summary::-webkit-details-marker { display: none; }
+    .liste-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; min-width: 160px; display: grid; padding: 4px;
+      background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r); box-shadow: 0 6px 18px rgb(0 0 0 / 12%); }
+    .liste-menu a, .liste-menu button { display: block; text-align: left; padding: 7px 10px; border: 0; border-radius: 6px; background: none;
+      color: var(--ink); font: inherit; text-decoration: none; cursor: pointer; }
+    .liste-menu a:hover, .liste-menu button:hover { background: var(--sunk); }
+    .liste-menu .danger { color: var(--bad); }
+    .liste-menu button:disabled { opacity: .55; cursor: not-allowed; }
+    /* Sur un téléphone, la catégorie se lit déjà dans les chiffres du haut : la colonne laisse la place. */
+    @media (max-width: 640px) {
+      .categorie { display: none; }
+      th:first-child, td:first-child { width: auto; }
+      th, td { padding: 8px 4px; }
+      .filtres { width: 100%; }
+      .filtres .f { width: auto; flex: 1 1 130px; min-width: 0; }
+      .filtres .inp { width: 100%; min-width: 0; }
+    }
   `,
 })
 export class Achats implements OnInit {
@@ -223,6 +278,18 @@ export class Achats implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.charger();
     this.brouillon.reprendre();
+  }
+
+  /** Ce qui est sorti de la caisse sur la période : les achats « Payé depuis ma caisse ». */
+  protected readonly sortiDeLaCaisse = computed(() =>
+    (this.liste()?.achats ?? []).filter((achat) => achat.payeDepuisLaCaisse).reduce((somme, achat) => somme + achat.montant, 0),
+  );
+
+  /** Un clic hors d'un menu « ⋮ » le referme. */
+  protected fermerLesMenus(evenement: Event): void {
+    for (const menu of document.querySelectorAll<HTMLDetailsElement>('sh-achats details.menu[open]')) {
+      if (!menu.contains(evenement.target as Node)) menu.open = false;
+    }
   }
 
   protected libelleDe(categorie: 'Materiel' | 'Service'): string {

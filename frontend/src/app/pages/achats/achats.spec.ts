@@ -57,6 +57,9 @@ describe('les achats', () => {
     // Un achat que la personne ne peut plus changer n'a ni « Modifier » ni « Supprimer ».
     expect(bouton('Modifier', lignes[1])).toBeUndefined();
     expect(page.querySelector('tfoot')?.textContent).toContain('495,000 TND');
+    // Le résumé du haut : le total, chaque catégorie, et seuls les achats payés depuis la caisse comme sortie de caisse.
+    const chiffres = [...page.querySelectorAll('.chiffres > div')].map((carte) => [...carte.children].map((partie) => partie.textContent?.replace(/\s+/g, ' ').trim()).join(' : '));
+    expect(chiffres).toEqual(['Total du mois : 495,000 TND', 'Matériel : 45,000', 'Service : 450,000', 'Sorti de la caisse : 45,000']);
   });
 
   it('enregistre un nouvel achat payé depuis la caisse', async () => {
