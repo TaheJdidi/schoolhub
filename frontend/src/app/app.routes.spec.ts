@@ -33,6 +33,7 @@ describe("les adresses de l'application", () => {
     http.match((requete) => requete.url === '/api/bibliotheque').forEach((requete) => requete.flush({ presents: 0, capacite: null, entrees: 0 }));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/groupes').forEach((requete) => requete.flush([]));
     http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
     http.match((requete) => requete.url === '/api/journal').forEach((requete) => requete.flush({ lignes: [], auteurs: [], actions: [] }));
     http.verify();
@@ -203,7 +204,7 @@ describe("les adresses de l'application", () => {
     await ouvrir('/', AMIRA);
 
     expect(adresseActuelle()).toBe('/aujourdhui');
-    expect(texte()).toContain('Bonjour Amira');
+    expect((harness.fixture.nativeElement as HTMLElement).querySelector('main h1')?.textContent).toContain("Aujourd'hui");
     expect(texte()).toContain('Séances du jour');
     expect(titre()).toBe("Aujourd'hui · SchoolHub");
   });
@@ -307,9 +308,8 @@ describe("les adresses de l'application", () => {
       },
     ]);
 
-    await vi.waitFor(() => expect(texte()).toContain('Appels à recopier · 1'));
-    expect(texte()).toContain('Mathématiques · Groupe Samedi 10h → 12h');
-    expect(texte()).toContain('Karim Ben Salah · sam. 20/11, 10h → 12h');
+    await vi.waitFor(() => expect(texte()).toContain('sam. 20/11 · 10h → 12h'));
+    expect(texte()).toContain('Mathématiques · Groupe Samedi 10h → 12h · Karim Ben Salah');
     expect((harness.fixture.nativeElement as HTMLElement).querySelector('a[href="/professeurs/groupes/g1/appel/s1"]')?.textContent).toContain('Recopier');
   });
 
@@ -319,8 +319,9 @@ describe("les adresses de l'application", () => {
       { id: 'e1', prenom: 'Adem', nom: 'Miled', dues: ['Mois 3 de mathématiques', 'assurance 2027-2028'], total: 60, dernierRappelLe: '2027-10-12T09:00:00+00:00' },
     ]);
 
-    await vi.waitFor(() => expect(texte()).toContain('Élèves en rouge · 1'));
-    expect(texte()).toContain('Mois 3 de mathématiques, assurance 2027-2028 · 60,000 TND');
+    await vi.waitFor(() => expect(texte()).toContain('Adem Miled'));
+    expect(texte()).toContain('Mois 3 de mathématiques, assurance 2027-2028');
+    expect(texte()).toContain('60,000 TND');
     expect(texte()).toContain('rappel envoyé le 12/10');
     expect([...(harness.fixture.nativeElement as HTMLElement).querySelectorAll('main button')].map((b) => b.textContent?.trim())).toContain(
       'Envoyer un rappel',
@@ -331,8 +332,9 @@ describe("les adresses de l'application", () => {
     await ouvrir('/aujourdhui', AMIRA);
     http.expectOne('/api/demandes/nombre').flush({ aTraiter: 2 });
 
-    await vi.waitFor(() => expect(texte()).toContain('2 demandes d’inscription à traiter'));
-    expect((harness.fixture.nativeElement as HTMLElement).querySelector('main a[href="/demandes"]')).not.toBeNull();
+    const carte = () => (harness.fixture.nativeElement as HTMLElement).querySelector('main a[href="/demandes"]');
+    await vi.waitFor(() => expect(carte()?.querySelector('b')?.textContent?.trim()).toBe('2'));
+    expect(carte()?.textContent).toContain('demandes d’inscription à traiter');
   });
 
   it("le formulaire public s'ouvre sans connexion sur /inscription/les-jasmins", async () => {

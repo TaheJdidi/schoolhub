@@ -34,6 +34,7 @@ describe('le cadre', () => {
     http.match((requete) => requete.url === '/api/bibliotheque').forEach((requete) => requete.flush({ presents: 0, capacite: null, entrees: 0 }));
     http.match((requete) => requete.url === '/api/recus').forEach((requete) => requete.flush([]));
     http.match('/api/eleves/en-rouge').forEach((requete) => requete.flush([]));
+    http.match((requete) => requete.url === '/api/groupes').forEach((requete) => requete.flush([]));
     http.match('/api/caisse').forEach((requete) => requete.flush({ ouvertes: [], clotures: [] }));
     http.verify();
   });

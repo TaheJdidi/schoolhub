@@ -89,7 +89,8 @@ public static class SeancesEndpoints
 public sealed record AppelSaisi(List<Guid>? Absents);
 
 /// <summary>Le groupe d'une séance : son nom, son type et sa matière.</summary>
-public sealed record GroupeDeLAppel(Guid Id, string Nom, string Type, string Matiere);
+/// <param name="Niveau">Le nom du niveau du groupe, pour l'accueil (« 9ᵉ année de base ») ; <c>null</c> sans niveau.</param>
+public sealed record GroupeDeLAppel(Guid Id, string Nom, string Type, string Matiere, string? Niveau = null);
 
 /// <summary>
 /// Un élève à l'appel : absent ou présent. Pour un absent : le moment où ses destinataires ont été prévenus (SEA-11),

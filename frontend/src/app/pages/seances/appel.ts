@@ -58,6 +58,8 @@ export interface GroupeDeLAppel {
   nom: string;
   type: TypeDeGroupe;
   matiere: string;
+  /** Le nom du niveau du groupe, pour l'accueil ; absent ou `null` sans niveau. */
+  niveau?: string | null;
 }
 
 /** L'appel d'une séance (GET et PUT /api/seances/{id}/appel). */

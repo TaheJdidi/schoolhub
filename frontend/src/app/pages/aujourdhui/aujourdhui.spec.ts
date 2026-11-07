@@ -30,16 +30,22 @@ describe("l'accueil « Aujourd'hui »", () => {
     http.expectOne('/api/bibliotheque').flush({ presents: 7, capacite: 30, entrees: 11 });
     http.expectOne('/api/seances/a-recopier').flush([]);
     http.expectOne('/api/eleves/en-rouge').flush([]);
+    http.expectOne('/api/groupes').flush([{ id: 'g1', badge: { etat: 'Rappels', nombre: 5 } }]);
     await vi.waitFor(() => expect(page.querySelectorAll('.seance')).toHaveLength(2));
 
     const premiere = page.querySelector('.seance') as HTMLAnchorElement;
-    expect(premiere.textContent).toContain('Mathématiques · Groupe Samedi 10h → 12h');
-    expect(premiere.textContent).toContain('Karim Ben Salah · 14 élèves attendus');
-    expect(premiere.textContent).toContain('appel à faire');
+    expect(premiere.textContent).toContain('Mathématiques');
+    expect(premiere.textContent).toContain('Karim Ben Salah · Groupe Samedi 10h → 12h · 14 élèves');
+    expect(premiere.textContent).toContain('5 à relancer');
+    // Selon l'heure qu'il est : à venir, en cours, ou appel à faire.
+    expect(premiere.textContent).toMatch(/À venir|En cours|Appel à faire/);
     expect(premiere.getAttribute('href')).toBe('/professeurs/groupes/g1/appel/s1');
-    expect(page.querySelectorAll('.seance')[1].textContent).toContain('annulée');
-    expect(page.textContent).toContain('800,000 TND');
-    expect(page.textContent).toContain('7 / 30');
+    expect(page.querySelectorAll('.seance')[1].textContent).toContain('Annulée');
+    // Seule la séance qui a lieu compte dans les élèves attendus.
+    expect(page.textContent).toContain('2 séances · 14 élèves attendus');
+    expect(page.textContent).toContain('845,000');
+    expect(page.textContent).toContain('800,000 TND en espèces attendues');
+    expect(page.textContent?.replace(/\s+/g, ' ')).toContain('7 / 30');
     http.verify();
   });
 });

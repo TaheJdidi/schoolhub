@@ -217,11 +217,13 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
         var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
         var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
+        var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
         return seances.Select(s =>
         {
             var groupe = groupes[s.GroupeId];
             return new AppelARecopier(s.Id, s.Date, Heure(s.Debut), Heure(s.Fin),
-                new GroupeDeLAppel(groupe.Id, groupe.Nom, groupe.Type.ToString(), matieres[groupe.MatiereId]), professeurs[groupe.ProfesseurId]);
+                new GroupeDeLAppel(groupe.Id, groupe.Nom, groupe.Type.ToString(), matieres[groupe.MatiereId], NiveauDe(groupe, niveaux)),
+                professeurs[groupe.ProfesseurId]);
         }).ToList();
     }
 
@@ -237,6 +239,7 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         var groupes = await contexte.Groupes.Where(g => groupeIds.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
         var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
         var professeurs = await contexte.Professeurs.ToDictionaryAsync(p => p.Id, p => $"{p.Prenom} {p.Nom}");
+        var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
         var inscrits = await contexte.Inscriptions
             .Where(i => groupeIds.Contains(i.GroupeId) && i.DebutLe <= aujourdhui && (i.ArreteLe == null || i.ArreteLe >= aujourdhui))
             .GroupBy(i => i.GroupeId).Select(g => new { GroupeId = g.Key, Nombre = g.Count() })
@@ -250,10 +253,15 @@ public sealed class AppelsDuCentre(SchoolHubDbContext contexte, JournalDuCentre 
         {
             var groupe = groupes[s.GroupeId];
             var etat = s.AnnuleeLe is not null ? "Annulee" : s.AppelFaitLe is not null ? "AppelFait" : "AppelAFaire";
-            return new SeanceDuJour(s.Id, Heure(s.Debut), Heure(s.Fin), new GroupeDeLAppel(groupe.Id, groupe.Nom, groupe.Type.ToString(), matieres[groupe.MatiereId]),
+            return new SeanceDuJour(s.Id, Heure(s.Debut), Heure(s.Fin),
+                new GroupeDeLAppel(groupe.Id, groupe.Nom, groupe.Type.ToString(), matieres[groupe.MatiereId], NiveauDe(groupe, niveaux)),
                 professeurs[groupe.ProfesseurId], inscrits.GetValueOrDefault(groupe.Id) + rattrapages.GetValueOrDefault(s.Id), etat);
         }).ToList();
     }
+
+    /// <summary>Le nom du niveau du groupe ; <c>null</c> pour une Formation sans niveau.</summary>
+    private static string? NiveauDe(Groupe groupe, Dictionary<Guid, string> niveaux) =>
+        groupe.NiveauId is { } id ? niveaux.GetValueOrDefault(id) : null;
 
     private void NoterLesCorrections(Compte auteur, Seance seance, List<Attendu> attendus, HashSet<Guid> avant, HashSet<Guid> apres, ContexteDuGroupe groupe)
     {
