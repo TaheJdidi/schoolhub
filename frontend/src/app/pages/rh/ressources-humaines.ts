@@ -4,6 +4,8 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
@@ -45,7 +47,7 @@ export interface SalairesDuMois {
 @Component({
   selector: 'sh-ressources-humaines',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ActionsDeListe],
+  imports: [ReactiveFormsModule, ActionsDeListe, BrouillonRepris],
   template: `
     <div class="pagehead">
       <div>
@@ -60,6 +62,7 @@ export interface SalairesDuMois {
     @if (formulaireOuvert()) {
       <form class="card carte" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
         <h2 class="titre">{{ enModification() ? 'Modifier la fiche' : 'Nouvel employé' }}</h2>
+        <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez la fiche que vous aviez commencée." action="Abandonner" />
         <div class="champs">
           <label class="f">Prénom <input formControlName="prenom" autocomplete="off" /></label>
           <label class="f">Nom <input formControlName="nom" autocomplete="off" /></label>
@@ -70,7 +73,7 @@ export interface SalairesDuMois {
         </div>
         <label class="f">Horaires de la semaine (facultatif) <input formControlName="horaires" autocomplete="off" placeholder="Lundi à samedi, 8h → 16h" /></label>
         <div class="actions">
-          <button type="button" class="btn" [disabled]="envoi()" (click)="formulaireOuvert.set(false)">Annuler</button>
+          <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
           <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
         </div>
       </form>
@@ -206,8 +209,26 @@ export class RessourcesHumaines implements OnInit {
     horaires: new FormControl('', { nonNullable: true }),
   });
 
+  /** Une fiche commencée, puis laissée pour une autre page, se retrouve en revenant. */
+  protected readonly brouillon = garderLeBrouillon('employe', this.formulaire, {
+    aGarder: () => this.formulaireOuvert(),
+    etat: {
+      lire: () => ({ ouvert: this.formulaireOuvert(), enModification: this.enModification() }),
+      ecrire: (etat) => {
+        this.formulaireOuvert.set(etat.ouvert);
+        this.enModification.set(etat.enModification);
+      },
+    },
+  });
+
   async ngOnInit(): Promise<void> {
     await Promise.all([this.chargerLesEmployes(), this.chargerLesSalaires()]);
+    this.brouillon.reprendre();
+  }
+
+  protected annuler(): void {
+    this.brouillon.oublier();
+    this.formulaireOuvert.set(false);
   }
 
   protected nouveau(): void {
@@ -237,6 +258,7 @@ export class RessourcesHumaines implements OnInit {
     const id = this.enModification();
     await this.envoyer(async () => {
       const employe = await firstValueFrom(id ? this.http.put<Employe>(`/api/employes/${id}`, saisie) : this.http.post<Employe>('/api/employes', saisie));
+      this.brouillon.oublier();
       this.formulaireOuvert.set(false);
       this.succes.set(`La fiche de ${employe.prenom} ${employe.nom} est enregistrée.`);
       await Promise.all([this.chargerLesEmployes(), this.chargerLesSalaires()]);

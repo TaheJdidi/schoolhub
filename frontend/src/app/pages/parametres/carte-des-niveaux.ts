@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 
 /** Un niveau, tel que l'API le décrit (GET /api/niveaux). Un niveau d'office ne se modifie pas. */
@@ -34,6 +35,8 @@ export class CarteDesNiveaux implements OnInit {
 
   protected readonly ajout = new FormGroup({ nouveau: new FormControl('', { nonNullable: true }) });
   protected readonly nouveauNom = new FormControl('', { nonNullable: true });
+  /** Le nom d'un niveau commencé, puis laissé pour une autre page, se retrouve en revenant. */
+  private readonly brouillon = garderLeBrouillon('niveau', this.ajout);
   /** Le niveau dont le nom est en train de changer. */
   protected readonly enRenommage = signal<string | null>(null);
   /** Le niveau dont le retrait attend « Oui » ou « Non ». */
@@ -45,6 +48,7 @@ export class CarteDesNiveaux implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       await this.charger();
+      this.brouillon.reprendre();
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }
@@ -56,6 +60,7 @@ export class CarteDesNiveaux implements OnInit {
 
     return this.agir(async () => {
       await firstValueFrom(this.http.post<Niveau>(ADRESSE, { nom }));
+      this.brouillon.oublier();
       this.ajout.reset();
       await this.charger();
       return 'Niveau ajouté';

@@ -3,6 +3,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderUnBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { heure } from '../groupes/groupe';
@@ -25,7 +27,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
 @Component({
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, MessagesDuChangement],
+  imports: [RouterLink, MessagesDuChangement, BrouillonRepris],
   template: `
     @if (introuvable()) {
       <div class="pagehead">
@@ -55,6 +57,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
               <span class="compte">{{ presents() }} présents · {{ absents().length }} {{ absents().length > 1 ? 'absents' : 'absent' }}</span>
             }
           </div>
+          <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'appel que vous n'aviez pas enregistré." action="Annuler les changements" />
           @if (appel.annulee) {
             <p class="note warn" role="status">Cette séance est annulée : {{ appel.motifDAnnulation }}.</p>
           } @else if (!appel.ouvert) {
@@ -289,6 +292,21 @@ export class PageDeLAppel implements OnInit {
     ...(this.appel()?.rattrapages?.filter((e) => e.absent) ?? []),
   ]);
 
+  /** Un appel coché puis laissé pour une autre page sans l'enregistrer se retrouve en revenant. */
+  protected readonly brouillon = garderUnBrouillon(() => `appel-${this.seanceId}`, {
+    lire: () => this.absents(),
+    ecrire: (absents) => {
+      // Seulement les élèves encore attendus à cette séance.
+      const attendus = new Set([...(this.appel()?.eleves ?? []), ...(this.appel()?.rattrapages ?? [])].map((e) => e.inscriptionId));
+      this.absents.set(absents.filter((id) => attendus.has(id)));
+    },
+    aGarder: () => {
+      const enregistres = this.absentsEnregistres().map((e) => e.inscriptionId);
+      const coches = this.absents();
+      return coches.length !== enregistres.length || coches.some((id) => !enregistres.includes(id));
+    },
+  });
+
   // ----- Le rattrapage (SEA-12) -----
 
   protected readonly rattrapables = signal<EleveRattrapable[] | null>(null);
@@ -358,6 +376,7 @@ export class PageDeLAppel implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       this.montrer(await firstValueFrom(this.http.get<AppelDeLaSeance>(`/api/seances/${this.seanceId}/appel`)));
+      this.brouillon.reprendre();
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));
@@ -385,6 +404,7 @@ export class PageDeLAppel implements OnInit {
     try {
       const corrige = appel.appelFait;
       this.montrer(await firstValueFrom(this.http.put<AppelDeLaSeance>(`/api/seances/${appel.seanceId}/appel`, { absents: this.absents() })));
+      this.brouillon.oublier();
       this.succes.set(corrige ? 'Appel corrigé' : 'Appel enregistré');
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

@@ -54,6 +54,7 @@
     @if (mode() !== 'fiche') {
       <form class="card carte" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
         <h2 class="titre">{{ mode() === 'ajout' ? 'Nouveau professeur' : 'Modifier la fiche' }}</h2>
+        <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez la fiche que vous aviez commencée." action="Abandonner" />
         <div class="champs">
           <label class="f">
             Prénom

@@ -85,6 +85,8 @@
           <p class="note warn" role="status">Un élève ou une autre demande porte déjà ce nom ou ce téléphone. Vérifiez qu'il ne s'agit pas d'un doublon.</p>
         }
 
+        <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez cette demande où vous l'aviez laissée." (recommence)="remettreLaDemande()" />
+
         @if (demande.fichesSemblables.length > 0) {
           <section class="card carte">
             <h2 class="titre">La fiche de l'élève</h2>

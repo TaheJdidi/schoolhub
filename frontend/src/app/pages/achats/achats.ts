@@ -4,6 +4,8 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
@@ -41,7 +43,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
 @Component({
   selector: 'sh-achats',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ActionsDeListe],
+  imports: [ReactiveFormsModule, ActionsDeListe, BrouillonRepris],
   template: `
     <div class="pagehead">
       <div>
@@ -56,6 +58,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     @if (ouvert()) {
       <form class="card carte formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
         <h2 class="titre">{{ enModification() ? "Modifier l'achat" : 'Nouvel achat' }}</h2>
+        <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'achat que vous aviez commencé. La facture est à rejoindre." action="Abandonner" />
         <div class="champs">
           <label class="f">Date <input type="date" formControlName="jour" /></label>
           <label class="f">Libellé <input formControlName="libelle" autocomplete="off" placeholder="Ramettes de papier" /></label>
@@ -199,8 +202,21 @@ export class Achats implements OnInit {
     payeDepuisLaCaisse: new FormControl(false, { nonNullable: true }),
   });
 
+  /** Un achat commencé, puis laissé pour une autre page, se retrouve en revenant (sauf la facture, à rejoindre). */
+  protected readonly brouillon = garderLeBrouillon('achat', this.formulaire, {
+    aGarder: () => this.ouvert(),
+    etat: {
+      lire: () => ({ ouvert: this.ouvert(), enModification: this.enModification() }),
+      ecrire: (etat) => {
+        this.ouvert.set(etat.ouvert);
+        this.enModification.set(etat.enModification);
+      },
+    },
+  });
+
   async ngOnInit(): Promise<void> {
     await this.charger();
+    this.brouillon.reprendre();
   }
 
   protected libelleDe(categorie: 'Materiel' | 'Service'): string {
@@ -265,6 +281,7 @@ export class Achats implements OnInit {
         donnees.append('facture', this.facture);
         await firstValueFrom(this.http.put<AchatDecrit>(`/api/achats/${achat.id}/facture`, donnees));
       }
+      this.brouillon.oublier();
       this.succes.set(achat.payeDepuisLaCaisse ? `L'achat « ${achat.libelle} » est noté en sortie de caisse.` : `L'achat « ${achat.libelle} » est enregistré.`);
       this.fermer();
       await this.charger();

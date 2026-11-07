@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 
@@ -26,7 +28,7 @@ const ADRESSE = '/api/centre/parametres';
 @Component({
   selector: 'sh-carte-du-centre',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, BrouillonRepris],
   templateUrl: './carte-du-centre.html',
   styleUrl: './parametres.css',
 })
@@ -56,6 +58,9 @@ export class CarteDuCentre implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
+  /** Des paramètres changés, puis laissés pour une autre page sans les enregistrer, se retrouvent en revenant. */
+  protected readonly brouillon = garderLeBrouillon('parametres-du-centre', this.formulaire);
+
   ngOnInit(): Promise<void> {
     return this.charger();
   }
@@ -65,6 +70,7 @@ export class CarteDuCentre implements OnInit {
     try {
       this.remplir(await firstValueFrom(this.http.get<Reglages>(ADRESSE)));
       this.charges.set(true);
+      this.brouillon.reprendre();
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }
@@ -84,6 +90,7 @@ export class CarteDuCentre implements OnInit {
     this.erreur.set(null);
     try {
       this.remplir(await firstValueFrom(this.http.put<Reglages>(ADRESSE, saisie)));
+      this.brouillon.oublier();
       this.succes.set('Paramètres enregistrés');
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

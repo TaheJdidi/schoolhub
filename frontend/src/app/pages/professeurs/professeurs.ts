@@ -5,6 +5,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
@@ -33,7 +35,7 @@ import { Session } from '../../socle/session/session';
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, PartDuCentre, ActionsDeListe, ImportDeListe],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, PartDuCentre, ActionsDeListe, ImportDeListe, BrouillonRepris],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
@@ -80,6 +82,19 @@ export class Professeurs implements OnInit {
     email: new FormControl('', { nonNullable: true }),
   });
 
+  /** Une fiche commencée, puis laissée pour une autre page, se retrouve en revenant. */
+  protected readonly brouillon = garderLeBrouillon('professeur', this.formulaire, {
+    aGarder: () => this.mode() !== 'fiche',
+    etat: {
+      lire: () => ({ mode: this.mode(), modifieId: this.modifieId, choisiId: this.choisiId() }),
+      ecrire: (etat) => {
+        this.mode.set(etat.mode);
+        this.modifieId = etat.modifieId;
+        this.choisiId.set(etat.choisiId);
+      },
+    },
+  });
+
   protected readonly visibles = computed(() => this.professeurs().filter((p) => p.parti === (this.filtre() === 'partis')));
   protected readonly sousTitre = computed(() => nombreDeProfesseurs(this.professeurs().filter((p) => !p.parti).length));
   /** Le professeur choisi, ou à défaut le premier de la liste affichée. */
@@ -111,6 +126,7 @@ export class Professeurs implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.chargerLesProfesseurs(), this.chargerLesGroupes()]);
+    this.brouillon.reprendre();
   }
 
   protected filtrer(filtre: Filtre): void {
@@ -154,6 +170,7 @@ export class Professeurs implements OnInit {
   }
 
   protected annuler(): void {
+    this.brouillon.oublier();
     this.revenirALaFiche();
   }
 
@@ -173,6 +190,7 @@ export class Professeurs implements OnInit {
           ? this.http.put<EnregistrementDuProfesseur>(`${ADRESSE}/${modifieId}`, fiche)
           : this.http.post<EnregistrementDuProfesseur>(ADRESSE, fiche),
       );
+      this.brouillon.oublier();
       this.montrer(enregistrement.professeur);
       this.mode.set('fiche');
       this.avertissement.set(enregistrement.avertissement);

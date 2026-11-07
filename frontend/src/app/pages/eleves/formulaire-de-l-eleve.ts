@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
@@ -17,7 +19,7 @@ const INCOMPLET = 'Remplissez les champs obligatoires';
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, BrouillonRepris],
   templateUrl: './formulaire-de-l-eleve.html',
   styleUrl: './eleves.css',
 })
@@ -27,6 +29,8 @@ export class FormulaireDeLEleve implements OnInit {
 
   /** La fiche à modifier ; sans elle, le formulaire crée un élève. */
   readonly eleve = input<FicheDeLEleve | null>(null);
+  /** La clé du brouillon d'une nouvelle fiche : chaque endroit qui crée un élève garde le sien. */
+  readonly brouillonDeLaCreation = input('eleve-nouveau');
   readonly enregistre = output<EnregistrementDeLEleve>();
   readonly annule = output<void>();
 
@@ -50,10 +54,35 @@ export class FormulaireDeLEleve implements OnInit {
     emailParent: new FormControl('', { nonNullable: true }),
   });
 
+  /** Laissée pour une autre page, la fiche reprend où elle en était en revenant (une par élève modifié). */
+  protected readonly brouillon = garderLeBrouillon(() => {
+    const eleve = this.eleve();
+    return eleve ? `eleve-${eleve.id}` : this.brouillonDeLaCreation();
+  }, this.formulaire);
+
   async ngOnInit(): Promise<void> {
     const controles = this.formulaire.controls;
     controles.niveauId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => this.niveauChoisi.set(id));
     controles.majeur.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((majeur) => this.majeur.set(majeur));
+    this.remplir();
+    this.brouillon.reprendre();
+
+    try {
+      this.niveaux.set(await firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')));
+      this.charge.set(true);
+    } catch (erreur) {
+      this.erreur.set(messageDErreur(erreur));
+    }
+  }
+
+  /** « Annuler » : le brouillon part aussi. */
+  protected annuler(): void {
+    this.brouillon.oublier();
+    this.annule.emit();
+  }
+
+  /** La fiche à modifier, telle qu'elle est enregistrée ; rien pour une nouvelle fiche. */
+  protected remplir(): void {
     const eleve = this.eleve();
     if (eleve) {
       this.formulaire.setValue({
@@ -67,13 +96,7 @@ export class FormulaireDeLEleve implements OnInit {
         telephoneParent: eleve.telephoneParent ?? '',
         emailParent: eleve.emailParent ?? '',
       });
-    }
-
-    try {
-      this.niveaux.set(await firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')));
-      this.charge.set(true);
-    } catch (erreur) {
-      this.erreur.set(messageDErreur(erreur));
+      this.formulaire.markAsPristine();
     }
   }
 
@@ -108,6 +131,7 @@ export class FormulaireDeLEleve implements OnInit {
           ? this.http.put<EnregistrementDeLEleve>(`/api/eleves/${eleve.id}`, fiche)
           : this.http.post<EnregistrementDeLEleve>('/api/eleves', fiche),
       );
+      this.brouillon.oublier();
       this.enregistre.emit(enregistrement);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

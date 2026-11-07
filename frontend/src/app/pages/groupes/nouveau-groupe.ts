@@ -4,6 +4,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom, merge } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { lireUnNombre } from '../../socle/montants';
 import { Niveau } from '../parametres/carte-des-niveaux';
@@ -66,7 +68,7 @@ function lireUnEntier(saisie: string): number | null | undefined {
 @Component({
   selector: 'sh-nouveau-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris],
   templateUrl: './nouveau-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -111,6 +113,20 @@ export class NouveauGroupe implements OnInit {
     nom: new FormControl('', { nonNullable: true }),
   });
 
+  /** Laissé pour une autre page, le formulaire reprend où il en était en revenant. */
+  protected readonly brouillon = garderLeBrouillon('nouveau-groupe', this.formulaire, {
+    lignes: { creneaux: () => nouveauCreneau(), dates: nouvelleDate, tranches: nouvelleTranche },
+    etat: {
+      lire: () => ({ type: this.type(), modeDesDates: this.modeDesDates(), dejaCommence: this.dejaCommence(), nomChoisi: this.nomChoisi }),
+      ecrire: (etat) => {
+        this.type.set(etat.type);
+        this.modeDesDates.set(etat.modeDesDates);
+        this.dejaCommence.set(etat.dejaCommence);
+        this.nomChoisi = etat.nomChoisi;
+      },
+    },
+  });
+
   protected get creneaux(): FormArray<ReturnType<typeof nouveauCreneau>> {
     return this.formulaire.controls.creneaux;
   }
@@ -137,6 +153,12 @@ export class NouveauGroupe implements OnInit {
       this.professeurs.set(auCentre);
       this.niveaux.set(niveaux);
       this.matieres.set(matieres);
+      if (this.brouillon.reprendre()) {
+        // Un professeur parti, ou un niveau retiré, entre-temps : le champ redevient à choisir.
+        const { professeurId, niveauId } = this.formulaire.controls;
+        if (!auCentre.some((p) => p.id === professeurId.value)) professeurId.setValue('');
+        if (!niveaux.some((n) => n.id === niveauId.value)) niveauId.setValue('');
+      }
       const demande = this.route.snapshot.queryParamMap.get('professeur');
       if (auCentre.some((p) => p.id === demande)) this.formulaire.controls.professeurId.setValue(demande!);
       this.charge.set(true);
@@ -202,6 +224,7 @@ export class NouveauGroupe implements OnInit {
     this.erreur.set(null);
     try {
       const fiche = await firstValueFrom(this.http.post<FicheDuGroupe>('/api/groupes', corps));
+      this.brouillon.oublier();
       await this.router.navigate(['/professeurs/groupes', fiche.id]);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

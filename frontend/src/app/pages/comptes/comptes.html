@@ -18,6 +18,7 @@
 
   @if (formulaireOuvert()) {
     <form class="card invitation" [formGroup]="formulaire" (ngSubmit)="inviter()" novalidate>
+      <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'invitation que vous aviez commencée." action="Abandonner" />
       <div class="champs">
         <label class="f">
           Prénom

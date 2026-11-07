@@ -398,4 +398,31 @@ describe('la page « Nouveau groupe »', () => {
     await attendre('Écrivez le montant et la séance de chaque tranche, par exemple 100,000 à la séance 1');
     expect(champs('montant')).toHaveLength(1);
   });
+
+  it("reprend le groupe commencé après une visite d'une autre page, et « Recommencer » le vide", async () => {
+    await ouvrir();
+    await choisirLeType('Formation');
+    saisir(page, '[formcontrolname="matiere"]', 'Informatique');
+    await cliquer('Ajouter une tranche');
+    await taper('montant', '100');
+
+    await harness.navigateByUrl('/eleves');
+    harness.fixture.autoDetectChanges();
+    await harness.navigateByUrl('/professeurs/groupes/nouveau');
+    page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/professeurs'))).flush([KARIM, LEILA]);
+    http.expectOne('/api/niveaux').flush(NIVEAUX);
+    http.expectOne('/api/matieres').flush(MATIERES);
+
+    await attendre('Vous reprenez le groupe que vous aviez commencé.');
+    expect(page.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe('Formation');
+    expect(champ('matiere').value).toBe('Informatique');
+    expect(champ('professeurId').value).toBe('k');
+    expect(champs('montant').map((m) => m.value)).toEqual(['100']);
+
+    await cliquer('Recommencer');
+    expect(page.textContent).not.toContain('Vous reprenez');
+    expect(page.querySelector('[aria-pressed="true"]')?.textContent?.trim()).toBe('Étude');
+    expect(champ('matiere').value).toBe('');
+  });
 });

@@ -2,6 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { libelleDuRole } from '../../socle/personnes';
 import { Role } from '../../socle/session/moi';
@@ -16,7 +18,7 @@ import { CompteDuCentre, ETATS } from './compte-du-centre';
 @Component({
   selector: 'sh-comptes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, BrouillonRepris],
   templateUrl: './comptes.html',
   styleUrl: './comptes.css',
 })
@@ -44,8 +46,15 @@ export class Comptes implements OnInit {
     role: new FormControl<Role>('Secretaire', { nonNullable: true }),
   });
 
-  ngOnInit(): Promise<void> {
-    return this.charger();
+  /** Une invitation commencée, puis laissée pour une autre page, se retrouve en revenant. */
+  protected readonly brouillon = garderLeBrouillon('invitation', this.formulaire, {
+    aGarder: () => this.formulaireOuvert(),
+    etat: { lire: () => this.formulaireOuvert(), ecrire: (ouvert) => this.formulaireOuvert.set(ouvert) },
+  });
+
+  async ngOnInit(): Promise<void> {
+    await this.charger();
+    this.brouillon.reprendre();
   }
 
   /** « Sonia Mabrouk », et « (vous) » après le nom de la personne connectée. */
@@ -60,6 +69,7 @@ export class Comptes implements OnInit {
   }
 
   protected fermerLeFormulaire(): void {
+    this.brouillon.oublier();
     this.formulaireOuvert.set(false);
     this.formulaire.reset();
     this.erreur.set(null);

@@ -23,6 +23,7 @@
       <h2 class="titre">Le groupe</h2>
       @if (enModification()) {
         <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
+          <sh-brouillon-repris [brouillon]="brouillonDeLaModification" texte="Vous reprenez la modification que vous aviez commencée." action="Abandonner" />
           <div class="champs">
             <label class="f">
               Nom du groupe
@@ -49,6 +50,7 @@
         </form>
       } @else if (enFermeture()) {
         <form class="formulaire" [formGroup]="fermeture" (ngSubmit)="fermer()" novalidate>
+          <sh-brouillon-repris [brouillon]="brouillonDeLaFermeture" texte="Vous reprenez la fermeture que vous aviez commencée." action="Abandonner" />
           <div class="champs">
             <label class="f">
               Date de fermeture

@@ -1,5 +1,6 @@
 <section class="card carte">
   <h2 class="titre">Le centre</h2>
+  <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez les changements que vous n'aviez pas enregistrés." action="Annuler les changements" (recommence)="charger()" />
 
   <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
     <div class="champs">

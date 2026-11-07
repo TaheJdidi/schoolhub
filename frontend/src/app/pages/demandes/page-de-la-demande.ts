@@ -5,6 +5,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { NombreDeDemandes } from '../../socle/nombre-de-demandes';
@@ -39,7 +41,7 @@ const NOUVELLE_FICHE = '';
 @Component({
   selector: 'sh-page-de-la-demande',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris],
   templateUrl: './page-de-la-demande.html',
   styleUrls: ['../eleves/eleves.css', '../inscriptions/inscriptions.css'],
   styles: `
@@ -102,6 +104,18 @@ export class PageDeLaDemande implements OnInit {
     emailParent: new FormControl('', { nonNullable: true }),
   });
 
+  /** Une demande à moitié traitée, puis laissée pour une autre page, se retrouve en revenant : la fiche et les choix. */
+  protected readonly brouillon = garderLeBrouillon(() => `demande-${this.id}`, this.formulaire, {
+    etat: {
+      lire: () => ({ fiche: this.fiche(), groupes: this.groupes(), modes: this.modes() }),
+      ecrire: (etat) => {
+        this.fiche.set(etat.fiche);
+        this.groupes.set(etat.groupes);
+        this.modes.set(etat.modes);
+      },
+    },
+  });
+
   /** « Doublon possible » : une fiche d'élève ou une autre demande à traiter lui ressemble. */
   protected readonly doublon = computed(() => {
     const demande = this.demande();
@@ -120,6 +134,7 @@ export class PageDeLaDemande implements OnInit {
       ]);
       this.niveaux.set(niveaux);
       this.montrer(demande);
+      if (!demande.traiteeLe) this.brouillon.reprendre();
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) {
         this.introuvable.set(true);
@@ -150,20 +165,30 @@ export class PageDeLaDemande implements OnInit {
     );
   }
 
+  /** « Recommencer » : la fiche telle que le parent l'a envoyée. */
+  protected remettreLaDemande(): void {
+    const demande = this.demande();
+    if (demande) this.montrer(demande);
+    this.formulaire.markAsPristine();
+  }
+
   // ----- Les choix -----
 
   protected choisirLaFiche(id: string): void {
     this.fiche.set(id);
+    this.formulaire.markAsDirty();
     this.erreur.set(null);
   }
 
   protected choisirLeGroupe(matiere: MatiereDeLaDemande, groupeId: string): void {
     this.groupes.update((groupes) => ({ ...groupes, [matiere.matiere]: groupeId }));
+    this.formulaire.markAsDirty();
     this.erreur.set(null);
   }
 
   protected choisirLeMode(groupe: GroupeProposeALaDemande, mode: ModeDeTarification): void {
     this.modes.update((modes) => ({ ...modes, [groupe.id]: mode }));
+    this.formulaire.markAsDirty();
     this.erreur.set(null);
   }
 
@@ -223,6 +248,7 @@ export class PageDeLaDemande implements OnInit {
           groupes: choisis.map((g) => ({ groupeId: g.id, mode: this.modes()[g.id] ?? null })),
         }),
       );
+      this.brouillon.oublier();
       this.confirmation.set(confirmation);
       void this.nombre.actualiser();
     } catch (erreur) {
@@ -291,6 +317,7 @@ export class PageDeLaDemande implements OnInit {
     this.erreur.set(null);
     try {
       await firstValueFrom(this.http.post(`/api/demandes/${demande.id}/refus`, { motif: this.motif() }));
+      this.brouillon.oublier();
       void this.router.navigate(['/demandes']);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));

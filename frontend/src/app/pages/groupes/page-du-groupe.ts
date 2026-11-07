@@ -6,6 +6,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
@@ -50,7 +52,7 @@ const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe],
+  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe, BrouillonRepris],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -86,6 +88,16 @@ export class PageDuGroupe implements OnInit {
   protected readonly fermeture = new FormGroup({
     dateDeFermeture: new FormControl('', { nonNullable: true }),
     motif: new FormControl('', { nonNullable: true }),
+  });
+
+  /** Une modification ou une fermeture commencée, puis laissée pour une autre page, se retrouve en revenant. */
+  protected readonly brouillonDeLaModification = garderLeBrouillon(() => `groupe-${this.id}`, this.formulaire, {
+    aGarder: () => this.enModification(),
+    etat: { lire: () => this.enModification(), ecrire: (ouvert) => this.enModification.set(ouvert) },
+  });
+  protected readonly brouillonDeLaFermeture = garderLeBrouillon(() => `fermeture-${this.id}`, this.fermeture, {
+    aGarder: () => this.enFermeture(),
+    etat: { lire: () => this.enFermeture(), ecrire: (ouvert) => this.enFermeture.set(ouvert) },
   });
 
   /** « Les 3 séances prévues après le 02/10/2027 seront supprimées. » */
@@ -153,6 +165,7 @@ export class PageDuGroupe implements OnInit {
       ]);
       this.fiche.set(fiche);
       this.inscriptions.set(inscriptions);
+      if (!this.brouillonDeLaModification.reprendre()) this.brouillonDeLaFermeture.reprendre();
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));
@@ -190,6 +203,7 @@ export class PageDuGroupe implements OnInit {
   }
 
   protected annuler(): void {
+    this.brouillonDeLaModification.oublier();
     this.enModification.set(false);
     this.erreur.set(null);
   }
@@ -202,6 +216,7 @@ export class PageDuGroupe implements OnInit {
   }
 
   protected annulerLaFermeture(): void {
+    this.brouillonDeLaFermeture.oublier();
     this.enFermeture.set(false);
     this.erreur.set(null);
   }
@@ -220,6 +235,7 @@ export class PageDuGroupe implements OnInit {
         this.http.post<FicheDuGroupe>(`/api/groupes/${this.id}/fermeture`, { date: dateDeFermeture, motif: motif.trim() }),
       );
       this.fiche.set(fiche);
+      this.brouillonDeLaFermeture.oublier();
       this.enFermeture.set(false);
       this.succes.set('Groupe fermé');
     } catch (erreur) {
@@ -248,6 +264,7 @@ export class PageDuGroupe implements OnInit {
         this.http.put<FicheDuGroupe>(`/api/groupes/${this.id}`, { nom: valeurs.nom.trim(), capacite, prixDuMois: prix }),
       );
       this.fiche.set(fiche);
+      this.brouillonDeLaModification.oublier();
       this.enModification.set(false);
       this.succes.set('Groupe enregistré');
     } catch (erreur) {

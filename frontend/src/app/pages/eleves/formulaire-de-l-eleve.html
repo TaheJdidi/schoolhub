@@ -1,5 +1,6 @@
 <form class="card carte" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
   <h2 class="titre">L'élève</h2>
+  <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez la fiche que vous aviez commencée." (recommence)="remplir()" />
   <div class="champs">
     <label class="f">
       Prénom
@@ -58,7 +59,7 @@
   </div>
 
   <div class="actions">
-    <button type="button" class="btn" [disabled]="envoi()" (click)="annule.emit()">Annuler</button>
+    <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
     <button type="submit" class="btn primary" [disabled]="!charge() || envoi()">Enregistrer</button>
   </div>
 

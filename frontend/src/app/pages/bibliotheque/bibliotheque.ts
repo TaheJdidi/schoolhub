@@ -147,7 +147,7 @@ export interface EntreeEnregistree {
             <p class="note warn">La bibliothèque est pleine. Vous pouvez quand même noter l'entrée.</p>
           }
           @if (exterieur()) {
-            <sh-formulaire-de-l-eleve (enregistre)="entrerLExterieur($event)" (annule)="exterieur.set(false)" />
+            <sh-formulaire-de-l-eleve brouillonDeLaCreation="bibliotheque-exterieur" (enregistre)="entrerLExterieur($event)" (annule)="exterieur.set(false)" />
           } @else {
             <label class="f">
               Élève du centre
