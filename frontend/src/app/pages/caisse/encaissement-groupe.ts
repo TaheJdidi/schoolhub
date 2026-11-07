@@ -11,7 +11,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { ecrireUnMontant } from '../../socle/montants';
-import { PastilleDeCouleur } from './paiement';
 import { EleveAEncaisser, EncaissementDuGroupe, RecuDecrit, RecusDuGroupe } from './recu';
 
 /** « 18 reçus », « 1 reçu ». */
@@ -25,7 +24,7 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
 @Component({
   selector: 'sh-encaissement-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PastilleDeCouleur],
+  imports: [RouterLink],
   template: `
     @if (introuvable()) {
       <div class="pagehead">
@@ -114,7 +113,8 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
                 [checked]="coches().has(eleve.eleveId)"
                 (change)="basculer(eleve)"
               />
-              <sh-pastille-de-couleur [couleur]="eleve.couleur" />
+              <!-- Comme le prototype (écran 5) : un point de couleur, la couleur en toutes lettres pour les lecteurs d'écran. -->
+              <span class="point" [class]="'point ' + (eleve.couleur ?? '')" role="img" [attr.aria-label]="libelleDeCouleur(eleve.couleur)"></span>
               <span class="deux">
                 <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
                 <small>{{ sommes(eleve) }}</small>
@@ -144,10 +144,10 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
           }
         </section>
         <section class="card carte">
-          <h2 class="titre">Déjà à jour</h2>
-          <p class="aide">
-            {{ encaissement.aJour.length }} élève{{ encaissement.aJour.length > 1 ? 's' : '' }}
-          </p>
+          <div class="entete">
+            <h2 class="titre">Déjà à jour</h2>
+            <small class="aide">{{ encaissement.aJour.length }} élève{{ encaissement.aJour.length > 1 ? 's' : '' }}</small>
+          </div>
           <p class="a-jour">{{ aJour() || 'Personne pour le moment.' }}</p>
         </section>
       </div>
@@ -191,8 +191,13 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
       flex: 1;
       min-width: 0;
     }
+    .point { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
+    .point.AJour { background: var(--ok); }
+    .point.APayer { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+    .point.Orange { background: var(--warn); }
+    .point.Rouge { background: var(--bad); }
     .deux b {
-      font-weight: 500;
+      font-weight: 600;
       overflow-wrap: anywhere;
     }
     .deux small {
@@ -227,6 +232,10 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
   `,
 })
 export class EncaissementGroupe implements OnInit {
+  /** « À payer », « Orange », « Rouge » : ce que dit le point de couleur. */
+  protected libelleDeCouleur(couleur: string | null | undefined): string {
+    return couleur === 'APayer' ? 'À payer' : couleur === 'AJour' ? 'À jour' : (couleur ?? '');
+  }
   private readonly http = inject(HttpClient);
 
   protected readonly groupeId = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';

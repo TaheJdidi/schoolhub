@@ -263,7 +263,8 @@ describe("l'encaissement groupé", () => {
   it('liste ce que chacun doit, avec sa couleur, et ceux qui sont déjà à jour', () => {
     expect(page.textContent).toContain('Mois 3 + Assurance 2027-2028');
     expect(page.textContent).toContain('60,000 TND');
-    expect(page.textContent).toContain('Rouge');
+    // La couleur se lit dans le point (prototype, écran 5), pour les lecteurs d'écran.
+    expect(page.querySelector('.point.Rouge')?.getAttribute('aria-label')).toBe('Rouge');
     expect(page.textContent).toContain('Sami Chaabane');
     expect(cases().map((c) => c.checked)).toEqual([false, false]);
     expect(encaisser().disabled).toBe(true);
