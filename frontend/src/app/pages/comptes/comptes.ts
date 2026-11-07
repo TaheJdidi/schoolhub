@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
+import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { libelleDuRole } from '../../socle/personnes';
 import { Role } from '../../socle/session/moi';
@@ -40,9 +41,9 @@ export class Comptes implements OnInit {
   protected readonly erreur = signal<string | null>(null);
 
   protected readonly formulaire = new FormGroup({
-    prenom: new FormControl('', { nonNullable: true }),
-    nom: new FormControl('', { nonNullable: true }),
-    email: new FormControl('', { nonNullable: true }),
+    prenom: new FormControl('', { nonNullable: true, validators: requis() }),
+    nom: new FormControl('', { nonNullable: true, validators: requis() }),
+    email: new FormControl('', { nonNullable: true, validators: requis() }),
     role: new FormControl<Role>('Secretaire', { nonNullable: true }),
   });
 

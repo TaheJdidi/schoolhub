@@ -108,7 +108,7 @@
         }
 
         @if (fiche() === nouvelleFiche) {
-          <form class="card carte" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
+          <form class="card carte" [formGroup]="formulaire" [class.champs-verifies]="ficheVerifiee()" (ngSubmit)="enregistrer()" novalidate>
             <h2 class="titre">L'élève</h2>
             <div class="champs">
               <label class="f">

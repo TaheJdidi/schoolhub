@@ -4,9 +4,10 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnIni
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, merge } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
+import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { NombreDeDemandes } from '../../socle/nombre-de-demandes';
@@ -90,17 +91,19 @@ export class PageDeLaDemande implements OnInit {
 
   private readonly niveauChoisi = signal('');
   protected readonly majeur = signal(false);
+  /** « Enregistrer l'élève » a trouvé la fiche incomplète : ses champs obligatoires vides s'entourent de rouge. */
+  protected readonly ficheVerifiee = signal(false);
   protected readonly propresContacts = computed(() => aSesPropresContacts(this.niveaux(), this.niveauChoisi()));
 
   protected readonly formulaire = new FormGroup({
-    prenom: new FormControl('', { nonNullable: true }),
-    nom: new FormControl('', { nonNullable: true }),
-    niveauId: new FormControl('', { nonNullable: true }),
+    prenom: new FormControl('', { nonNullable: true, validators: requis() }),
+    nom: new FormControl('', { nonNullable: true, validators: requis() }),
+    niveauId: new FormControl('', { nonNullable: true, validators: requis() }),
     etablissement: new FormControl('', { nonNullable: true }),
-    telephoneEleve: new FormControl('', { nonNullable: true }),
-    emailEleve: new FormControl('', { nonNullable: true }),
+    telephoneEleve: new FormControl('', { nonNullable: true, validators: requis(() => this.propresContacts()) }),
+    emailEleve: new FormControl('', { nonNullable: true, validators: requis(() => this.propresContacts()) }),
     majeur: new FormControl(false, { nonNullable: true }),
-    telephoneParent: new FormControl('', { nonNullable: true }),
+    telephoneParent: new FormControl('', { nonNullable: true, validators: requis(() => !this.majeur()) }),
     emailParent: new FormControl('', { nonNullable: true }),
   });
 
@@ -126,6 +129,10 @@ export class PageDeLaDemande implements OnInit {
     const controles = this.formulaire.controls;
     controles.niveauId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => this.niveauChoisi.set(id));
     controles.majeur.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((majeur) => this.majeur.set(majeur));
+    // La classe et « majeur » changent les champs obligatoires.
+    merge(controles.niveauId.valueChanges, controles.majeur.valueChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => reverifier(this.formulaire));
 
     try {
       const [demande, niveaux] = await Promise.all([
@@ -234,6 +241,9 @@ export class PageDeLaDemande implements OnInit {
     const eleveId = this.fiche() || null;
     const fiche = eleveId ? null : this.ficheSaisie();
     if (!eleveId && !fiche) {
+      // « Enregistrer l'élève » est hors du formulaire : la fiche montre elle-même ses champs obligatoires vides.
+      reverifier(this.formulaire);
+      this.ficheVerifiee.set(true);
       this.erreur.set(INCOMPLET);
       return;
     }

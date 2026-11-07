@@ -41,7 +41,12 @@
     </label>
     <label class="f">
       Matière
-      <select class="inp" name="choix-de-la-matiere" (change)="choisirLaMatiere($event)">
+      <select
+        class="inp"
+        name="choix-de-la-matiere"
+        [class.manquant]="formulaire.controls.matiere.invalid && !matiereALaMain()"
+        (change)="choisirLaMatiere($event)"
+      >
         <option value="" [selected]="optionDeLaMatiere() === ''">Choisissez la matière</option>
         @for (nom of listeDesMatieres(); track nom) {
           <option [value]="nom" [selected]="optionDeLaMatiere() === nom">{{ nom }}</option>
@@ -98,9 +103,9 @@
             }
           </select>
           <span>de</span>
-          <input class="inp" type="time" formControlName="debut" aria-label="Heure de début" />
+          <input class="inp" shHeure formControlName="debut" aria-label="Heure de début" />
           <span>à</span>
-          <input class="inp" type="time" formControlName="fin" aria-label="Heure de fin" />
+          <input class="inp" shHeure formControlName="fin" aria-label="Heure de fin" />
           @if (creneaux.length > 1) {
             <button type="button" class="btn" (click)="retirerLeCreneau(rang)">Retirer</button>
           }
@@ -117,9 +122,9 @@
         <div class="creneau date-saisie" [formGroupName]="rang">
           <input class="inp" type="date" formControlName="date" aria-label="Date" />
           <span>de</span>
-          <input class="inp" type="time" formControlName="debutDeLaDate" aria-label="Heure de début" />
+          <input class="inp" shHeure formControlName="debutDeLaDate" aria-label="Heure de début" />
           <span>à</span>
-          <input class="inp" type="time" formControlName="finDeLaDate" aria-label="Heure de fin" />
+          <input class="inp" shHeure formControlName="finDeLaDate" aria-label="Heure de fin" />
           @if (dates.length > 1) {
             <button type="button" class="btn" (click)="retirerLaDate(rang)">Retirer</button>
           }

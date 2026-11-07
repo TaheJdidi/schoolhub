@@ -463,4 +463,26 @@ describe('la page « Nouveau groupe »', () => {
     await choisirLaMatiere('Arabe');
     expect(champ('matiere')).toBeUndefined();
   });
+  it('entoure de rouge les champs obligatoires vides après « Créer le groupe », et met les minutes à 00', async () => {
+    await ouvrir();
+    envoyer(page);
+    await attendre('Remplissez le professeur, la matière');
+    expect(page.querySelector('form')!.classList).toContain('ng-submitted');
+    expect(champ('prix').classList).toContain('ng-invalid');
+    expect(champ('debut').classList).toContain('ng-invalid');
+    expect(listeDesMatieres().classList).toContain('manquant');
+    // Le professeur vient de l'adresse : il est rempli.
+    expect(champ('professeurId').classList).not.toContain('ng-invalid');
+
+    saisir(page, '[formcontrolname="prix"]', '60');
+    await choisirLaMatiere('Arabe');
+    expect(champ('prix').classList).not.toContain('ng-invalid');
+    expect(listeDesMatieres().classList).not.toContain('manquant');
+
+    await taper('debut', '10');
+    champ('debut').dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    expect(champ('debut').value).toBe('10:00');
+    expect(champ('debut').classList).not.toContain('ng-invalid');
+  });
 });

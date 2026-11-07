@@ -7,6 +7,7 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
+import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { eleves, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
@@ -76,9 +77,9 @@ export class Professeurs implements OnInit {
   protected readonly erreur = signal<string | null>(null);
 
   protected readonly formulaire = new FormGroup({
-    prenom: new FormControl('', { nonNullable: true }),
-    nom: new FormControl('', { nonNullable: true }),
-    telephone: new FormControl('', { nonNullable: true }),
+    prenom: new FormControl('', { nonNullable: true, validators: requis() }),
+    nom: new FormControl('', { nonNullable: true, validators: requis() }),
+    telephone: new FormControl('', { nonNullable: true, validators: requis() }),
     email: new FormControl('', { nonNullable: true }),
   });
 

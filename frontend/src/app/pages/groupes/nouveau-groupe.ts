@@ -6,6 +6,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom, merge } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
+import { ChampHeure, lireUneHeure, uneHeure } from '../../socle/champ-heure';
+import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { lireUnNombre } from '../../socle/montants';
 import { Niveau } from '../parametres/carte-des-niveaux';
@@ -17,6 +19,7 @@ const INCOMPLET: Record<TypeDeGroupe, string> = {
   Revision: 'Remplissez le professeur, la matière, le niveau, le prix total, le nombre de séances et les dates',
   Formation: 'Remplissez le professeur, la matière, le prix total, le nombre de séances et les dates',
 };
+const HEURE_ILLISIBLE = "Écrivez l'heure, par exemple 8h ou 8h30";
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
 const PRIX_TOTAL_ILLISIBLE = 'Écrivez le prix total, par exemple 50,000';
 const NOMBRE_ILLISIBLE = 'Écrivez le nombre de séances, par exemple 10';
@@ -66,22 +69,41 @@ type ModeDesDates = 'creneaux' | 'dates';
 const nouveauCreneau = (jour: Jour = 'Samedi') =>
   new FormGroup({
     jour: new FormControl<Jour>(jour, { nonNullable: true }),
-    debut: new FormControl('', { nonNullable: true }),
-    fin: new FormControl('', { nonNullable: true }),
+    debut: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
+    fin: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
   });
 
 const nouvelleDate = () =>
   new FormGroup({
-    date: new FormControl('', { nonNullable: true }),
-    debutDeLaDate: new FormControl('', { nonNullable: true }),
-    finDeLaDate: new FormControl('', { nonNullable: true }),
+    date: new FormControl('', { nonNullable: true, validators: requis() }),
+    debutDeLaDate: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
+    finDeLaDate: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
   });
 
 const nouvelleTranche = () =>
   new FormGroup({
-    montant: new FormControl('', { nonNullable: true }),
-    seance: new FormControl('', { nonNullable: true }),
+    montant: new FormControl('', { nonNullable: true, validators: requis() }),
+    seance: new FormControl('', { nonNullable: true, validators: requis() }),
   });
+
+type Creneau = { jour: Jour; debut: string; fin: string };
+type DateDeSeance = { date: string; debut: string; fin: string };
+
+/** Les créneaux, heures lues (« 10 » devient « 10:00 ») : `null` si une heure manque, `undefined` si une ne se lit pas. */
+function lireLesCreneaux(creneaux: Creneau[]): Creneau[] | null | undefined {
+  const lus = creneaux.map((c) => ({ jour: c.jour, debut: lireUneHeure(c.debut), fin: lireUneHeure(c.fin) }));
+  if (lus.some((c) => c.debut === null || c.fin === null)) return null;
+  if (lus.some((c) => c.debut === undefined || c.fin === undefined)) return undefined;
+  return lus as Creneau[];
+}
+
+/** Les dates une à une, comme `lireLesCreneaux`. */
+function lireLesDates(dates: { date: string; debutDeLaDate: string; finDeLaDate: string }[]): DateDeSeance[] | null | undefined {
+  const lues = dates.map((d) => ({ date: d.date, debut: lireUneHeure(d.debutDeLaDate), fin: lireUneHeure(d.finDeLaDate) }));
+  if (lues.length === 0 || lues.some((d) => !d.date || d.debut === null || d.fin === null)) return null;
+  if (lues.some((d) => d.debut === undefined || d.fin === undefined)) return undefined;
+  return lues as DateDeSeance[];
+}
 
 /** Un nombre entier saisi : `null` si vide, `undefined` s'il est illisible (« dix », « 2,5 »). */
 function lireUnEntier(saisie: string): number | null | undefined {
@@ -98,7 +120,7 @@ function lireUnEntier(saisie: string): number | null | undefined {
 @Component({
   selector: 'sh-nouveau-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris],
+  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris, ChampHeure],
   templateUrl: './nouveau-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -138,18 +160,19 @@ export class NouveauGroupe implements OnInit {
   private dernierNomPropose = '';
 
   protected readonly formulaire = new FormGroup({
-    professeurId: new FormControl('', { nonNullable: true }),
-    matiere: new FormControl('', { nonNullable: true }),
-    niveauId: new FormControl('', { nonNullable: true }),
+    professeurId: new FormControl('', { nonNullable: true, validators: requis() }),
+    matiere: new FormControl('', { nonNullable: true, validators: requis() }),
+    // Le niveau est facultatif pour une Formation seulement.
+    niveauId: new FormControl('', { nonNullable: true, validators: requis(() => this.type() !== 'Formation') }),
     creneaux: new FormArray([nouveauCreneau()]),
-    prix: new FormControl('', { nonNullable: true }),
-    prixTotal: new FormControl('', { nonNullable: true }),
-    nombreDeSeances: new FormControl('', { nonNullable: true }),
+    prix: new FormControl('', { nonNullable: true, validators: requis() }),
+    prixTotal: new FormControl('', { nonNullable: true, validators: requis() }),
+    nombreDeSeances: new FormControl('', { nonNullable: true, validators: requis() }),
     dates: new FormArray([nouvelleDate()]),
     tranches: new FormArray<ReturnType<typeof nouvelleTranche>>([]),
-    dateDeDebut: new FormControl('', { nonNullable: true }),
-    moisEnCours: new FormControl('', { nonNullable: true }),
-    seanceEnCours: new FormControl('', { nonNullable: true }),
+    dateDeDebut: new FormControl('', { nonNullable: true, validators: requis() }),
+    moisEnCours: new FormControl('', { nonNullable: true, validators: requis() }),
+    seanceEnCours: new FormControl('', { nonNullable: true, validators: requis() }),
     capacite: new FormControl('', { nonNullable: true }),
     nom: new FormControl('', { nonNullable: true }),
   });
@@ -236,6 +259,7 @@ export class NouveauGroupe implements OnInit {
   /** Changer de type garde ce qui est commun : le professeur, la matière, le niveau, les créneaux, le nom. */
   protected choisirLeType(type: TypeDeGroupe): void {
     this.type.set(type);
+    reverifier(this.formulaire);
     this.erreur.set(null);
     this.proposerLeNom();
   }
@@ -285,6 +309,7 @@ export class NouveauGroupe implements OnInit {
   protected async creer(): Promise<void> {
     if (this.envoi() || !this.charge()) return;
 
+    reverifier(this.formulaire);
     const corps = this.type() === 'Etude' ? this.corpsDUneEtude() : this.corpsDUneRevisionOuFormation();
     if (typeof corps === 'string') {
       this.erreur.set(corps);
@@ -308,10 +333,11 @@ export class NouveauGroupe implements OnInit {
   private corpsDUneEtude(): object | string {
     const valeurs = this.formulaire.getRawValue();
     const prix = lireUnNombre(valeurs.prix);
-    const creneauxComplets = valeurs.creneaux.every((c) => c.debut && c.fin);
-    if (!valeurs.professeurId || !valeurs.matiere.trim() || !valeurs.niveauId || !creneauxComplets || prix === null || !valeurs.dateDeDebut) {
+    const creneaux = lireLesCreneaux(valeurs.creneaux);
+    if (!valeurs.professeurId || !valeurs.matiere.trim() || !valeurs.niveauId || creneaux === null || prix === null || !valeurs.dateDeDebut) {
       return INCOMPLET.Etude;
     }
+    if (creneaux === undefined) return HEURE_ILLISIBLE;
     if (prix === undefined) return PRIX_ILLISIBLE;
     const commun = this.champsCommuns();
     if (typeof commun === 'string') return commun;
@@ -323,7 +349,7 @@ export class NouveauGroupe implements OnInit {
       professeurId: valeurs.professeurId,
       matiere: valeurs.matiere.trim(),
       niveauId: valeurs.niveauId,
-      creneaux: valeurs.creneaux,
+      creneaux,
       prixDuMois: prix,
       dateDeDebut: valeurs.dateDeDebut,
       ...commun,
@@ -338,13 +364,13 @@ export class NouveauGroupe implements OnInit {
     const parCreneaux = this.modeDesDates() === 'creneaux';
     const prixTotal = lireUnNombre(valeurs.prixTotal);
     const nombre = lireUnEntier(valeurs.nombreDeSeances);
-    const datesCompletes = parCreneaux
-      ? valeurs.creneaux.every((c) => c.debut && c.fin) && !!valeurs.dateDeDebut
-      : valeurs.dates.length > 0 && valeurs.dates.every((d) => d.date && d.debutDeLaDate && d.finDeLaDate);
+    const creneaux = parCreneaux ? lireLesCreneaux(valeurs.creneaux) : lireLesDates(valeurs.dates);
+    const datesCompletes = creneaux !== null && (!parCreneaux || !!valeurs.dateDeDebut);
     const niveauManquant = type === 'Revision' && !valeurs.niveauId;
     if (!valeurs.professeurId || !valeurs.matiere.trim() || niveauManquant || prixTotal === null || nombre === null || !datesCompletes) {
       return INCOMPLET[type];
     }
+    if (creneaux === undefined) return HEURE_ILLISIBLE;
     if (prixTotal === undefined) return PRIX_TOTAL_ILLISIBLE;
     if (nombre === undefined) return NOMBRE_ILLISIBLE;
     const tranches = valeurs.tranches.map((t) => ({ montant: lireUnNombre(t.montant), seance: lireUnEntier(t.seance) }));
@@ -361,9 +387,7 @@ export class NouveauGroupe implements OnInit {
       niveauId: valeurs.niveauId || null,
       prixTotal,
       nombreDeSeances: nombre,
-      ...(parCreneaux
-        ? { creneaux: valeurs.creneaux, dateDeDebut: valeurs.dateDeDebut }
-        : { dates: valeurs.dates.map((d) => ({ date: d.date, debut: d.debutDeLaDate, fin: d.finDeLaDate })) }),
+      ...(parCreneaux ? { creneaux, dateDeDebut: valeurs.dateDeDebut } : { dates: creneaux }),
       tranches: type === 'Formation' && tranches.length > 0 ? tranches : undefined,
       ...commun,
       seanceEnCours: seanceEnCours ?? undefined,
@@ -389,14 +413,17 @@ export class NouveauGroupe implements OnInit {
     if (this.nomChoisi) return;
     if (this.type() !== 'Etude' && this.modeDesDates() === 'dates') {
       const premiere = this.dates.at(0)?.getRawValue();
-      if (!premiere?.date || !premiere.debutDeLaDate || !premiere.finDeLaDate) return;
-      const jour = jourDeLaDate(premiere.date);
-      this.proposer(nomPropose({ jour, debut: premiere.debutDeLaDate, fin: premiere.finDeLaDate }));
+      const debut = lireUneHeure(premiere?.debutDeLaDate ?? '');
+      const fin = lireUneHeure(premiere?.finDeLaDate ?? '');
+      if (!premiere?.date || !debut || !fin) return;
+      this.proposer(nomPropose({ jour: jourDeLaDate(premiere.date), debut, fin }));
       return;
     }
     const premier = this.creneaux.at(0)?.getRawValue();
-    if (!premier?.debut || !premier.fin) return;
-    this.proposer(nomPropose(premier));
+    const debut = lireUneHeure(premier?.debut ?? '');
+    const fin = lireUneHeure(premier?.fin ?? '');
+    if (!premier || !debut || !fin) return;
+    this.proposer(nomPropose({ jour: premier.jour, debut, fin }));
   }
 
   private proposer(nom: string): void {

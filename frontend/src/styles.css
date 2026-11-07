@@ -74,6 +74,8 @@ form.card{max-width:920px}
 .f{display:grid;gap:5px;font-size:13px;font-weight:500;color:var(--ink-2);min-width:0;max-width:560px}
 .f input,.inp{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:8px 10px;width:100%}
 .f input[aria-invalid="true"]{border-color:var(--bad)}
+/* Après « Enregistrer », un champ obligatoire vide (ou une heure illisible) est entouré de rouge jusqu'à ce qu'il soit rempli. */
+:is(form.ng-submitted,form.champs-verifies) :is(input,select,textarea):is(.ng-invalid,.manquant){border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
 
 @media (max-width: 760px){
   .h1{font-size:20px}
