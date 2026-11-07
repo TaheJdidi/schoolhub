@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { DELAI_DE_RECHERCHE } from '../../cadre/recherche-d-eleves';
 import { saisir } from '../../test/formulaires';
@@ -209,6 +209,19 @@ describe("la page d'inscription", () => {
     const anglais = page.querySelector('input[value="g4"]') as HTMLInputElement;
     expect(anglais.disabled).toBe(true);
     expect(etiquette('g4')).toContain('Déjà inscrit');
+  });
+
+  it('choisit le groupe pris dans « Nouvel élève », avec l’avertissement de la création', async () => {
+    harness = await RouterTestingHarness.create();
+    void TestBed.inject(Router).navigateByUrl('/eleves/e1/inscription?groupe=g1', { state: { avertissement: 'Doublon possible : Adem Miled' } });
+    (await vi.waitFor(() => http.expectOne('/api/eleves/e1'))).flush(ADEM);
+    page = harness.routeNativeElement as HTMLElement;
+    http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles').flush([MATHS, PHYSIQUE]);
+    (await vi.waitFor(() => http.expectOne('/api/groupes/g1'))).flush(FICHE_MATHS);
+
+    await vi.waitFor(() => expect(premiereSeance()).not.toBeNull());
+    expect((page.querySelector('input[name="groupe"][value="g1"]') as HTMLInputElement).checked).toBe(true);
+    expect(page.querySelector('.note.warn')?.textContent).toContain('Doublon possible : Adem Miled');
   });
 
   it("dit quand aucun groupe n'est ouvert", async () => {

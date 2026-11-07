@@ -1,4 +1,4 @@
-import { formatDate } from '@angular/common';
+import { formatDate, Location } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -44,6 +44,10 @@ export class PageDInscription implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
   private readonly delai = inject(DELAI_DE_RECHERCHE);
+  private readonly location = inject(Location);
+
+  /** Depuis « Nouvel élève » : « Doublon possible : … », lu une fois comme sur la fiche. */
+  protected readonly avertissement = signal<string | null>(null);
 
   protected readonly types = TYPES;
   protected readonly montant = ecrireUnMontant;
@@ -155,6 +159,12 @@ export class PageDInscription implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    const etat = this.location.getState() as { avertissement?: string | null } | null;
+    this.avertissement.set(etat?.avertissement ?? null);
+    if (etat?.avertissement !== undefined) {
+      const { avertissement: _lu, ...reste } = etat;
+      this.location.replaceState(this.location.path(), '', reste);
+    }
     try {
       if (this.depuis !== 'groupe') {
         const changement = this.depuis === 'changement';
@@ -171,6 +181,9 @@ export class PageDInscription implements OnInit {
         this.ficheDeLEleve.set(fiche);
         this.eleveChoisi.set({ id: fiche.id, prenom: fiche.prenom, nom: fiche.nom });
         this.possibles.set(possibles);
+        // Depuis « Nouvel élève » : le groupe choisi dans le formulaire.
+        const demande = possibles.find((g) => g.id === this.route.snapshot.queryParamMap.get('groupe') && !g.dejaInscrit);
+        if (demande && !changement) await this.choisirLeGroupe(demande);
       } else {
         const [fiche, inscriptions] = await Promise.all([
           firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)),

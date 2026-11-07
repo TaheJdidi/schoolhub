@@ -64,6 +64,28 @@
     </label>
   </div>
 
+  @if (proposerUnGroupe()) {
+    <h2 class="titre">Son groupe</h2>
+    <div class="champs">
+      <label class="f">
+        <span>Groupe <span class="opt">(facultatif)</span></span>
+        <select class="inp" formControlName="groupeId">
+          <option value="">Pas encore de groupe</option>
+          @for (section of sectionsDeGroupes(); track section.titre) {
+            <optgroup [label]="section.titre">
+              @for (groupe of section.groupes; track groupe.id) {
+                <option [value]="groupe.id">{{ libelleDuGroupe(groupe) }}</option>
+              }
+            </optgroup>
+          }
+        </select>
+      </label>
+    </div>
+    @if (formulaire.controls.groupeId.value) {
+      <p class="aide">Après « Enregistrer », l'inscription dans ce groupe s'ouvre : vous y choisissez la première séance.</p>
+    }
+  }
+
   <div class="actions">
     <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
     <button type="submit" class="btn primary" [disabled]="!charge() || envoi()">Enregistrer</button>

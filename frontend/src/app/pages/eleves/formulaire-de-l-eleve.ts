@@ -7,6 +7,7 @@ import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
+import { ResumeDuGroupe } from '../groupes/groupe';
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
 
@@ -15,7 +16,8 @@ const INCOMPLET = 'Remplissez les champs obligatoires';
 /**
  * ELV-02 : le formulaire de la fiche d'un élève, pour la créer (sans `eleve`) ou la modifier. Le téléphone et l'email
  * de l'élève deviennent obligatoires à partir de la 7ᵉ année ; le téléphone du parent, facultatif pour un élève majeur.
- * Si les niveaux n'ont pas pu se charger, rien ne part. Réussi, il rend l'enregistrement au parent.
+ * Si les niveaux n'ont pas pu se charger, rien ne part. Réussi, il rend l'enregistrement au parent. À la création, on
+ * peut aussi choisir le groupe où l'inscrire : le parent ouvre alors l'inscription dans ce groupe.
  */
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
@@ -32,7 +34,9 @@ export class FormulaireDeLEleve implements OnInit {
   readonly eleve = input<FicheDeLEleve | null>(null);
   /** La clé du brouillon d'une nouvelle fiche : chaque endroit qui crée un élève garde le sien. */
   readonly brouillonDeLaCreation = input('eleve-nouveau');
-  readonly enregistre = output<EnregistrementDeLEleve>();
+  /** À la création : le champ « Groupe (facultatif) », pour inscrire l'élève juste après. */
+  readonly proposerUnGroupe = input(false);
+  readonly enregistre = output<EnregistrementDeLEleve & { groupeId: string | null }>();
   readonly annule = output<void>();
 
   protected readonly niveaux = signal<Niveau[]>([]);
@@ -42,6 +46,20 @@ export class FormulaireDeLEleve implements OnInit {
   private readonly niveauChoisi = signal('');
   protected readonly majeur = signal(false);
   protected readonly propresContacts = computed(() => aSesPropresContacts(this.niveaux(), this.niveauChoisi()));
+
+  /** Les groupes ouverts du centre, pour « Groupe (facultatif) ». */
+  private readonly groupes = signal<ResumeDuGroupe[]>([]);
+  /** Ceux du niveau choisi d'abord, puis les autres ; chaque partie par nom. */
+  protected readonly sectionsDeGroupes = computed(() => {
+    const niveau = this.niveaux().find((n) => n.id === this.niveauChoisi())?.nom ?? null;
+    const ouverts = this.groupes()
+      .filter((g) => !g.ferme && !g.termine)
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+    return [
+      { titre: 'Groupes de son niveau', groupes: ouverts.filter((g) => niveau !== null && g.niveau === niveau) },
+      { titre: niveau ? 'Autres groupes' : 'Groupes', groupes: ouverts.filter((g) => niveau === null || g.niveau !== niveau) },
+    ].filter((section) => section.groupes.length > 0);
+  });
 
   protected readonly formulaire = new FormGroup({
     prenom: new FormControl('', { nonNullable: true, validators: requis() }),
@@ -53,6 +71,7 @@ export class FormulaireDeLEleve implements OnInit {
     majeur: new FormControl(false, { nonNullable: true }),
     telephoneParent: new FormControl('', { nonNullable: true, validators: requis(() => !this.majeur()) }),
     emailParent: new FormControl('', { nonNullable: true }),
+    groupeId: new FormControl('', { nonNullable: true }),
   });
 
   /** Laissée pour une autre page, la fiche reprend où elle en était en revenant (une par élève modifié). */
@@ -73,11 +92,25 @@ export class FormulaireDeLEleve implements OnInit {
     this.brouillon.reprendre();
 
     try {
-      this.niveaux.set(await firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')));
+      const [niveaux, groupes] = await Promise.all([
+        firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')),
+        this.proposerUnGroupe() ? firstValueFrom(this.http.get<ResumeDuGroupe[]>('/api/groupes')) : Promise.resolve([]),
+      ]);
+      this.niveaux.set(niveaux);
+      this.groupes.set(groupes);
+      // Un groupe fermé entre-temps ne se propose plus.
+      const groupeId = this.formulaire.controls.groupeId;
+      if (!this.sectionsDeGroupes().some((s) => s.groupes.some((g) => g.id === groupeId.value))) groupeId.setValue('');
       this.charge.set(true);
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     }
+  }
+
+  /** « Groupe Samedi 10h → 12h · Mathématiques · 9ᵉ année », et « complet » s'il n'a plus de place. */
+  protected libelleDuGroupe(groupe: ResumeDuGroupe): string {
+    const parties = [groupe.nom, groupe.matiere, groupe.niveau].filter(Boolean).join(' · ');
+    return groupe.capacite !== null && groupe.eleves >= groupe.capacite ? `${parties} (complet)` : parties;
   }
 
   /** « Annuler » : le brouillon part aussi. */
@@ -100,6 +133,7 @@ export class FormulaireDeLEleve implements OnInit {
         majeur: eleve.majeur,
         telephoneParent: eleve.telephoneParent ?? '',
         emailParent: eleve.emailParent ?? '',
+        groupeId: '',
       });
       this.formulaire.markAsPristine();
     }
@@ -138,7 +172,7 @@ export class FormulaireDeLEleve implements OnInit {
           : this.http.post<EnregistrementDeLEleve>('/api/eleves', fiche),
       );
       this.brouillon.oublier();
-      this.enregistre.emit(enregistrement);
+      this.enregistre.emit({ ...enregistrement, groupeId: eleve ? null : valeurs.groupeId || null });
     } catch (erreur) {
       this.erreur.set(messageDErreur(erreur));
     } finally {

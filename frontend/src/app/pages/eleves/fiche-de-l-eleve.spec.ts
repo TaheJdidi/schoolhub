@@ -160,6 +160,8 @@ describe('la fiche d’un élève', () => {
     await cliquer('Modifier');
     (await vi.waitFor(() => http.expectOne('/api/niveaux'))).flush(NIVEAUX);
     await vi.waitFor(() => expect((page.querySelector('[formcontrolname="prenom"]') as HTMLInputElement)?.value).toBe('Adem'));
+    // Les niveaux sont arrivés : « Enregistrer » est actif.
+    await vi.waitFor(() => expect((page.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false));
     saisir(page, '[formcontrolname="etablissement"]', 'Lycée Pilote');
     envoyer(page);
 

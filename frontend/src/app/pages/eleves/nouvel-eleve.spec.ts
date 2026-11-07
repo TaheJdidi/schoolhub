@@ -13,6 +13,13 @@ export const NIVEAUX = [
   { id: 'u', nom: 'Université', dOffice: false },
 ];
 
+/** Deux groupes ouverts, un de 9ᵉ et un d'un autre niveau, et un fermé qui ne se propose pas. */
+const GROUPES = [
+  { id: 'g9', nom: 'Groupe Samedi 10h → 12h', type: 'Etude', professeurId: 'k', matiere: 'Mathématiques', niveau: '9ᵉ année de base', creneaux: [], capacite: 2, eleves: 2, termine: false, ferme: false },
+  { id: 'g7', nom: 'Groupe Lundi 8h → 10h', type: 'Etude', professeurId: 'k', matiere: 'Arabe', niveau: '7ᵉ année de base', creneaux: [], capacite: null, eleves: 0, termine: false, ferme: false },
+  { id: 'gf', nom: 'Groupe fermé', type: 'Etude', professeurId: 'k', matiere: 'Arabe', niveau: '9ᵉ année de base', creneaux: [], capacite: null, eleves: 0, termine: false, ferme: true },
+];
+
 describe('la création d’un élève', () => {
   let http: HttpTestingController;
   let page: HTMLElement;
@@ -35,6 +42,7 @@ describe('la création d’un élève', () => {
     const requete = await vi.waitFor(() => http.expectOne('/api/niveaux'));
     if (niveaux === 'erreur') requete.flush({ message: 'Erreur du serveur' }, { status: 500, statusText: 'Erreur' });
     else requete.flush(niveaux);
+    http.expectOne('/api/groupes').flush(GROUPES);
     await vi.waitFor(() => expect(page.querySelector('option[value="n9"], .note.bad')).not.toBeNull());
   }
 
@@ -98,6 +106,28 @@ describe('la création d’un élève', () => {
     });
     requete.flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1'));
+  });
+
+  it("propose les groupes ouverts, ceux de son niveau d'abord, et ouvre l'inscription dans le groupe choisi", async () => {
+    await ouvrir();
+    await remplir();
+
+    const liste = page.querySelector('[formcontrolname="groupeId"]') as HTMLSelectElement;
+    const sections = [...liste.querySelectorAll('optgroup')].map((s) => [s.label, ...[...s.querySelectorAll('option')].map((o) => o.textContent?.trim())]);
+    expect(sections).toEqual([
+      ['Groupes de son niveau', 'Groupe Samedi 10h → 12h · Mathématiques · 9ᵉ année de base (complet)'],
+      ['Autres groupes', 'Groupe Lundi 8h → 10h · Arabe · 7ᵉ année de base'],
+    ]);
+
+    liste.value = 'g7';
+    liste.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    envoyer(page);
+
+    const requete = http.expectOne({ method: 'POST', url: '/api/eleves' });
+    expect(requete.request.body.groupeId).toBeUndefined();
+    requete.flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1/inscription?groupe=g7'));
   });
 
   it('refuse un formulaire incomplet', async () => {

@@ -181,6 +181,7 @@ describe("les adresses de l'application", () => {
   it('une secrétaire crée un élève sur /eleves/nouveau', async () => {
     await ouvrir('/eleves/nouveau', AMIRA);
     http.expectOne('/api/niveaux').flush([]);
+    http.expectOne('/api/groupes').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Nouvel élève'));
     expect(titre()).toBe('Nouvel élève · SchoolHub');
   });

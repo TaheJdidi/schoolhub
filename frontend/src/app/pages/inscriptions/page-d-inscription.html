@@ -28,6 +28,10 @@
     </div>
   </div>
 
+  @if (avertissement(); as avertissement) {
+    <p class="note warn" role="status">{{ avertissement }}</p>
+  }
+
   @if (confirmation(); as confirmation) {
     <div class="cartes">
       <section class="card carte">
