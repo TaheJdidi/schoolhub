@@ -146,6 +146,19 @@ public sealed class ElevesTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Une_personne_de_l_exterieur_sans_parent_donne_son_telephone()
+    {
+        // À la bibliothèque : pas de parent à joindre, même en 6ᵉ ; son téléphone devient obligatoire.
+        var sixieme = Niveau("6ᵉ année de base");
+        var sansParent = new FicheSaisieDeLEleve("Rim", "Haddad", sixieme, false, null, null, null, null, null, SansParent: true);
+        await VerifierLeRefusAsync(await _client.PostAsJsonAsync(Adresse, sansParent), HttpStatusCode.BadRequest,
+            "Le téléphone est obligatoire : il n'y a pas de parent à joindre");
+
+        var eleve = await AjouterAsync(sansParent with { TelephoneEleve = "55 123 456" });
+        Assert.Equal(((string?)null, "55 123 456"), (eleve.Eleve.TelephoneParent, eleve.Eleve.TelephoneEleve));
+    }
+
+    [Fact]
     public async Task Un_niveau_d_un_autre_centre_est_introuvable()
     {
         var oliviers = await _application.CreerCentreAsync("Centre Les Oliviers");

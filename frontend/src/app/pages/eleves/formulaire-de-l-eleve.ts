@@ -49,6 +49,8 @@ export class FormulaireDeLEleve implements OnInit {
   readonly proposerUnGroupe = input(false);
   /** Créé depuis un groupe qui a un niveau : l'élève prend ce niveau, qui ne se choisit pas. */
   readonly niveauDuGroupe = input<{ id: string; nom: string } | null>(null);
+  /** Une personne de l'extérieur, à la bibliothèque : pas de section « Le parent », son téléphone est obligatoire. */
+  readonly sansParent = input(false);
   readonly enregistre = output<EleveEnregistre>();
   readonly annule = output<void>();
 
@@ -94,10 +96,10 @@ export class FormulaireDeLEleve implements OnInit {
     nom: new FormControl('', { nonNullable: true, validators: requis() }),
     niveauId: new FormControl('', { nonNullable: true, validators: requis() }),
     etablissement: new FormControl('', { nonNullable: true }),
-    telephoneEleve: new FormControl('', { nonNullable: true, validators: requis(() => this.propresContacts()) }),
+    telephoneEleve: new FormControl('', { nonNullable: true, validators: requis(() => this.propresContacts() || this.sansParent()) }),
     emailEleve: new FormControl('', { nonNullable: true, validators: requis(() => this.propresContacts()) }),
     majeur: new FormControl(false, { nonNullable: true }),
-    telephoneParent: new FormControl('', { nonNullable: true, validators: requis(() => !this.majeur()) }),
+    telephoneParent: new FormControl('', { nonNullable: true, validators: requis(() => !this.majeur() && !this.sansParent()) }),
     emailParent: new FormControl('', { nonNullable: true }),
     professeurId: new FormControl('', { nonNullable: true }),
     groupeId: new FormControl('', { nonNullable: true }),
@@ -232,9 +234,11 @@ export class FormulaireDeLEleve implements OnInit {
       telephoneParent: valeurs.telephoneParent.trim(),
       emailParent: valeurs.emailParent.trim(),
       etablissement: valeurs.etablissement.trim(),
+      ...(this.sansParent() ? { sansParent: true, telephoneParent: '', emailParent: '' } : {}),
     };
-    const contactsDeLEleve = !this.propresContacts() || (fiche.telephoneEleve && fiche.emailEleve);
-    const contactDuParent = fiche.majeur || fiche.telephoneParent;
+    const contactsDeLEleve =
+      (!this.propresContacts() || (fiche.telephoneEleve && fiche.emailEleve)) && (!this.sansParent() || fiche.telephoneEleve);
+    const contactDuParent = this.sansParent() || fiche.majeur || fiche.telephoneParent;
     const eleve = this.eleve();
     const groupe = eleve ? null : this.ficheDuGroupe();
     if (!eleve && valeurs.groupeId && !groupe) {

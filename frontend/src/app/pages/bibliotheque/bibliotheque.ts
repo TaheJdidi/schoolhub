@@ -147,7 +147,7 @@ export interface EntreeEnregistree {
             <p class="note warn">La bibliothèque est pleine. Vous pouvez quand même noter l'entrée.</p>
           }
           @if (exterieur()) {
-            <sh-formulaire-de-l-eleve brouillonDeLaCreation="bibliotheque-exterieur" (enregistre)="entrerLExterieur($event)" (annule)="exterieur.set(false)" />
+            <sh-formulaire-de-l-eleve brouillonDeLaCreation="bibliotheque-exterieur" [sansParent]="true" (enregistre)="entrerLExterieur($event)" (annule)="exterieur.set(false)" />
           } @else {
             <label class="f">
               Élève du centre
@@ -191,6 +191,8 @@ export interface EntreeEnregistree {
     .chiffres b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
     .deux-colonnes { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
     @media (max-width: 900px) { .deux-colonnes { grid-template-columns: minmax(0, 1fr); } }
+    /* La fiche d'une personne de l'extérieur tient dans la carte : ses champs passent les uns sous les autres. */
+    .nouvelle sh-formulaire-de-l-eleve { display: block; min-width: 0; }
     .defile { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
     th, td { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }

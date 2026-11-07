@@ -63,7 +63,10 @@ public static class ElevesEndpoints
     }
 }
 
-/// <summary>Ce que la page envoie pour créer ou modifier la fiche d'un élève.</summary>
+/// <summary>
+/// Ce que la page envoie pour créer ou modifier la fiche d'un élève. <c>SansParent</c> : une personne de l'extérieur, à
+/// la bibliothèque, sans parent à joindre ; son propre téléphone est alors obligatoire.
+/// </summary>
 public sealed record FicheSaisieDeLEleve(
     string? Prenom,
     string? Nom,
@@ -73,7 +76,8 @@ public sealed record FicheSaisieDeLEleve(
     string? EmailParent,
     string? TelephoneEleve,
     string? EmailEleve,
-    string? Etablissement);
+    string? Etablissement,
+    bool SansParent = false);
 
 public sealed record NiveauDeLEleve(Guid Id, string Nom);
 

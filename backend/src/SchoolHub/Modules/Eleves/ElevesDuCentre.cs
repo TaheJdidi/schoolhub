@@ -21,6 +21,7 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     private const string ChoisirLeNiveau = "Choisissez le niveau";
     private const string NiveauIntrouvable = "Niveau introuvable";
     private const string TelephoneEleveObligatoire = "Le téléphone de l'élève est obligatoire à partir de la 7ᵉ année de base";
+    private const string TelephoneSansParentObligatoire = "Le téléphone est obligatoire : il n'y a pas de parent à joindre";
     private const string TelephoneElevePasValable = "Le téléphone de l'élève doit avoir 8 chiffres";
     private const string EmailEleveObligatoire = "L'email de l'élève est obligatoire à partir de la 7ᵉ année de base";
     private const string EmailElevePasValable = "L'email de l'élève n'est pas valable";
@@ -148,15 +149,16 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
         // À partir de la 7ᵉ année de base, et pour un niveau ajouté (université, adultes), l'élève a ses propres contacts.
         var sesPropresContacts = !niveau.DOffice || niveau.Rang >= RangDeLa7eAnnee;
 
-        var (telephoneEleve, refusDuTelephoneEleve) = LireUnTelephone(saisie.TelephoneEleve, sesPropresContacts,
-            TelephoneEleveObligatoire, TelephoneElevePasValable);
+        // Une personne de l'extérieur, sans parent (bibliothèque) : son téléphone est le seul contact, il est obligatoire.
+        var (telephoneEleve, refusDuTelephoneEleve) = LireUnTelephone(saisie.TelephoneEleve, sesPropresContacts || saisie.SansParent,
+            sesPropresContacts ? TelephoneEleveObligatoire : TelephoneSansParentObligatoire, TelephoneElevePasValable);
         if (refusDuTelephoneEleve is not null)
             return Refus(refusDuTelephoneEleve);
         var (emailEleve, refusDeLEmailEleve) = LireUnEmail(saisie.EmailEleve, sesPropresContacts, EmailEleveObligatoire, EmailElevePasValable);
         if (refusDeLEmailEleve is not null)
             return Refus(refusDeLEmailEleve);
 
-        var (telephoneParent, refusDuTelephoneParent) = LireUnTelephone(saisie.TelephoneParent, !saisie.Majeur,
+        var (telephoneParent, refusDuTelephoneParent) = LireUnTelephone(saisie.TelephoneParent, !saisie.Majeur && !saisie.SansParent,
             TelephoneParentObligatoire, TelephoneParentPasValable);
         if (refusDuTelephoneParent is not null)
             return Refus(refusDuTelephoneParent);

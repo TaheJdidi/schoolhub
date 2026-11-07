@@ -33,8 +33,8 @@
     </label>
     <label class="f">
       <span>
-        Téléphone de l'élève
-        @if (!propresContacts()) {
+        {{ sansParent() ? 'Téléphone' : "Téléphone de l'élève" }}
+        @if (!propresContacts() && !sansParent()) {
           <span class="opt">(facultatif avant la 7ᵉ année)</span>
         }
       </span>
@@ -51,6 +51,7 @@
     </label>
   </div>
 
+  @if (!sansParent()) {
   <h2 class="titre">Le parent</h2>
   <label class="case">
     <input type="checkbox" formControlName="majeur" />
@@ -71,6 +72,7 @@
       <input type="email" formControlName="emailParent" inputmode="email" autocomplete="off" />
     </label>
   </div>
+  }
 
   @if (proposerUnGroupe()) {
     <h2 class="titre">Son groupe</h2>
