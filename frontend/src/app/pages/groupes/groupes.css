@@ -76,7 +76,16 @@
 .puce-seance.a-faire small { color: var(--warn); }
 .puce-seance.choisie { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
 .puce-seance.choisie small { color: var(--accent-ink); }
-.puce-seance.mois { color: var(--ink-2); font-weight: 500; }
+/* Le Mois d'avant et le Mois d'après : en pointillés sur fond gris, séparés des séances du Mois affiché par un trait. */
+.puce-seance.mois { position: relative; border-style: dashed; background: var(--sunk); color: var(--ink-2); font-size: 12.5px; font-weight: 500; }
+.puce-seance.mois:hover { background: var(--line); }
+.puce-seance.mois:first-child { margin-right: 13px; }
+.puce-seance.mois:last-child { margin-left: 13px; }
+.puce-seance.mois:first-child::after, .puce-seance.mois:last-child::before {
+  content: ''; position: absolute; top: 4px; bottom: 4px; width: 1px; background: var(--line-2);
+}
+.puce-seance.mois:first-child::after { right: -11px; }
+.puce-seance.mois:last-child::before { left: -11px; }
 .paiements .couleurs { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .paiements .couleurs li { display: flex; align-items: center; gap: 10px; }
 .paiements .couleurs b { margin-left: auto; font-weight: 500; }
