@@ -260,6 +260,14 @@ export class PageDuGroupe implements OnInit {
     }
   }
 
+  /** Ceux qui doivent quelque chose à ce jour : la colonne « Paiement » de l'appel. */
+  protected readonly aPayer = computed(() => this.encaissement()?.aPayer ?? []);
+
+  /** Après « Payer les cochés » : ce que chacun doit, et les badges, se recalculent. */
+  protected apresLePaiement(): void {
+    void this.chargerLesPaiements();
+  }
+
   /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », ou « À jour ». */
   protected readonly paiements = computed(() => {
     const paiements: Record<string, { couleur: string | null; texte: string }> = {};

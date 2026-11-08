@@ -1,12 +1,14 @@
 import { formatDate, NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderUnBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
+import { ecrireUnMontant } from '../../socle/montants';
+import { EleveAEncaisser, RecusDuGroupe } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
 import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
@@ -100,6 +102,14 @@ function memes(a: string[], b: string[]): boolean {
               }
             </div>
             <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'appel que vous n'aviez pas enregistré." action="Annuler les changements" />
+            @if (colonneDePaiement() && appel.eleves.length > 0) {
+              <div class="ligne-appel titres-des-colonnes" aria-hidden="true">
+                <span class="point vide-point"></span>
+                <span class="deux">Élève</span>
+                <span class="col-presence">Présence</span>
+                <span class="col-paiement">Paiement</span>
+              </div>
+            }
             @for (eleve of appel.eleves; track eleve.inscriptionId) {
               <div class="ligne-appel">
                 <span class="point" [class]="'point ' + (paiementDe(eleve.eleveId)?.couleur ?? '')" aria-hidden="true"></span>
@@ -112,14 +122,30 @@ function memes(a: string[], b: string[]): boolean {
                     <small>Rattrapée le {{ court(le) }}</small>
                   }
                 </span>
-                @if (modifiable()) {
-                  <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
-                } @else if (appel.appelFait) {
-                  @if (absents().includes(eleve.inscriptionId)) {
-                    <span class="pill bad">Absent</span>
-                  } @else {
-                    <span class="present">Présent</span>
+                <span class="col-presence">
+                  @if (modifiable()) {
+                    <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
+                  } @else if (appel.appelFait) {
+                    @if (absents().includes(eleve.inscriptionId)) {
+                      <span class="pill bad">Absent</span>
+                    } @else {
+                      <span class="present">Présent</span>
+                    }
                   }
+                </span>
+                @if (colonneDePaiement()) {
+                  <span class="col-paiement">
+                    @if (aPayerDe(eleve.eleveId); as du) {
+                      <label class="case-paiement" [class.coche]="aEncaisser().includes(eleve.eleveId)">
+                        <input type="checkbox" [checked]="aEncaisser().includes(eleve.eleveId)" [disabled]="envoiDuPaiement()"
+                               [attr.aria-label]="'Payer ' + montant(du.total) + ' TND pour ' + eleve.prenom + ' ' + eleve.nom"
+                               (change)="cocherLePaiement(eleve.eleveId)" />
+                        <span class="num">{{ montant(du.total) }}</span><small> TND</small>
+                      </label>
+                    } @else if (paiementDe(eleve.eleveId)?.couleur === 'AJour') {
+                      <span class="a-jour">✓ À jour</span>
+                    }
+                  </span>
                 }
               </div>
             } @empty {
@@ -134,13 +160,33 @@ function memes(a: string[], b: string[]): boolean {
                     <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
                     <small>Vient du {{ eleve.groupeDOrigine }} · paie dans son groupe</small>
                   </span>
-                  @if (modifiable()) {
-                    <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
-                  } @else if (appel.appelFait) {
-                    <span [class]="absents().includes(eleve.inscriptionId) ? 'pill bad' : 'present'">{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</span>
+                  <span class="col-presence">
+                    @if (modifiable()) {
+                      <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
+                    } @else if (appel.appelFait) {
+                      <span [class]="absents().includes(eleve.inscriptionId) ? 'pill bad' : 'present'">{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</span>
+                    }
+                  </span>
+                  @if (colonneDePaiement()) {
+                    <span class="col-paiement"><small class="ailleurs">dans son groupe</small></span>
                   }
                 </div>
               }
+            }
+            @if (aEncaisser().length > 0) {
+              <div class="barre-paiement">
+                <span><b>{{ aEncaisser().length }}</b> élève{{ aEncaisser().length > 1 ? 's' : '' }} · <b class="num">{{ montant(totalAEncaisser()) }}</b> TND</span>
+                <button type="button" class="btn primary" [disabled]="envoiDuPaiement()" (click)="payerLesCoches()">Payer les cochés</button>
+              </div>
+            }
+            @if (recusCrees(); as recus) {
+              <p class="note ok paiement-fait" role="status">
+                {{ recus.length }} reçu{{ recus.length > 1 ? 's' : '' }} créé{{ recus.length > 1 ? 's' : '' }} · {{ montant(totalDesRecus()) }} TND en espèces ·
+                <a [href]="impressionDesRecus()" target="_blank" rel="noopener">Imprimer</a>
+              </p>
+            }
+            @if (erreurDuPaiement(); as erreur) {
+              <p class="note bad paiement-fait" role="alert">{{ erreur }}</p>
             }
             @if (appel.ouvert) {
               <div class="pied-appel">
@@ -437,6 +483,20 @@ function memes(a: string[], b: string[]): boolean {
     .pied-appel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); }
     .pied-appel .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
     .appel-integre > .note { margin: 0 18px 14px; }
+    /* Les colonnes « Présence » et « Paiement », alignées d'une ligne à l'autre. */
+    .col-presence { display: inline-flex; justify-content: flex-end; flex: none; min-width: 84px; }
+    .col-paiement { display: inline-flex; justify-content: flex-end; flex: none; width: 132px; }
+    .titres-des-colonnes { padding-top: 8px; padding-bottom: 8px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 600; }
+    .titres-des-colonnes .col-presence, .titres-des-colonnes .col-paiement { justify-content: flex-end; }
+    .vide-point { visibility: hidden; }
+    .case-paiement { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+    .case-paiement input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+    .case-paiement small { color: var(--ink-2); font-size: 12px; }
+    .case-paiement.coche { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+    .a-jour { color: var(--ok); font-size: 13px; font-weight: 500; }
+    .ailleurs { color: var(--ink-3); font-size: 12px; }
+    .barre-paiement { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding: 10px 18px; border-top: 1px solid var(--line); background: var(--accent-soft); color: var(--accent-ink); }
+    .appel-integre > .paiement-fait { margin: 10px 18px; }
     :host(.integre) .eleves { grid-template-columns: minmax(0, 1fr); gap: 0; }
     :host(.integre) .eleve { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 10px 2px;
       border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
@@ -459,6 +519,60 @@ export class PageDeLAppel implements OnInit {
   /** Dans la fiche du groupe : « séance 2 du Mois 2 », et ce que chaque élève doit (point de couleur et texte). */
   readonly libelleDeLaSeance = input<string | null>(null);
   readonly paiements = input<Readonly<Record<string, { couleur: string | null; texte: string }>>>({});
+  /** Dans la fiche du groupe : ce que chaque élève doit à ce jour ; la colonne « Paiement » les fait payer d'un coup. */
+  readonly groupeId = input<string | null>(null);
+  readonly aPayer = input<readonly EleveAEncaisser[]>([]);
+  /** Des reçus viennent d'être créés : la fiche du groupe recharge ce que chacun doit. */
+  readonly paye = output<void>();
+
+  protected readonly montant = ecrireUnMontant;
+  protected readonly colonneDePaiement = computed(() => this.integre() && !!this.groupeId());
+  /** Les élèves cochés dans la colonne « Paiement ». */
+  protected readonly aEncaisser = signal<string[]>([]);
+  protected readonly envoiDuPaiement = signal(false);
+  protected readonly erreurDuPaiement = signal<string | null>(null);
+  protected readonly recusCrees = signal<RecusDuGroupe['recus'] | null>(null);
+  private readonly cochables = computed(() => this.aPayer().filter((e) => this.aEncaisser().includes(e.eleveId)));
+  protected readonly totalAEncaisser = computed(() => this.cochables().reduce((total, e) => total + e.total, 0));
+  protected readonly totalDesRecus = computed(() => (this.recusCrees() ?? []).reduce((total, r) => total + r.total, 0));
+
+  protected aPayerDe(eleveId: string): EleveAEncaisser | null {
+    return this.aPayer().find((e) => e.eleveId === eleveId) ?? null;
+  }
+
+  protected cocherLePaiement(eleveId: string): void {
+    this.erreurDuPaiement.set(null);
+    this.recusCrees.set(null);
+    this.aEncaisser.update((ids) => (ids.includes(eleveId) ? ids.filter((id) => id !== eleveId) : [...ids, eleveId]));
+  }
+
+  /** Un reçu en espèces par élève coché, avec tout ce qu'il doit à ce jour, comme « Paiement du groupe ». */
+  protected async payerLesCoches(): Promise<void> {
+    const choisis = this.cochables();
+    const groupeId = this.groupeId();
+    if (this.envoiDuPaiement() || choisis.length === 0 || !groupeId) return;
+    this.envoiDuPaiement.set(true);
+    this.erreurDuPaiement.set(null);
+    try {
+      const reponse = await firstValueFrom(
+        this.http.post<RecusDuGroupe>(`/api/groupes/${groupeId}/encaissement`, {
+          eleves: choisis.map((e) => ({ eleveId: e.eleveId, sommes: e.sommes.map((s) => ({ inscriptionId: s.inscriptionId, cle: s.cle })) })),
+        }),
+      );
+      this.recusCrees.set(reponse.recus);
+      this.aEncaisser.set([]);
+      this.paye.emit();
+    } catch (erreur) {
+      this.erreurDuPaiement.set(messageDErreur(erreur));
+    } finally {
+      this.envoiDuPaiement.set(false);
+    }
+  }
+
+  /** La page sans le menu, un reçu A5 par page. */
+  protected impressionDesRecus(): string {
+    return `/recus/impression?ids=${(this.recusCrees() ?? []).map((r) => r.id).join(',')}`;
+  }
   /** Dans la fiche du groupe : « Corriger l'appel » rouvre les cases d'un appel fait. */
   protected readonly correction = signal(false);
   protected readonly rattrapageOuvert = signal(false);

@@ -333,4 +333,48 @@ describe("la page de l'appel", () => {
     await fixture.whenStable();
     expect(page.querySelectorAll('.ronds')).toHaveLength(2);
   });
+
+  it("dans la fiche du groupe : la colonne « Paiement » fait payer les cochés d'un coup", async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(PageDeLAppel);
+    fixture.componentRef.setInput('seance', 's1');
+    fixture.componentRef.setInput('integre', true);
+    fixture.componentRef.setInput('groupeId', 'g1');
+    fixture.componentRef.setInput('paiements', { 'e-i1': { couleur: 'AJour', texte: 'À jour' } });
+    fixture.componentRef.setInput('aPayer', [
+      {
+        eleveId: 'e-i2', prenom: 'Adem', nom: 'Miled', couleur: 'APayer', total: 90,
+        sommes: [{ inscriptionId: 'i2', cle: 'mois-2', libelle: 'Mois 2', montant: 60 }, { inscriptionId: null, cle: 'assurance', libelle: 'Assurance', montant: 30 }],
+      },
+    ]);
+    let payes = 0;
+    fixture.componentRef.instance.paye.subscribe(() => payes++);
+    page = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+    http.expectOne('/api/seances/s1/appel').flush(APPEL);
+    await vi.waitFor(() => expect(page.querySelectorAll('.ligne-appel:not(.titres-des-colonnes)')).toHaveLength(2));
+
+    const lignes = [...page.querySelectorAll('.ligne-appel:not(.titres-des-colonnes)')];
+    expect(page.querySelector('.titres-des-colonnes')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('ÉlèvePrésencePaiement');
+    expect(lignes[0].querySelector('.col-paiement')?.textContent?.trim()).toBe('✓ À jour');
+    expect(lignes[1].querySelector('.col-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('90,000 TND');
+    expect(page.querySelector('.barre-paiement')).toBeNull();
+
+    (lignes[1].querySelector('.case-paiement input') as HTMLInputElement).click();
+    await fixture.whenStable();
+    expect(page.querySelector('.barre-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toContain('1 élève · 90,000 TND');
+    ([...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Payer les cochés') as HTMLButtonElement).click();
+
+    const requete = http.expectOne({ method: 'POST', url: '/api/groupes/g1/encaissement' });
+    expect(requete.request.body).toEqual({
+      eleves: [{ eleveId: 'e-i2', sommes: [{ inscriptionId: 'i2', cle: 'mois-2' }, { inscriptionId: null, cle: 'assurance' }] }],
+    });
+    requete.flush({ recus: [{ id: 'r1', total: 90 }] });
+
+    await vi.waitFor(() => expect(page.querySelector('.paiement-fait')?.textContent).toContain('1 reçu créé · 90,000 TND en espèces'));
+    expect(page.querySelector<HTMLAnchorElement>('.paiement-fait a')?.getAttribute('href')).toBe('/recus/impression?ids=r1');
+    expect(page.querySelector('.barre-paiement')).toBeNull();
+    expect(payes).toBe(1);
+  });
 });
