@@ -46,8 +46,22 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
             <a routerLink="/professeurs">Professeurs</a> ›
             <a [routerLink]="['/professeurs/groupes', appel.groupe.id]">{{ appel.groupe.nom }}</a> ›
           </nav>
-          <h1 class="h1">Appel du {{ jour(appel.date) }}</h1>
-          <p class="sub">{{ appel.groupe.matiere }} · {{ appel.professeur }} · {{ heure(appel.debut) }} → {{ heure(appel.fin) }}</p>
+          <h1 class="h1">Appel · {{ appel.groupe.nom }}</h1>
+          <div class="etiquettes">
+            <span class="etiquette">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+              {{ jourCourt(appel.date) }}
+            </span>
+            <span class="etiquette matiere">{{ appel.groupe.matiere }}</span>
+            <span class="etiquette">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></svg>
+              {{ appel.professeur }}
+            </span>
+            <span class="etiquette">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              {{ heure(appel.debut) }} → {{ heure(appel.fin) }}
+            </span>
+          </div>
         </div>
       </div>
       }
@@ -362,6 +376,11 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
   `,
   styleUrls: ['../eleves/eleves.css', '../inscriptions/inscriptions.css'],
   styles: `
+    /* L'en-tête (style A) : un titre court, puis la matière, le professeur et l'horaire en étiquettes. */
+    .etiquettes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .etiquette { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 13px; }
+    .etiquette.matiere { border-color: transparent; background: var(--accent-soft); color: var(--accent-ink); font-weight: 500; }
+    .etiquette svg { width: 14px; height: 14px; }
     .compte { color: var(--ink-2); font-size: 13px; }
     .eleves { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
     .eleve { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;

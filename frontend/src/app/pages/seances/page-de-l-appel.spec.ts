@@ -67,8 +67,8 @@ describe("la page de l'appel", () => {
   it('montre tous les élèves présents', async () => {
     await ouvrir(APPEL);
 
-    expect(page.querySelector('h1')?.textContent).toContain('Appel du samedi 27/11/2027');
-    expect(page.querySelector('.sub')?.textContent).toContain('Mathématiques · Karim Ben Salah · 10h → 12h');
+    expect(page.querySelector('h1')?.textContent?.trim()).toBe('Appel · Groupe Samedi 10h → 12h');
+    expect([...page.querySelectorAll('.etiquette')].map((e) => e.textContent?.trim())).toEqual(['sam. 27/11', 'Mathématiques', 'Karim Ben Salah', '10h → 12h']);
     expect([...page.querySelectorAll('button.eleve')].map((b) => b.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
       'Lina GharbiPrésent',
       'Adem MiledPrésent',
