@@ -27,20 +27,27 @@
         @if (moisPrecedent(); as precedent) {
           <button type="button" class="puce-seance mois" (click)="choisirLeMois(precedent)">‹ Mois {{ precedent }}<small>{{ numerosDuMoisAffiche(precedent) }}</small></button>
         }
-        @for (seance of seancesAffichees(); track seance.id) {
-          <button
-            type="button"
-            class="puce-seance"
-            [class.choisie]="seance.id === seanceChoisie()"
-            [attr.aria-pressed]="seance.id === seanceChoisie()"
-            [class.fait]="etat(seance) === 'appel fait'"
-            [class.a-faire]="etat(seance) === 'appel à faire' && seance.date !== aujourdhui"
-            (click)="choisirLaSeance(seance.id)"
-          >
-            {{ jourDeSeance(seance.date) }}
-            <small>{{ libelleDeLaPuce(seance) }}</small>
-          </button>
-        }
+        <!-- Les séances du Mois affiché, dans un cadre étiqueté « Mois 3 » : on voit leur Mois sans regarder les côtés. -->
+        <div class="seances-du-mois" [class.cadre-du-mois]="moisAffiche() !== null" role="group"
+             [attr.aria-label]="moisAffiche() !== null ? 'Séances du Mois ' + moisAffiche() : null">
+          @if (moisAffiche(); as mois) {
+            <span class="etiquette-du-mois" aria-hidden="true">Mois {{ mois }}</span>
+          }
+          @for (seance of seancesAffichees(); track seance.id) {
+            <button
+              type="button"
+              class="puce-seance"
+              [class.choisie]="seance.id === seanceChoisie()"
+              [attr.aria-pressed]="seance.id === seanceChoisie()"
+              [class.fait]="etat(seance) === 'appel fait'"
+              [class.a-faire]="etat(seance) === 'appel à faire' && seance.date !== aujourdhui"
+              (click)="choisirLaSeance(seance.id)"
+            >
+              {{ jourDeSeance(seance.date) }}
+              <small>{{ libelleDeLaPuce(seance) }}</small>
+            </button>
+          }
+        </div>
         @if (moisSuivant(); as suivant) {
           <button type="button" class="puce-seance mois" (click)="choisirLeMois(suivant)">Mois {{ suivant }} ›<small>{{ etatDuMois(suivant) }}</small></button>
         }
