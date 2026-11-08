@@ -31,6 +31,7 @@ public sealed partial class RecusDuCentre(
     private const string AucuneSomme = "Cochez au moins une somme";
     private const string SommePlusAPayer = "Une somme cochée n'est plus à payer : rechargez la page";
     private const string DejaAnnule = "Ce reçu est déjà annulé";
+    private const string ResteDejaPaye = "Ce reçu est une avance dont le reste est payé : annulez d'abord le reçu du reste";
     private const string MotifObligatoire = "Écrivez le motif de l'annulation";
     private const string MotifTropLong = "Le motif fait au plus 200 caractères";
     private const string DAvantAujourdhui = "Ce reçu date d'avant aujourd'hui : seul le propriétaire peut l'annuler";
@@ -213,6 +214,17 @@ public sealed partial class RecusDuCentre(
             return Refus(StatusCodes.Status409Conflict, DejaAnnule);
         if (PourquoiPasAnnulable(recu, auteur) is { } raison)
             return Refus(StatusCodes.Status403Forbidden, raison);
+        // Une avance dont le reste est payé : sans elle, le reste ne paierait plus toute la somme.
+        var avances = (await contexte.Reglements.Where(r => r.RecuId == recu.Id && r.InscriptionId != null).ToListAsync())
+            .Where(r => Echeancier.SommeDeLAvance(r.Cle) is not null)
+            .Select(r => (r.InscriptionId, Cle: Echeancier.SommeDeLAvance(r.Cle)!))
+            .ToList();
+        foreach (var (inscriptionId, cle) in avances)
+        {
+            if (await contexte.Reglements.AnyAsync(r => r.InscriptionId == inscriptionId && r.Cle == cle))
+                return Refus(StatusCodes.Status409Conflict, ResteDejaPaye);
+        }
+
         var motif = saisie.Motif?.Trim() ?? "";
         if (motif.Length == 0)
             return Refus(StatusCodes.Status400BadRequest, MotifObligatoire);

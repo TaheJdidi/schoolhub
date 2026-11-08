@@ -7,7 +7,7 @@ import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderUnBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
-import { ecrireUnMontant } from '../../socle/montants';
+import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
@@ -122,6 +122,11 @@ function memes(a: string[], b: string[]): boolean {
                   @if (eleve.rattrapeeLe; as le) {
                     <small>Rattrapée le {{ court(le) }}</small>
                   }
+                  @if (colonneDePaiement() && aPayerDe(eleve.eleveId) && partieDe(eleve.eleveId) === null) {
+                    <button type="button" class="lien payer-une-partie" [disabled]="envoiDuPaiement()" (click)="ouvrirUnePartie(eleve.eleveId)">
+                      Payer une partie
+                    </button>
+                  }
                 </span>
                 <span class="col-presence">
                   @if (modifiable()) {
@@ -141,7 +146,7 @@ function memes(a: string[], b: string[]): boolean {
                         <input type="checkbox" [checked]="aEncaisser().includes(eleve.eleveId)" [disabled]="envoiDuPaiement()"
                                [attr.aria-label]="'Payer ' + montant(du.total) + ' TND pour ' + eleve.prenom + ' ' + eleve.nom"
                                (change)="cocherLePaiement(eleve.eleveId)" />
-                        <span class="num">{{ montant(du.total) }}</span><small> TND</small>
+                        <span class="num">{{ montant(aPayerPour(du)) }}</span><small> TND</small>
                       </label>
                     } @else if (paiementDe(eleve.eleveId)?.couleur === 'AJour') {
                       <span class="a-jour">✓ Payé</span>
@@ -159,6 +164,26 @@ function memes(a: string[], b: string[]): boolean {
                   </span>
                 }
               </div>
+              <!-- Payer une partie : ce que l'élève donne, sur ce qu'il doit ; le reste reste à payer. -->
+              @if (aPayerDe(eleve.eleveId); as du) {
+                @if (partieDe(eleve.eleveId) !== null) {
+                  <div class="ligne-partie">
+                    <label>
+                      Il donne
+                      <input class="inp montant-partiel" inputmode="decimal" [value]="partieDe(eleve.eleveId)" [disabled]="envoiDuPaiement()"
+                             [attr.aria-label]="'Montant donné par ' + eleve.prenom + ' ' + eleve.nom"
+                             (input)="ecrireUnePartie(eleve.eleveId, $event)" />
+                      TND sur {{ montant(du.total) }}
+                    </label>
+                    @if (erreurDeLaPartie(du); as erreur) {
+                      <span class="erreur-partie">{{ erreur }}</span>
+                    } @else {
+                      <span class="reste">· reste {{ montant(du.total - aPayerPour(du)) }} TND</span>
+                    }
+                    <button type="button" class="lien" (click)="fermerUnePartie(eleve.eleveId)">Annuler</button>
+                  </div>
+                }
+              }
             } @empty {
               <p class="vide">Aucun élève attendu à cette séance.</p>
             }
@@ -188,7 +213,7 @@ function memes(a: string[], b: string[]): boolean {
             @if (aEncaisser().length > 0) {
               <div class="barre-paiement">
                 <span><b>{{ aEncaisser().length }}</b> élève{{ aEncaisser().length > 1 ? 's' : '' }} · <b class="num">{{ montant(totalAEncaisser()) }}</b> TND{{ chequesCoches() > 0 ? ' · dont ' + chequesCoches() + ' par chèque' : '' }}</span>
-                <button type="button" class="btn primary" [disabled]="envoiDuPaiement()" (click)="payerLesCoches()">Payer les cochés</button>
+                <button type="button" class="btn primary" [disabled]="envoiDuPaiement() || partieInvalide()" (click)="payerLesCoches()">Payer les cochés</button>
               </div>
             }
             @if (recusCrees(); as recus) {
@@ -516,6 +541,14 @@ function memes(a: string[], b: string[]): boolean {
     .case-paiement small { color: var(--ink-2); font-size: 12px; }
     .case-paiement.coche { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
     .a-jour { color: var(--ok); font-size: 13px; font-weight: 500; }
+    .lien { padding: 0; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+    .payer-une-partie { justify-self: start; margin-top: 2px; }
+    .ligne-partie { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 18px 10px 44px; background: var(--accent-soft); font-size: 13px; }
+    .ligne-partie label { display: inline-flex; align-items: center; gap: 6px; }
+    .montant-partiel { width: 90px; padding: 4px 8px; font-size: 13px; }
+    .ligne-partie .reste { color: var(--ink-2); }
+    .ligne-partie .erreur-partie { color: var(--bad); }
+    .ligne-partie .lien { margin-left: auto; }
     .ailleurs { color: var(--ink-3); font-size: 12px; }
     .barre-paiement { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 0; padding: 10px 18px; border-top: 1px solid var(--line); background: var(--accent-soft); color: var(--accent-ink); }
     .appel-integre > .paiement-fait { margin: 10px 18px; }
@@ -557,7 +590,48 @@ export class PageDeLAppel implements OnInit {
   protected readonly erreurDuPaiement = signal<string | null>(null);
   protected readonly recusCrees = signal<RecusDuGroupe['recus'] | null>(null);
   private readonly cochables = computed(() => this.aPayer().filter((e) => this.aEncaisser().includes(e.eleveId)));
-  protected readonly totalAEncaisser = computed(() => this.cochables().reduce((total, e) => total + e.total, 0));
+  protected readonly totalAEncaisser = computed(() => this.cochables().reduce((total, e) => total + this.aPayerPour(e), 0));
+  /** « Payer une partie » : ce que chaque élève donne, tel qu'écrit (« 50 ») ; absent, il paie tout ce qu'il doit. */
+  private readonly parties = signal<Readonly<Record<string, string>>>({});
+  /** Un élève coché dont la partie n'est pas un montant possible : on ne paie pas. */
+  protected readonly partieInvalide = computed(() => this.cochables().some((e) => this.erreurDeLaPartie(e) !== null));
+
+  protected partieDe(eleveId: string): string | null {
+    return this.parties()[eleveId] ?? null;
+  }
+
+  /** Ouvre la ligne « Il donne … TND » sous l'élève, et le coche. */
+  protected ouvrirUnePartie(eleveId: string): void {
+    this.parties.update((parties) => ({ ...parties, [eleveId]: '' }));
+    if (!this.aEncaisser().includes(eleveId)) this.cocherLePaiement(eleveId);
+  }
+
+  protected ecrireUnePartie(eleveId: string, evenement: Event): void {
+    const saisie = (evenement.target as HTMLInputElement).value;
+    this.parties.update((parties) => ({ ...parties, [eleveId]: saisie }));
+  }
+
+  /** « Annuler » : il paie de nouveau tout ce qu'il doit. */
+  protected fermerUnePartie(eleveId: string): void {
+    this.parties.update(({ [eleveId]: _, ...autres }) => autres);
+  }
+
+  /** Ce que l'élève paie : la partie qu'il donne si elle est possible, sinon tout ce qu'il doit. */
+  protected aPayerPour(eleve: EleveAEncaisser): number {
+    const saisie = this.partieDe(eleve.eleveId);
+    const donne = saisie === null ? null : lireUnNombre(saisie);
+    return typeof donne === 'number' && this.erreurDeLaPartie(eleve) === null ? donne : eleve.total;
+  }
+
+  protected erreurDeLaPartie(eleve: EleveAEncaisser): string | null {
+    const saisie = this.partieDe(eleve.eleveId);
+    if (saisie === null) return null;
+    const donne = lireUnNombre(saisie);
+    if (donne === null) return 'Écrivez ce qu\'il donne';
+    if (donne === undefined || donne <= 0 || Math.round(donne * 1000) !== donne * 1000) return 'Écrivez un montant, comme 50 ou 12,500';
+    if (donne > eleve.total) return `Au plus ${ecrireUnMontant(eleve.total)} TND`;
+    return null;
+  }
   protected readonly totalDesRecus = computed(() => (this.recusCrees() ?? []).reduce((total, r) => total + r.total, 0));
   /** Le mode choisi pour chaque élève ; Espèces par défaut. */
   private readonly modes = signal<Readonly<Record<string, ModeDePaiement>>>({});
@@ -605,6 +679,7 @@ export class PageDeLAppel implements OnInit {
             eleveId: e.eleveId,
             sommes: e.sommes.map((s) => ({ inscriptionId: s.inscriptionId, cle: s.cle })),
             mode: this.modeDe(e.eleveId),
+            ...(this.partieDe(e.eleveId) !== null && this.aPayerPour(e) < e.total ? { montant: this.aPayerPour(e) } : {}),
           })),
           ...(this.paiementAu() ? { au: this.paiementAu() } : {}),
         }),
@@ -612,6 +687,7 @@ export class PageDeLAppel implements OnInit {
       this.recusCrees.set(reponse.recus);
       this.aEncaisser.set([]);
       this.modes.set({});
+      this.parties.set({});
       this.paye.emit();
     } catch (erreur) {
       this.erreurDuPaiement.set(messageDErreur(erreur));

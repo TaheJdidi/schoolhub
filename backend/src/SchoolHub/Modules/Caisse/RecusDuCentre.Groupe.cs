@@ -16,6 +16,8 @@ public sealed partial class RecusDuCentre
     private const string AucunEleve = "Cochez au moins un élève";
     private const string TropDEleves = "Cochez au plus 100 élèves";
     private const string APayeEntreTemps = "Un élève coché a payé entre-temps : rechargez la page";
+    private const string MontantPartielPasValable = "Écrivez un montant de plus de 0, au plus ce que l'élève doit";
+    private const string AssuranceEnEntier = "L'assurance se paie en entier : donnez au moins son montant";
 
     /// <summary>Le nombre d'élèves d'un encaissement groupé : un groupe, jamais tout le centre.</summary>
     private const int ElevesAuPlus = 100;
@@ -50,7 +52,7 @@ public sealed partial class RecusDuCentre
             if (couleur == "AJour")
                 couleur = "APayer";
             aPayer.Add(new EleveAEncaisser(eleve.Id, eleve.Prenom, eleve.Nom, couleur,
-                sommes.Select(s => new SommeDuGroupe(s.InscriptionId, s.Cle, s.Libelle, s.Montant)).ToList(), sommes.Sum(s => s.Montant)));
+                sommes.Select(s => new SommeDuGroupe(s.InscriptionId, s.Cle, s.Libelle, s.Montant, s.Avance)).ToList(), sommes.Sum(s => s.Montant)));
         }
 
         return new EncaissementDuGroupe(new GroupeEncaisse(groupe.Id, groupe.Nom, matiere, groupe.Type.ToString()), aPayer, aJour);
@@ -95,7 +97,18 @@ public sealed partial class RecusDuCentre
                     return RefusDuGroupe(StatusCodes.Status409Conflict, APayeEntreTemps);
                 if (LireLeMode(coche.Mode) is not { } mode)
                     return RefusDuGroupe(StatusCodes.Status400BadRequest, ModeInconnu);
-                aEncaisser.Add((inscrit.Eleve, sommes.OfType<SommeEncaissable>().ToList(), mode));
+                // Dans l'ordre où elles sont dues, comme la page les montre.
+                var aRegler = sommes.OfType<SommeEncaissable>().OrderBy(dues.IndexOf).ToList();
+                if (coche.Montant is { } donne)
+                {
+                    if (donne <= 0 || decimal.Round(donne, 3) != donne || donne > aRegler.Sum(s => s.Montant))
+                        return RefusDuGroupe(StatusCodes.Status400BadRequest, MontantPartielPasValable);
+                    if (await EnPartieAsync(aRegler, donne) is not { } enPartie)
+                        return RefusDuGroupe(StatusCodes.Status400BadRequest, AssuranceEnEntier);
+                    aRegler = enPartie;
+                }
+
+                aEncaisser.Add((inscrit.Eleve, aRegler, mode));
             }
 
             var numero = await NumeroSuivantAsync();
@@ -113,6 +126,42 @@ public sealed partial class RecusDuCentre
         }
 
         return new IssueDeLEncaissementGroupe(new RecusDuGroupe(decrits), StatusCodes.Status201Created, null);
+    }
+
+    /// <summary>
+    /// Ce que paie un élève qui donne une partie seulement : l'assurance d'abord, en entier ; puis les sommes du groupe, dans
+    /// l'ordre, tant que ce qu'il donne les couvre ; la suivante en partie, comme une avance (« Mois 3 (avance) »), dont le
+    /// reste reste à payer. <c>null</c> s'il donne moins que l'assurance.
+    /// </summary>
+    private async Task<List<SommeEncaissable>?> EnPartieAsync(List<SommeEncaissable> sommes, decimal donne)
+    {
+        var payees = new List<SommeEncaissable>();
+        foreach (var somme in sommes.OrderBy(s => s.InscriptionId is not null))
+        {
+            if (donne <= 0)
+                break;
+            if (donne >= somme.Montant)
+            {
+                payees.Add(somme);
+                donne -= somme.Montant;
+                continue;
+            }
+
+            if (somme.InscriptionId is not { } inscriptionId)
+                return null;
+            // Le numéro qui suit la dernière avance de cette somme : une avance annulée ne laisse pas de trou gênant.
+            var avances = await contexte.Reglements
+                .Where(r => r.InscriptionId == inscriptionId && r.Cle.StartsWith(somme.Cle + " (avance "))
+                .Select(r => r.Cle).ToListAsync();
+            var numero = avances.Select(Echeancier.NumeroDAvance).DefaultIfEmpty(0).Max() + 1;
+            var libelle = somme.Libelle.EndsWith(SommeEncaissable.SuffixeDuReste, StringComparison.Ordinal)
+                ? somme.Libelle[..^SommeEncaissable.SuffixeDuReste.Length]
+                : somme.Libelle;
+            payees.Add(somme with { Cle = Echeancier.CleDAvance(somme.Cle, numero), Libelle = $"{libelle} (avance)", Montant = donne, ReportDeduit = 0m });
+            donne = 0;
+        }
+
+        return payees;
     }
 
     /// <summary>Les élèves encore inscrits dans le groupe aujourd'hui (pas arrêtés), avec leur inscription, par nom puis prénom.</summary>

@@ -37,9 +37,11 @@ public sealed record CalendrierAPayer(
 /// <summary>
 /// Une somme due par une inscription : « Mois 3 (3 séances) », 30,000 TND, due à la séance 10, le 20/11/2027. Sa clé
 /// (« Mois 3 », « Séance 4 », « Totalité », « Une fois », « Tranche 2 », « Reste ») la désigne pour un règlement ; une
-/// somme réglée vaut le montant de son règlement.
+/// somme réglée vaut le montant de son règlement. <c>Avance</c> : ce qui en est déjà payé en partie (« 50 TND sur 70 ») ;
+/// pas réglée, la somme ne vaut plus que son reste ; réglée, elle vaut son règlement plus ses avances.
 /// </summary>
-public sealed record SommeDue(string Libelle, decimal Montant, int Seance, DateOnly Date, string Cle = "", bool Reglee = false, decimal ReportDeduit = 0m);
+public sealed record SommeDue(
+    string Libelle, decimal Montant, int Seance, DateOnly Date, string Cle = "", bool Reglee = false, decimal ReportDeduit = 0m, decimal Avance = 0m);
 
 /// <summary>
 /// Ce que l'inscription ajoute au calendrier du groupe : son mode, sa première séance, son prix spécial (ELV-05), ses
@@ -69,6 +71,23 @@ public sealed record ConditionsDeLInscription(
 public static class Echeancier
 {
     public const string CleDuReste = "Reste";
+
+    /// <summary>La clé de la n-ième avance sur une somme : « Mois 3 (avance 1) ». Le reste se paie ensuite sous « Mois 3 ».</summary>
+    public static string CleDAvance(string cle, int numero) => $"{cle}{DebutDAvance}{numero})";
+
+    /// <summary>La clé de la somme d'une avance (« Mois 3 » pour « Mois 3 (avance 1) ») ; <c>null</c> si ce n'est pas une avance.</summary>
+    public static string? SommeDeLAvance(string cle) => cle.IndexOf(DebutDAvance, StringComparison.Ordinal) is var i and > 0 ? cle[..i] : null;
+
+    /// <summary>Le numéro d'une avance (1 pour « Mois 3 (avance 1) ») ; 0 si ce n'est pas une avance.</summary>
+    public static int NumeroDAvance(string cle) =>
+        cle.IndexOf(DebutDAvance, StringComparison.Ordinal) is var i and > 0
+        && int.TryParse(cle[(i + DebutDAvance.Length)..].TrimEnd(')'), out var n) ? n : 0;
+
+    private const string DebutDAvance = " (avance ";
+
+    /// <summary>Ce qui est déjà payé en partie sur cette somme : ses avances.</summary>
+    private static decimal AvancesDe(IReadOnlyDictionary<string, decimal> reglements, string cle) =>
+        reglements.Where(r => SommeDeLAvance(r.Key) == cle).Sum(r => r.Value);
 
     public static IReadOnlyList<ModeDeTarification> ModesPossibles(TypeDeGroupe type, bool aDesTranches) => type switch
     {
@@ -119,6 +138,11 @@ public static class Echeancier
             .OrderBy(s => s.Date).ThenBy(s => s.Seance)
             .ToList();
 
+        // Une somme payée en partie (une avance) ne doit plus que son reste ; le report réduit ensuite ce reste.
+        sommes = sommes.Select(s => AvancesDe(reglements, s.Cle) is var avance and > 0
+            ? s with { Avance = avance, Montant = s.Reglee ? s.Montant : Math.Max(0m, s.Montant - avance) }
+            : s).ToList();
+
         // ELV-09 : une somme réglée garde la part du report figée dans son règlement ; ce qui reste du report réduit les
         // sommes pas réglées une à une, dans l'ordre, sans jamais descendre sous 0.
         var partsDuReport = conditions.PartsDuReport ?? new Dictionary<string, decimal>();
@@ -133,9 +157,9 @@ public static class Echeancier
             sommes[i] = sommes[i] with { Montant = sommes[i].Montant - part, ReportDeduit = part };
         }
 
-        // Une somme réglée vaut son règlement : ni un prix spécial, ni un nouveau prix, ni le report ne la change.
+        // Une somme réglée vaut son règlement, plus ses avances : ni un prix spécial, ni un nouveau prix, ni le report ne la change.
         return sommes
-            .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle } : somme)
+            .Select(somme => reglements.TryGetValue(somme.Cle, out var regle) ? somme with { Montant = regle + somme.Avance } : somme)
             .ToList();
     }
 
@@ -151,7 +175,7 @@ public static class Echeancier
             return 0m;
         var suivies = groupe.Seances.Skip(rang).Select((date, i) => new SeanceSuivie(groupe.PremiereSeance + rang + i, date)).ToList();
         var sommes = Calculer(groupe, conditions with { ArreteLe = null });
-        var payees = sommes.Select(s => (Somme: s, Paye: (s.Reglee ? s.Montant : 0m) + s.ReportDeduit)).ToList();
+        var payees = sommes.Select(s => (Somme: s, Paye: (s.Reglee ? s.Montant : s.Avance) + s.ReportDeduit)).ToList();
         var inutilise = Math.Max(0m, conditions.Report - sommes.Sum(s => s.ReportDeduit));
 
         if (groupe.Type == TypeDeGroupe.Formation)

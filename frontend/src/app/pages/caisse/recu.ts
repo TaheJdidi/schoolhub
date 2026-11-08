@@ -73,6 +73,8 @@ export interface SommeDuGroupe {
   cle: string;
   libelle: string;
   montant: number;
+  /** Ce qui en est déjà payé en partie ; le montant est alors le reste. */
+  avance?: number;
 }
 
 /** CAI-04 : un élève qui doit quelque chose à ce jour dans le groupe. */

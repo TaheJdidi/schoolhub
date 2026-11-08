@@ -383,4 +383,46 @@ describe("la page de l'appel", () => {
     expect(page.querySelector('.barre-paiement')).toBeNull();
     expect(payes).toBe(1);
   });
+  it("dans la fiche du groupe : « Payer une partie » fait payer ce que l'élève donne", async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(PageDeLAppel);
+    fixture.componentRef.setInput('seance', 's1');
+    fixture.componentRef.setInput('integre', true);
+    fixture.componentRef.setInput('groupeId', 'g1');
+    fixture.componentRef.setInput('aPayer', [
+      { eleveId: 'e-i2', prenom: 'Adem', nom: 'Miled', couleur: 'APayer', total: 70, sommes: [{ inscriptionId: 'i2', cle: 'Mois 3', libelle: 'Mois 3', montant: 70 }] },
+    ]);
+    page = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+    http.expectOne('/api/seances/s1/appel').flush(APPEL);
+    await vi.waitFor(() => expect(page.querySelector('.payer-une-partie')).not.toBeNull());
+
+    // Le lien ouvre la ligne sous l'élève, et le coche.
+    (page.querySelector('.payer-une-partie') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const champ = page.querySelector('.montant-partiel') as HTMLInputElement;
+    expect(page.querySelector('.ligne-partie')?.textContent).toContain("Écrivez ce qu'il donne");
+    expect(page.querySelector<HTMLButtonElement>('.barre-paiement .btn')?.disabled).toBe(true);
+
+    champ.value = '80';
+    champ.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(page.querySelector('.ligne-partie')?.textContent).toContain('Au plus 70,000 TND');
+
+    champ.value = '50';
+    champ.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(page.querySelector('.ligne-partie')?.textContent?.replace(/\s+/g, ' ')).toContain('TND sur 70,000 · reste 20,000 TND');
+    expect(page.querySelector('.case-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('50,000 TND');
+    expect(page.querySelector('.barre-paiement')?.textContent?.replace(/\s+/g, ' ')).toContain('1 élève · 50,000 TND');
+    (page.querySelector('.barre-paiement .btn') as HTMLButtonElement).click();
+
+    const requete = http.expectOne({ method: 'POST', url: '/api/groupes/g1/encaissement' });
+    expect(requete.request.body).toEqual({
+      eleves: [{ eleveId: 'e-i2', sommes: [{ inscriptionId: 'i2', cle: 'Mois 3' }], mode: 'Especes', montant: 50 }],
+    });
+    requete.flush({ recus: [{ id: 'r1', total: 50, mode: 'Especes' }] });
+    await vi.waitFor(() => expect(page.querySelector('.paiement-fait')?.textContent).toContain('1 reçu créé · 50,000 TND'));
+  });
 });

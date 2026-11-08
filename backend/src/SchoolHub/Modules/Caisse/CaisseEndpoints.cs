@@ -101,8 +101,11 @@ public sealed record SommeChoisie(Guid? InscriptionId, string? Cle);
 /// <summary>CAI-03 : les sommes cochées sur la fiche de l'élève, et le mode : « Especes » (par défaut) ou « Cheque ».</summary>
 public sealed record EncaissementSaisi(List<SommeChoisie>? Sommes, string? Mode = null);
 
-/// <summary>CAI-04 : un élève coché, avec les sommes que la page a montrées pour lui.</summary>
-public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes, string? Mode = null);
+/// <summary>
+/// CAI-04 : un élève coché, avec les sommes que la page a montrées pour lui ; <c>Montant</c>, ce qu'il donne s'il paie une
+/// partie seulement (« 50 TND sur 70 ») : les sommes se paient dans l'ordre, la dernière en partie (une avance).
+/// </summary>
+public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes, string? Mode = null, decimal? Montant = null);
 
 /// <summary>
 /// CAI-04 : les élèves cochés de l'encaissement groupé ; <c>Au</c>, la date jusqu'à laquelle les sommes sont dues (celle
@@ -110,8 +113,8 @@ public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes, strin
 /// </summary>
 public sealed record EncaissementGroupeSaisi(List<EleveCoche>? Eleves, DateOnly? Au = null);
 
-/// <summary>CAI-04 : une somme due à ce jour dans le groupe (ou l'assurance, sans inscription).</summary>
-public sealed record SommeDuGroupe(Guid? InscriptionId, string Cle, string Libelle, decimal Montant);
+/// <summary>CAI-04 : une somme due à ce jour dans le groupe (ou l'assurance, sans inscription) ; <c>Avance</c>, ce qui en est déjà payé.</summary>
+public sealed record SommeDuGroupe(Guid? InscriptionId, string Cle, string Libelle, decimal Montant, decimal Avance = 0m);
 
 /// <summary>CAI-04 : un élève qui doit quelque chose à ce jour dans le groupe : sa couleur (CAI-01), ses sommes et leur total.</summary>
 public sealed record EleveAEncaisser(Guid EleveId, string Prenom, string Nom, string Couleur, List<SommeDuGroupe> Sommes, decimal Total);

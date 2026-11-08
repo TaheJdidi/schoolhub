@@ -290,7 +290,7 @@ export class PageDuGroupe implements OnInit {
     void this.chargerLesPaiements();
   }
 
-  /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », ou « Payé ». */
+  /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », « À payer : reste du Mois 3 · 20,000 TND (50,000 déjà payés) », ou « Payé ». */
   protected readonly paiements = computed(() => {
     const paiements: Record<string, { couleur: string | null; texte: string }> = {};
     const encaissement = this.encaissement();
@@ -299,8 +299,18 @@ export class PageDuGroupe implements OnInit {
     }
     for (const eleve of encaissement?.aJour ?? []) paiements[eleve.id] = { couleur: 'AJour', texte: 'Payé' };
     for (const eleve of encaissement?.aPayer ?? []) {
-      const sommes = eleve.sommes.map((s) => (s.inscriptionId ? s.libelle.replace(/\s*\(.*\)$/, '') : 'assurance')).join(', ');
-      paiements[eleve.eleveId] = { couleur: eleve.couleur, texte: `À payer : ${sommes} · ${ecrireUnMontant(eleve.total)} TND` };
+      const sommes = eleve.sommes
+        .map((s) => {
+          if (!s.inscriptionId) return 'assurance';
+          const libelle = s.libelle.replace(/\s*\(.*\)$/, '');
+          return s.avance ? `reste du ${libelle}` : libelle;
+        })
+        .join(', ');
+      const avance = eleve.sommes.reduce((total, s) => total + (s.avance ?? 0), 0);
+      paiements[eleve.eleveId] = {
+        couleur: eleve.couleur,
+        texte: `À payer : ${sommes} · ${ecrireUnMontant(eleve.total)} TND${avance > 0 ? ` (${ecrireUnMontant(avance)} déjà payés)` : ''}`,
+      };
     }
     return paiements;
   });

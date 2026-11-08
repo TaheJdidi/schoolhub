@@ -153,6 +153,66 @@ public sealed class EncaissementGroupeTests(PostgreSqlDeTest postgreSql) : IAsyn
     }
 
     [Fact]
+    public async Task Un_eleve_peut_payer_une_partie_puis_le_reste()
+    {
+        // Adem doit 60 (Mois 3, 40, et l'assurance, 20) ; il donne 30 : l'assurance d'abord, puis 10 sur le Mois 3.
+        var avance = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([Coche(_adem) with { Montant = 30m }]));
+        Assert.Equal(HttpStatusCode.Created, avance.StatusCode);
+        var recuDeLAvance = (await avance.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
+        Assert.Equal([("Assurance 2027-2028", 20m), ("Mois 3 (avance)", 10m)], recuDeLAvance.Lignes.Select(l => (l.Libelle, l.Montant)));
+        Assert.Equal(30m, recuDeLAvance.Total);
+
+        // Il reste 30 sur le Mois 3 : toujours dû depuis le 13/11, il reste en rouge.
+        var adem = (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem");
+        Assert.Equal(("Rouge", 30m), (adem.Couleur, adem.Total));
+        Assert.Equal([("Mois 3", "Mois 3 (reste)", 30m, 10m)], adem.Sommes.Select(s => (s.Cle, s.Libelle, s.Montant, s.Avance)));
+
+        // Une seconde avance, puis le reste.
+        Assert.Equal(HttpStatusCode.Created, (await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([new EleveCoche(_adem.Eleve, [new SommeChoisie(_adem.Inscription, "Mois 3")], Montant: 5m)]))).StatusCode);
+        Assert.Equal(25m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
+        var reste = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([new EleveCoche(_adem.Eleve, [new SommeChoisie(_adem.Inscription, "Mois 3")])]));
+        var recuDuReste = (await reste.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
+        Assert.Equal([("Mois 3 (reste)", 25m)], recuDuReste.Lignes.Select(l => (l.Libelle, l.Montant)));
+        var apres = await EncaissementAsync();
+        Assert.Contains("Adem", apres.AJour.Select(e => e.Prenom));
+
+        // Sur sa fiche, le Mois 3 est payé en entier : 40.
+        var inscription = (await _amira.GetFromJsonAsync<List<InscriptionDeLEleve>>($"/api/inscriptions?eleve={_adem.Eleve}"))!.Single();
+        Assert.Contains(("Mois 3", 40m), inscription.Reglees.Select(r => (r.Libelle, r.Montant)));
+
+        // L'avance ne s'annule pas tant que le reste est payé ; une fois le reçu du reste annulé, elle s'annule.
+        await VerifierLeRefusAsync(await _amira.PostAsJsonAsync($"/api/recus/{recuDeLAvance.Id}/annulation", new AnnulationDuRecu("Erreur")),
+            HttpStatusCode.Conflict, "Ce reçu est une avance dont le reste est payé : annulez d'abord le reçu du reste");
+        Assert.Equal(HttpStatusCode.OK, (await _amira.PostAsJsonAsync($"/api/recus/{recuDuReste.Id}/annulation", new AnnulationDuRecu("Erreur"))).StatusCode);
+        Assert.Equal(25m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
+        Assert.Equal(HttpStatusCode.OK, (await _amira.PostAsJsonAsync($"/api/recus/{recuDeLAvance.Id}/annulation", new AnnulationDuRecu("Erreur"))).StatusCode);
+        Assert.Equal(55m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
+    }
+
+    [Fact]
+    public async Task Les_refus_d_une_partie()
+    {
+        foreach (var montant in new[] { 0m, -5m, 61m, 10.0005m })
+        {
+            await VerifierLeRefusAsync(await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+                    new EncaissementGroupeSaisi([Coche(_adem) with { Montant = montant }])),
+                HttpStatusCode.BadRequest, "Écrivez un montant de plus de 0, au plus ce que l'élève doit");
+        }
+
+        await VerifierLeRefusAsync(await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+                new EncaissementGroupeSaisi([Coche(_adem) with { Montant = 15m }])),
+            HttpStatusCode.BadRequest, "L'assurance se paie en entier : donnez au moins son montant");
+        Assert.Equal(60m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
+
+        // Tout ce qu'il doit : un paiement entier, sans avance.
+        var entier = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement", new EncaissementGroupeSaisi([Coche(_adem) with { Montant = 60m }]));
+        Assert.Equal(["Assurance 2027-2028", "Mois 3"], (await entier.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single().Lignes.Select(l => l.Libelle));
+    }
+
+    [Fact]
     public async Task Un_mode_inconnu_est_refuse()
     {
         await VerifierLeRefusAsync(await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",

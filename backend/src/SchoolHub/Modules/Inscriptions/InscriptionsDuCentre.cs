@@ -389,8 +389,8 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
         var sommes = echeances
             .SelectMany(e => e.Sommes
                 .Where(s => !s.Reglee && s.Montant > 0)
-                .Select(s => new SommeEncaissable(e.Inscription.Id, null, $"{matieres[e.Groupe.MatiereId]} · {e.Groupe.Nom}", s.Libelle, s.Cle,
-                    s.Montant, s.Date, s.ReportDeduit)))
+                .Select(s => new SommeEncaissable(e.Inscription.Id, null, $"{matieres[e.Groupe.MatiereId]} · {e.Groupe.Nom}",
+                    s.Avance > 0 ? $"{s.Libelle}{SommeEncaissable.SuffixeDuReste}" : s.Libelle, s.Cle, s.Montant, s.Date, s.ReportDeduit, s.Avance)))
             .ToList();
         if (await AssuranceEnCoursAsync(eleveId) is { Decrite: { Etat: EtatAPayer } assurance } enCours && assurance.Montant > 0)
             sommes.Add(new SommeEncaissable(null, enCours.Assurance.Id, "Assurance", $"Assurance {assurance.Annee}", Reglement.CleDeLAssurance,
@@ -862,7 +862,8 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
 /// <summary>
 /// CAI-03 : une somme que l'élève peut payer : celle d'une inscription (sa clé, « Mois 3 ») ou l'assurance ; son groupe
 /// (« Mathématiques · Groupe Samedi 10h → 12h »), son libellé, son montant, le jour où elle est due, et la part du report
-/// qui l'a réduite (ELV-09), à figer dans son règlement.
+/// qui l'a réduite (ELV-09), à figer dans son règlement ; <c>Avance</c>, ce qui en est déjà payé en partie (son montant est
+/// alors le reste, et son libellé finit par « (reste) »).
 /// </summary>
 public sealed record SommeEncaissable(
     Guid? InscriptionId,
@@ -872,7 +873,12 @@ public sealed record SommeEncaissable(
     string Cle,
     decimal Montant,
     DateOnly DueLe,
-    decimal ReportDeduit);
+    decimal ReportDeduit,
+    decimal Avance = 0m)
+{
+    /// <summary>Ce qui finit le libellé d'une somme déjà payée en partie.</summary>
+    public const string SuffixeDuReste = " (reste)";
+}
 
 /// <summary>Ce qu'une inscription a donné : l'enregistrement et le statut HTTP, ou un refus (statut et message).</summary>
 public sealed record IssueDInscription(EnregistrementDeLInscription? Enregistrement, int Statut, string? Message);
