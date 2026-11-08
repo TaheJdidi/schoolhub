@@ -143,7 +143,7 @@ function memes(a: string[], b: string[]): boolean {
                         <span class="num">{{ montant(du.total) }}</span><small> TND</small>
                       </label>
                     } @else if (paiementDe(eleve.eleveId)?.couleur === 'AJour') {
-                      <span class="a-jour">✓ À jour</span>
+                      <span class="a-jour">✓ Payé</span>
                     }
                   </span>
                 }

@@ -268,14 +268,14 @@ export class PageDuGroupe implements OnInit {
     void this.chargerLesPaiements();
   }
 
-  /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », ou « À jour ». */
+  /** Par élève : sa couleur et « À payer : Mois 1, Mois 2 · 110,000 TND », ou « Payé ». */
   protected readonly paiements = computed(() => {
     const paiements: Record<string, { couleur: string | null; texte: string }> = {};
     const encaissement = this.encaissement();
     for (const inscription of this.inscriptions()) {
-      paiements[inscription.eleve.id] = { couleur: inscription.couleur ?? null, texte: inscription.couleur === 'AJour' ? 'À jour' : '' };
+      paiements[inscription.eleve.id] = { couleur: inscription.couleur ?? null, texte: inscription.couleur === 'AJour' ? 'Payé' : '' };
     }
-    for (const eleve of encaissement?.aJour ?? []) paiements[eleve.id] = { couleur: 'AJour', texte: 'À jour' };
+    for (const eleve of encaissement?.aJour ?? []) paiements[eleve.id] = { couleur: 'AJour', texte: 'Payé' };
     for (const eleve of encaissement?.aPayer ?? []) {
       const sommes = eleve.sommes.map((s) => (s.inscriptionId ? s.libelle.replace(/\s*\(.*\)$/, '') : 'assurance')).join(', ');
       paiements[eleve.eleveId] = { couleur: eleve.couleur, texte: `À payer : ${sommes} · ${ecrireUnMontant(eleve.total)} TND` };

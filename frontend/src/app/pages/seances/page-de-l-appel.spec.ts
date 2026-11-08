@@ -357,7 +357,7 @@ describe("la page de l'appel", () => {
 
     const lignes = [...page.querySelectorAll('.ligne-appel:not(.titres-des-colonnes)')];
     expect(page.querySelector('.titres-des-colonnes')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('ÉlèvePrésencePaiement');
-    expect(lignes[0].querySelector('.col-paiement')?.textContent?.trim()).toBe('✓ À jour');
+    expect(lignes[0].querySelector('.col-paiement')?.textContent?.trim()).toBe('✓ Payé');
     expect(lignes[1].querySelector('.col-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('90,000 TND');
     expect(page.querySelector('.barre-paiement')).toBeNull();
 

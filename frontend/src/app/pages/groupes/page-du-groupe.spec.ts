@@ -125,9 +125,8 @@ describe('la fiche d’un groupe', () => {
     expect(carte().textContent).toContain('Samedi de 10h à 12h');
     expect(carte().textContent).toContain('18/09/2027');
     expect(carte().textContent).toContain('0 élève sur 16');
-    // CAI-04 : l'encaissement groupé, depuis l'en-tête.
-    const encaissement = [...page.querySelectorAll('.pagehead a')].find((a) => a.textContent?.trim() === 'Paiement du groupe');
-    expect(encaissement?.getAttribute('href')).toBe(`/professeurs/groupes/${FICHE.id}/encaissement`);
+    // Le paiement se fait dans la colonne « Paiement » de l'appel : plus de bouton « Paiement du groupe ».
+    expect([...page.querySelectorAll('a')].some((a) => a.textContent?.trim() === 'Paiement du groupe')).toBe(false);
   });
 
   /** Les puces de la bande des séances : leur jour, sans leur état. */

@@ -17,7 +17,6 @@
     </div>
     <div class="actions">
       <a class="btn" [routerLink]="['/professeurs/groupes', fiche.id, 'feuille-d-appel']">Feuille d'appel</a>
-      <a class="btn primary" [routerLink]="['/professeurs/groupes', fiche.id, 'encaissement']">Paiement du groupe</a>
     </div>
   </div>
 
@@ -90,7 +89,6 @@
           <li><span class="point Rouge" aria-hidden="true"></span>2 séances de retard ou plus<b class="num">{{ compte('Rouge') }}</b></li>
         </ul>
         <p class="aide">Une somme due à une séance passe en orange à la séance suivante, puis en rouge à celle d'après.</p>
-        <a class="btn primary large" [routerLink]="['/professeurs/groupes', fiche.id, 'encaissement']">Paiement du groupe</a>
       </section>
 
     <section class="card carte le-groupe">
