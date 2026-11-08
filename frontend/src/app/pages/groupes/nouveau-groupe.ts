@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom, merge } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
-import { ChampHeure, lireUneHeure, uneHeure } from '../../socle/champ-heure';
+import { lireUneHeure, uneHeure } from '../../socle/champ-heure';
 import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { lireUnNombre } from '../../socle/montants';
@@ -37,19 +37,50 @@ interface Matiere {
 /** D'où viennent les dates d'une Révision ou d'une Formation. */
 type ModeDesDates = 'creneaux' | 'dates';
 
-const nouveauCreneau = (jour: Jour = 'Samedi') =>
-  new FormGroup({
+/** La durée d'une séance par défaut : l'heure de fin se met 2 heures après le début choisi. */
+const DUREE_PAR_DEFAUT = 2;
+
+/** « 10:00 » → « 12:00 » ; jamais après 23h00, la dernière heure des listes. */
+export function finParDefaut(debut: string): string | null {
+  const lu = lireUneHeure(debut);
+  if (!lu) return null;
+  const [heures, minutes] = lu.split(':').map(Number);
+  const fin = Math.min(heures * 60 + minutes + DUREE_PAR_DEFAUT * 60, 23 * 60);
+  return `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Le début choisi met la fin 2 heures après, tant que la fin est vide ou qu'elle est encore celle mise ainsi :
+ * une fin choisie à la main ne bouge plus.
+ */
+function finQuiSuitLeDebut(debut: FormControl<string>, fin: FormControl<string>): void {
+  let proposee = '';
+  debut.valueChanges.subscribe((valeur) => {
+    if (fin.value !== '' && fin.value !== proposee) return;
+    proposee = finParDefaut(valeur) ?? '';
+    fin.setValue(proposee);
+  });
+}
+
+const nouveauCreneau = (jour: Jour = 'Samedi') => {
+  const groupe = new FormGroup({
     jour: new FormControl<Jour>(jour, { nonNullable: true }),
     debut: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
     fin: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
   });
+  finQuiSuitLeDebut(groupe.controls.debut, groupe.controls.fin);
+  return groupe;
+};
 
-const nouvelleDate = () =>
-  new FormGroup({
+const nouvelleDate = () => {
+  const groupe = new FormGroup({
     date: new FormControl('', { nonNullable: true, validators: requis() }),
     debutDeLaDate: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
     finDeLaDate: new FormControl('', { nonNullable: true, validators: [requis(), uneHeure] }),
   });
+  finQuiSuitLeDebut(groupe.controls.debutDeLaDate, groupe.controls.finDeLaDate);
+  return groupe;
+};
 
 const nouvelleTranche = () =>
   new FormGroup({
@@ -58,6 +89,12 @@ const nouvelleTranche = () =>
   });
 
 type Creneau = { jour: Jour; debut: string; fin: string };
+
+const HEURES = Array.from({ length: (23 - 7) * 4 + 1 }, (_, i) => {
+  const heure = 7 + Math.floor(i / 4);
+  const minutes = String((i % 4) * 15).padStart(2, '0');
+  return { valeur: `${String(heure).padStart(2, '0')}:${minutes}`, libelle: `${heure}h${minutes}` };
+});
 type DateDeSeance = { date: string; debut: string; fin: string };
 
 /** Les créneaux, heures lues (« 10 » devient « 10:00 ») : `null` si une heure manque, `undefined` si une ne se lit pas. */
@@ -91,7 +128,7 @@ function lireUnEntier(saisie: string): number | null | undefined {
 @Component({
   selector: 'sh-nouveau-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris, ChampHeure],
+  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris],
   templateUrl: './nouveau-groupe.html',
   styleUrl: './groupes.css',
 })
@@ -102,6 +139,8 @@ export class NouveauGroupe implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly jours = JOURS;
+  /** Les heures des listes, de 7h00 à 23h00, tous les quarts d'heure : « 08:30 » affichée « 8h30 ». */
+  protected readonly heures = HEURES;
   protected readonly types = (Object.keys(TYPES) as TypeDeGroupe[]).map((type) => ({ type, libelle: TYPES[type] }));
   protected readonly nomComplet = nomComplet;
 

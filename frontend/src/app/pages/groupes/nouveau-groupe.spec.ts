@@ -72,7 +72,7 @@ describe('la page « Nouveau groupe »', () => {
   async function taper(nom: string, valeur: string, rang = 0): Promise<void> {
     const element = champ(nom, rang);
     element.value = valeur;
-    element.dispatchEvent(new Event('input'));
+    element.dispatchEvent(new Event(element.tagName === 'SELECT' ? 'change' : 'input'));
     await harness.fixture.whenStable();
   }
 
@@ -463,7 +463,7 @@ describe('la page « Nouveau groupe »', () => {
     await choisirLaMatiere('Arabe');
     expect(champ('matiere')).toBeUndefined();
   });
-  it('entoure de rouge les champs obligatoires vides après « Créer le groupe », et met les minutes à 00', async () => {
+  it('entoure de rouge les champs obligatoires vides après « Créer le groupe » ; les heures se choisissent dans une liste', async () => {
     await ouvrir();
     envoyer(page);
     await attendre('Remplissez le professeur, la matière');
@@ -479,24 +479,27 @@ describe('la page « Nouveau groupe »', () => {
     expect(champ('prix').classList).not.toContain('ng-invalid');
     expect(listeDesMatieres().classList).not.toContain('manquant');
 
-    await taper('debut', '10');
-    champ('debut').dispatchEvent(new Event('blur'));
-    await harness.fixture.whenStable();
+    expect(options('debut')).toContain('8h30');
+    await taper('debut', '10:00');
     expect(champ('debut').value).toBe('10:00');
+    // La fin se met 2 heures après le début, et suit le début tant qu'on ne l'a pas choisie.
+    expect(champ('fin').value).toBe('12:00');
+    await taper('debut', '08:30');
+    expect(champ('fin').value).toBe('10:30');
+    await taper('fin', '11:00');
+    await taper('debut', '09:00');
+    expect(champ('fin').value).toBe('11:00');
     expect(champ('debut').classList).not.toContain('ng-invalid');
   });
   it('prend la matière du professeur, sans la faire choisir ; un professeur sans matière la fait choisir', async () => {
     await ouvrir(NIVEAUX, [{ ...KARIM, matiere: 'Physique' }, SAMI, LEILA]);
 
-    // Karim vient de l'adresse : sa matière est là, en lecture.
-    const matiere = page.querySelector('input[name="matiere-du-professeur"]') as HTMLInputElement;
-    expect(matiere.value).toBe('Physique');
-    expect(matiere.readOnly).toBe(true);
+    // Karim vient de l'adresse : sa matière ne s'affiche pas, elle se prend toute seule.
+    expect([...page.querySelectorAll('.f')].map((f) => f.textContent?.trim())).not.toContain('Matière');
     expect(listeDesMatieres()).toBeNull();
 
     // Leila n'a pas de matière : la liste revient, vide.
     await choisirOption('professeurId', LEILA.id);
-    expect(page.querySelector('input[name="matiere-du-professeur"]')).toBeNull();
     expect(listeDesMatieres().value).toBe('');
   });
 });

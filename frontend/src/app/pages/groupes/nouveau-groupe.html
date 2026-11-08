@@ -39,13 +39,8 @@
         }
       </select>
     </label>
-    @if (matiereDuProfesseur(); as matiere) {
-      <!-- La matière du professeur : elle ne se choisit pas, elle se change sur sa fiche. -->
-      <label class="f">
-        Matière
-        <input class="inp" name="matiere-du-professeur" [value]="matiere" readonly />
-      </label>
-    } @else {
+    <!-- La matière du professeur ne se choisit pas et ne s'affiche pas : elle se change sur sa fiche. -->
+    @if (!matiereDuProfesseur()) {
       <label class="f">
         Matière
         <select
@@ -83,11 +78,11 @@
     <div class="champs">
       <label class="f">
         Prix total (TND)
-        <input formControlName="prixTotal" inputmode="decimal" autocomplete="off" placeholder="50,000" />
+        <input formControlName="prixTotal" inputmode="decimal" autocomplete="off" />
       </label>
       <label class="f">
         Nombre de séances
-        <input formControlName="nombreDeSeances" inputmode="numeric" autocomplete="off" placeholder="10" />
+        <input formControlName="nombreDeSeances" inputmode="numeric" autocomplete="off" />
       </label>
     </div>
     <div class="types" role="group" aria-label="D'où viennent les dates">
@@ -111,9 +106,19 @@
             }
           </select>
           <span>de</span>
-          <input class="inp" shHeure formControlName="debut" aria-label="Heure de début" />
+<select class="inp" formControlName="debut" aria-label="Heure de début">
+            <option value="">--h--</option>
+            @for (h of heures; track h.valeur) {
+              <option [value]="h.valeur">{{ h.libelle }}</option>
+            }
+          </select>
           <span>à</span>
-          <input class="inp" shHeure formControlName="fin" aria-label="Heure de fin" />
+<select class="inp" formControlName="fin" aria-label="Heure de fin">
+            <option value="">--h--</option>
+            @for (h of heures; track h.valeur) {
+              <option [value]="h.valeur">{{ h.libelle }}</option>
+            }
+          </select>
           @if (creneaux.length > 1) {
             <button type="button" class="btn" (click)="retirerLeCreneau(rang)">Retirer</button>
           }
@@ -130,9 +135,19 @@
         <div class="creneau date-saisie" [formGroupName]="rang">
           <input class="inp" type="date" formControlName="date" aria-label="Date" />
           <span>de</span>
-          <input class="inp" shHeure formControlName="debutDeLaDate" aria-label="Heure de début" />
+<select class="inp" formControlName="debutDeLaDate" aria-label="Heure de début">
+            <option value="">--h--</option>
+            @for (h of heures; track h.valeur) {
+              <option [value]="h.valeur">{{ h.libelle }}</option>
+            }
+          </select>
           <span>à</span>
-          <input class="inp" shHeure formControlName="finDeLaDate" aria-label="Heure de fin" />
+<select class="inp" formControlName="finDeLaDate" aria-label="Heure de fin">
+            <option value="">--h--</option>
+            @for (h of heures; track h.valeur) {
+              <option [value]="h.valeur">{{ h.libelle }}</option>
+            }
+          </select>
           @if (dates.length > 1) {
             <button type="button" class="btn" (click)="retirerLaDate(rang)">Retirer</button>
           }
@@ -148,7 +163,7 @@
     @if (type() === 'Etude') {
       <label class="f">
         Prix du Mois (TND)
-        <input formControlName="prix" inputmode="decimal" autocomplete="off" placeholder="60,000" />
+        <input formControlName="prix" inputmode="decimal" autocomplete="off" />
       </label>
     }
     @if (type() === 'Etude' || modeDesDates() === 'creneaux') {
@@ -159,7 +174,7 @@
     }
     <label class="f">
       Capacité (facultatif)
-      <input formControlName="capacite" inputmode="numeric" autocomplete="off" placeholder="16" />
+      <input formControlName="capacite" inputmode="numeric" autocomplete="off" />
     </label>
   </div>
 
@@ -168,9 +183,9 @@
       <legend>Tranches (facultatif : sans tranche, la Formation se paie en une fois)</legend>
       @for (tranche of tranches.controls; track tranche; let rang = $index) {
         <div class="creneau tranche" [formGroupName]="rang">
-          <input class="inp" formControlName="montant" inputmode="decimal" aria-label="Montant de la tranche" placeholder="100,000" />
+          <input class="inp" formControlName="montant" inputmode="decimal" aria-label="Montant de la tranche" />
           <span>TND, due à la séance</span>
-          <input class="inp" formControlName="seance" inputmode="numeric" aria-label="Séance de la tranche" placeholder="1" />
+          <input class="inp" formControlName="seance" inputmode="numeric" aria-label="Séance de la tranche" />
           <button type="button" class="btn" (click)="retirerLaTranche(rang)">Retirer</button>
         </div>
       }
@@ -189,12 +204,12 @@
       @if (type() === 'Etude') {
         <label class="f">
           Mois en cours
-          <input formControlName="moisEnCours" inputmode="numeric" autocomplete="off" placeholder="5" />
+          <input formControlName="moisEnCours" inputmode="numeric" autocomplete="off" />
         </label>
       } @else {
         <label class="f">
           Séance en cours (sur {{ formulaire.controls.nombreDeSeances.value || '…' }})
-          <input formControlName="seanceEnCours" inputmode="numeric" autocomplete="off" placeholder="4" />
+          <input formControlName="seanceEnCours" inputmode="numeric" autocomplete="off" />
         </label>
       }
     }
