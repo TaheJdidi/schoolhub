@@ -13,8 +13,10 @@ namespace SchoolHub.Modules.Caisse;
 public sealed class ClotureDeCaisse : IAppartientAuCentre
 {
     internal ClotureDeCaisse(Guid compteId, string secretaire, DateOnly jour, int rang, decimal encaisse, decimal sorties, decimal compte,
-        DateTimeOffset clotureeLe)
+        DateTimeOffset clotureeLe, decimal cheques = 0m, int nombreDeCheques = 0)
     {
+        Cheques = cheques;
+        NombreDeCheques = nombreDeCheques;
         CompteId = compteId;
         Secretaire = secretaire;
         Jour = jour;
@@ -51,6 +53,11 @@ public sealed class ClotureDeCaisse : IAppartientAuCentre
 
     public decimal Encaisse { get; private set; }
 
+    /// <summary>Les chèques de cette caisse : comptés à part, ils ne sont pas dans le tiroir.</summary>
+    public decimal Cheques { get; private set; }
+
+    public int NombreDeCheques { get; private set; }
+
     /// <summary>Les achats payés en espèces (RHA-04) ; 0 tant qu'ils ne sont pas construits.</summary>
     public decimal Sorties { get; private set; }
 
@@ -84,6 +91,9 @@ internal sealed class ClotureDeCaisseConfiguration : IEntityTypeConfiguration<Cl
         cloture.ToTable("clotures_de_caisse");
         cloture.Property(c => c.Secretaire).HasMaxLength(201);
         cloture.Property(c => c.Encaisse).HasPrecision(12, 3);
+        // 0 par défaut : les clôtures d'avant les chèques, et le rangement des anciens reçus (CloturesHistoriques), n'en ont pas.
+        cloture.Property(c => c.Cheques).HasPrecision(12, 3).HasDefaultValue(0m);
+        cloture.Property(c => c.NombreDeCheques).HasDefaultValue(0);
         cloture.Property(c => c.Sorties).HasPrecision(12, 3);
         cloture.Property(c => c.Attendu).HasPrecision(12, 3);
         cloture.Property(c => c.Compte).HasPrecision(12, 3);

@@ -22,9 +22,10 @@ public sealed partial class RecusDuCentre
 
     /// <summary>
     /// CAI-04 : les élèves encore inscrits dans le groupe aujourd'hui, par nom puis prénom : ceux qui doivent quelque chose
-    /// à ce jour, avec leurs sommes, et ceux qui sont à jour. <c>null</c> si le groupe n'est pas dans ce centre.
+    /// à ce jour (ou à la date <paramref name="au"/>, celle d'une séance à venir), avec leurs sommes, et ceux qui sont à
+    /// jour. <c>null</c> si le groupe n'est pas dans ce centre.
     /// </summary>
-    public async Task<EncaissementDuGroupe?> EncaissementDuGroupeAsync(Guid groupeId)
+    public async Task<EncaissementDuGroupe?> EncaissementDuGroupeAsync(Guid groupeId, DateOnly? au = null)
     {
         var groupe = await contexte.Groupes.SingleOrDefaultAsync(g => g.Id == groupeId);
         if (groupe is null)
@@ -37,14 +38,18 @@ public sealed partial class RecusDuCentre
         var aJour = new List<EleveDuRecu>();
         foreach (var (eleve, inscriptionId) in eleves)
         {
-            var sommes = await DuesDansLeGroupeAsync(eleve.Id, inscriptionId);
+            var sommes = await DuesDansLeGroupeAsync(eleve.Id, inscriptionId, au);
             if (sommes.Count == 0)
             {
                 aJour.Add(new EleveDuRecu(eleve.Id, eleve.Prenom, eleve.Nom));
                 continue;
             }
 
-            aPayer.Add(new EleveAEncaisser(eleve.Id, eleve.Prenom, eleve.Nom, situations[eleve.Id].Couleur.ToString(),
+            // À jour aujourd'hui mais redevable à la séance à venir : à payer, sans retard.
+            var couleur = situations[eleve.Id].Couleur.ToString();
+            if (couleur == "AJour")
+                couleur = "APayer";
+            aPayer.Add(new EleveAEncaisser(eleve.Id, eleve.Prenom, eleve.Nom, couleur,
                 sommes.Select(s => new SommeDuGroupe(s.InscriptionId, s.Cle, s.Libelle, s.Montant)).ToList(), sommes.Sum(s => s.Montant)));
         }
 
@@ -78,22 +83,24 @@ public sealed partial class RecusDuCentre
                 $"SELECT 1 FROM eleves WHERE id = ANY({ids}) AND centre_id = {CentreId} ORDER BY id FOR NO KEY UPDATE");
 
             var duGroupe = (await ElevesDuGroupeAsync(groupeId)).ToDictionary(e => e.Eleve.Id);
-            var aEncaisser = new List<(Eleve Eleve, List<SommeEncaissable> Sommes)>();
+            var aEncaisser = new List<(Eleve Eleve, List<SommeEncaissable> Sommes, ModeDePaiement Mode)>();
             foreach (var coche in coches)
             {
                 if (!duGroupe.TryGetValue(coche.EleveId!.Value, out var inscrit))
                     return RefusDuGroupe(StatusCodes.Status409Conflict, APayeEntreTemps);
-                var dues = await DuesDansLeGroupeAsync(inscrit.Eleve.Id, inscrit.InscriptionId);
+                var dues = await DuesDansLeGroupeAsync(inscrit.Eleve.Id, inscrit.InscriptionId, saisie.Au);
                 var choisies = (coche.Sommes ?? []).Where(s => s is not null).Select(s => (s.InscriptionId, Cle: s.Cle?.Trim() ?? "")).Distinct().ToList();
                 var sommes = choisies.Select(c => dues.FirstOrDefault(s => s.InscriptionId == c.InscriptionId && s.Cle == c.Cle)).ToList();
                 if (sommes.Count == 0 || sommes.Any(s => s is null))
                     return RefusDuGroupe(StatusCodes.Status409Conflict, APayeEntreTemps);
-                aEncaisser.Add((inscrit.Eleve, sommes.OfType<SommeEncaissable>().ToList()));
+                if (LireLeMode(coche.Mode) is not { } mode)
+                    return RefusDuGroupe(StatusCodes.Status400BadRequest, ModeInconnu);
+                aEncaisser.Add((inscrit.Eleve, sommes.OfType<SommeEncaissable>().ToList(), mode));
             }
 
             var numero = await NumeroSuivantAsync();
-            foreach (var (eleve, sommes) in aEncaisser.OrderBy(e => e.Eleve.Nom).ThenBy(e => e.Eleve.Prenom).ThenBy(e => e.Eleve.Id))
-                recus.Add(CreerLeRecu(auteur, eleve, sommes, numero++));
+            foreach (var (eleve, sommes, mode) in aEncaisser.OrderBy(e => e.Eleve.Nom).ThenBy(e => e.Eleve.Prenom).ThenBy(e => e.Eleve.Id))
+                recus.Add(CreerLeRecu(auteur, eleve, sommes, numero++, mode));
             await contexte.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -121,12 +128,15 @@ public sealed partial class RecusDuCentre
             .ToList();
     }
 
-    /// <summary>Ce que l'élève doit à ce jour dans ce groupe : les sommes dues de cette inscription, puis son assurance si elle est due.</summary>
-    private async Task<List<SommeEncaissable>> DuesDansLeGroupeAsync(Guid eleveId, Guid inscriptionId)
+    /// <summary>
+    /// Ce que l'élève doit dans ce groupe à ce jour, ou à la date <paramref name="au"/> : les sommes dues de cette
+    /// inscription, puis son assurance si elle est due.
+    /// </summary>
+    private async Task<List<SommeEncaissable>> DuesDansLeGroupeAsync(Guid eleveId, Guid inscriptionId, DateOnly? au = null)
     {
-        var aujourdhui = DateDeTunis.Aujourdhui(temps);
+        var limite = au ?? DateDeTunis.Aujourdhui(temps);
         return (await inscriptions.SommesEncaissablesAsync(eleveId))
-            .Where(s => (s.InscriptionId == inscriptionId || s.AssuranceId is not null) && s.DueLe <= aujourdhui)
+            .Where(s => (s.InscriptionId == inscriptionId || s.AssuranceId is not null) && s.DueLe <= limite)
             .ToList();
     }
 

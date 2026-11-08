@@ -17,6 +17,9 @@ export interface CaisseOuverte {
   oubliee: boolean;
   /** Le nombre de reçus annulés : une caisse qui n'a que ceux-là se clôture aussi. */
   annules: number;
+  /** Les chèques reçus : comptés à part, ils ne sont pas dans le tiroir. */
+  cheques?: number;
+  nombreDeCheques?: number;
 }
 
 /** Une clôture de caisse. */
@@ -34,6 +37,8 @@ export interface Cloture {
   clotureeLe: string;
   argentRecu: boolean;
   argentRecuLe: string | null;
+  cheques?: number;
+  nombreDeCheques?: number;
 }
 
 /** CAI-09 : « Ma caisse ». */

@@ -356,23 +356,29 @@ describe("la page de l'appel", () => {
     await vi.waitFor(() => expect(page.querySelectorAll('.ligne-appel:not(.titres-des-colonnes)')).toHaveLength(2));
 
     const lignes = [...page.querySelectorAll('.ligne-appel:not(.titres-des-colonnes)')];
-    expect(page.querySelector('.titres-des-colonnes')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('ÉlèvePrésencePaiement');
+    expect(page.querySelector('.titres-des-colonnes')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('ÉlèvePrésencePaiementMode');
     expect(lignes[0].querySelector('.col-paiement')?.textContent?.trim()).toBe('✓ Payé');
     expect(lignes[1].querySelector('.col-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('90,000 TND');
     expect(page.querySelector('.barre-paiement')).toBeNull();
 
+    // Le mode : Espèces par défaut ; Adem paie par chèque.
+    const mode = lignes[1].querySelector('select.mode') as HTMLSelectElement;
+    expect(mode.value).toBe('Especes');
+    expect(lignes[0].querySelector('select.mode')).toBeNull();
+    mode.value = 'Cheque';
+    mode.dispatchEvent(new Event('change'));
     (lignes[1].querySelector('.case-paiement input') as HTMLInputElement).click();
     await fixture.whenStable();
-    expect(page.querySelector('.barre-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toContain('1 élève · 90,000 TND');
+    expect(page.querySelector('.barre-paiement')?.textContent?.replace(/\s+/g, ' ').trim()).toContain('1 élève · 90,000 TND · dont 1 par chèque');
     ([...page.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Payer les cochés') as HTMLButtonElement).click();
 
     const requete = http.expectOne({ method: 'POST', url: '/api/groupes/g1/encaissement' });
     expect(requete.request.body).toEqual({
-      eleves: [{ eleveId: 'e-i2', sommes: [{ inscriptionId: 'i2', cle: 'mois-2' }, { inscriptionId: null, cle: 'assurance' }] }],
+      eleves: [{ eleveId: 'e-i2', sommes: [{ inscriptionId: 'i2', cle: 'mois-2' }, { inscriptionId: null, cle: 'assurance' }], mode: 'Cheque' }],
     });
-    requete.flush({ recus: [{ id: 'r1', total: 90 }] });
+    requete.flush({ recus: [{ id: 'r1', total: 90, mode: 'Cheque' }] });
 
-    await vi.waitFor(() => expect(page.querySelector('.paiement-fait')?.textContent).toContain('1 reçu créé · 90,000 TND en espèces'));
+    await vi.waitFor(() => expect(page.querySelector('.paiement-fait')?.textContent).toContain('1 reçu créé · 90,000 TND · par chèque'));
     expect(page.querySelector<HTMLAnchorElement>('.paiement-fait a')?.getAttribute('href')).toBe('/recus/impression?ids=r1');
     expect(page.querySelector('.barre-paiement')).toBeNull();
     expect(payes).toBe(1);

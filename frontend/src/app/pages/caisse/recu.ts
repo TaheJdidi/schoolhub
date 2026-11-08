@@ -43,6 +43,16 @@ export interface RecuDecrit {
   /** CAI-07 : la personne connectée peut l'annuler ; sinon, pourquoi. */
   annulable: boolean;
   pourquoiPasAnnulable: string | null;
+  /** « Especes » ou « Cheque » ; absent d'un vieux reçu : espèces. */
+  mode?: ModeDePaiement;
+}
+
+/** Comment l'élève paie : en espèces (dans la caisse) ou par chèque (compté à part). */
+export type ModeDePaiement = 'Especes' | 'Cheque';
+
+/** « Total payé en espèces » ou « Total payé par chèque ». */
+export function totalPaye(mode: ModeDePaiement | undefined): string {
+  return mode === 'Cheque' ? 'Total payé par chèque' : 'Total payé en espèces';
 }
 
 /** Un reçu dans la liste (GET /api/recus). */

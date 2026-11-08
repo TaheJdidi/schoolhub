@@ -115,6 +115,53 @@ public sealed class EncaissementGroupeTests(PostgreSqlDeTest postgreSql) : IAsyn
     }
 
     [Fact]
+    public async Task Un_cheque_se_note_sur_le_recu_et_se_compte_a_part_de_la_caisse()
+    {
+        var reponse = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([Coche(_adem) with { Mode = "Cheque" }, Coche(_lina)]));
+
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        var recus = (await reponse.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus;
+        Assert.Equal([("Lina", "Especes"), ("Adem", "Cheque")], recus.Select(r => (r.Eleve.Prenom, r.Mode)));
+        Assert.Contains("Total payé par chèque : 60,000 TND", recus[1].Texte);
+        Assert.Contains("Total payé en espèces : 60,000 TND", recus[0].Texte);
+
+        // Dans la caisse : les espèces (Lina, et Sami avant elle) sont attendues dans le tiroir ; le chèque est compté à part.
+        var caisse = (await _amira.GetFromJsonAsync<MaCaisse>("/api/caisse"))!.Ouvertes.Last();
+        Assert.Equal((120m, 120m, 60m, 1), (caisse.Encaisse, caisse.Attendu, caisse.Cheques, caisse.NombreDeCheques));
+    }
+
+    [Fact]
+    public async Task A_la_date_d_une_seance_a_venir_le_Mois_suivant_est_a_payer()
+    {
+        // Lina et Adem paient ce qu'ils doivent aujourd'hui : ils sont à jour.
+        Assert.Equal(HttpStatusCode.Created, (await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([Coche(_adem), Coche(_lina)]))).StatusCode);
+        Assert.Empty((await EncaissementAsync()).APayer);
+
+        // Mais à une séance du Mois 4, le Mois 4 sera dû : l'appel de cette séance le montre, et le fait payer d'avance.
+        var auMois4 = (await _amira.GetFromJsonAsync<EncaissementDuGroupe>($"/api/groupes/{_maths}/encaissement?au=2028-06-30"))!;
+        var lina = auMois4.APayer.Single(e => e.Prenom == "Lina");
+        Assert.Contains("Mois 4", lina.Sommes.Select(s => s.Cle));
+        Assert.Equal("APayer", lina.Couleur);
+
+        var reponse = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([new EleveCoche(_lina.Eleve, [new SommeChoisie(_lina.Inscription, "Mois 4")])], new DateOnly(2028, 6, 30)));
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        Assert.DoesNotContain("Mois 4", (await _amira.GetFromJsonAsync<EncaissementDuGroupe>($"/api/groupes/{_maths}/encaissement?au=2028-06-30"))!
+            .APayer.Single(e => e.Prenom == "Lina").Sommes.Select(s => s.Cle));
+    }
+
+    [Fact]
+    public async Task Un_mode_inconnu_est_refuse()
+    {
+        await VerifierLeRefusAsync(await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+                new EncaissementGroupeSaisi([Coche(_adem) with { Mode = "Carte" }])),
+            HttpStatusCode.BadRequest, "Choisissez Espèces ou Chèque");
+        Assert.Equal(2, (await EncaissementAsync()).APayer.Count);
+    }
+
+    [Fact]
     public async Task Un_eleve_qui_a_paye_entre_temps_refuse_tout()
     {
         // Adem paie son Mois 3 sur sa fiche, pendant que la page du groupe est ouverte.

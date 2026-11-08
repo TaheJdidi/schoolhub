@@ -304,6 +304,13 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
 
+                    b.Property<decimal>("Cheques")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cheques");
+
                     b.Property<DateTimeOffset>("ClotureeLe")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cloturee_le");
@@ -330,6 +337,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.Property<DateOnly>("Jour")
                         .HasColumnType("date")
                         .HasColumnName("jour");
+
+                    b.Property<int>("NombreDeCheques")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("nombre_de_cheques");
 
                     b.Property<int>("Rang")
                         .HasColumnType("integer")
@@ -409,6 +422,12 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.Property<DateOnly>("Jour")
                         .HasColumnType("date")
                         .HasColumnName("jour");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("mode");
 
                     b.Property<string>("MotifDAnnulation")
                         .HasMaxLength(200)

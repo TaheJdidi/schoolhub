@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
-import { RecuDecrit } from './recu';
+import { RecuDecrit, totalPaye } from './recu';
 
 /**
  * CAI-05 : le reçu à imprimer, une page A5 sans le menu : le centre et son téléphone, le numéro, la date, l'élève, une
@@ -52,7 +52,7 @@ import { RecuDecrit } from './recu';
               }
             </tbody>
             <tfoot>
-              <tr><td colspan="2">Total payé en espèces</td><td class="montant">{{ montant(recu.total) }} TND</td></tr>
+              <tr><td colspan="2">{{ totalPaye(recu.mode) }}</td><td class="montant">{{ montant(recu.total) }} TND</td></tr>
             </tfoot>
           </table>
           <p class="secretaire">Reçu par {{ recu.secretaire }}</p>
@@ -94,6 +94,7 @@ export class RecuAImprimer implements OnInit {
   private readonly route = inject(ActivatedRoute).snapshot;
 
   protected readonly montant = ecrireUnMontant;
+  protected readonly totalPaye = totalPaye;
   protected readonly recus = signal<RecuDecrit[]>([]);
   protected readonly erreur = signal<string | null>(null);
 

@@ -1,7 +1,7 @@
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -176,7 +176,7 @@ export class PageDuGroupe implements OnInit {
     return id ? [id] : [];
   });
   /** Le Mois montré dans la bande : celui de la séance choisie (une Étude) ; `null` montre toutes les séances. */
-  private readonly moisAffiche = computed(() => this.toutesLesSeances().find((s) => s.id === this.seanceChoisie())?.mois ?? null);
+  protected readonly moisAffiche = computed(() => this.toutesLesSeances().find((s) => s.id === this.seanceChoisie())?.mois ?? null);
   protected readonly seancesAffichees = computed(() => {
     const mois = this.moisAffiche();
     return mois === null ? this.toutesLesSeances() : this.toutesLesSeances().filter((s) => s.mois === mois);
@@ -242,7 +242,7 @@ export class PageDuGroupe implements OnInit {
       this.fiche.set(fiche);
       this.inscriptions.set(inscriptions);
       if (!this.brouillonDeLaModification.reprendre()) this.brouillonDeLaFermeture.reprendre();
-      void this.chargerLesPaiements();
+      // Ce que chacun doit se charge dès que la fiche est là (l'effet du constructeur), puis à chaque séance choisie.
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
       else this.erreur.set(messageDErreur(erreur));
@@ -252,11 +252,33 @@ export class PageDuGroupe implements OnInit {
   /** Ce que chaque élève doit dans le groupe, pour l'appel (prototype, écran 3) ; sans lui, l'appel reste utile. */
   private readonly encaissement = signal<EncaissementDuGroupe | null>(null);
 
-  private async chargerLesPaiements(): Promise<void> {
+  /**
+   * La date de la séance choisie si elle est à venir : la colonne « Paiement » montre ce qui sera dû ce jour-là (le Mois 3
+   * à sa première séance), pas seulement ce qui est dû aujourd'hui. `null` : aujourd'hui.
+   */
+  protected readonly paiementAu = computed(() => {
+    const date = this.toutesLesSeances().find((s) => s.id === this.seanceChoisie())?.date ?? null;
+    return date && date > this.aujourdhui ? date : null;
+  });
+  /** Seule la dernière réponse compte : on change de séance plus vite que le serveur ne répond. */
+  private chargement = 0;
+
+  constructor() {
+    effect(() => {
+      const au = this.paiementAu();
+      if (this.fiche()) untracked(() => void this.chargerLesPaiements(au));
+    });
+  }
+
+  private async chargerLesPaiements(au = this.paiementAu()): Promise<void> {
+    const numero = ++this.chargement;
     try {
-      this.encaissement.set(await firstValueFrom(this.http.get<EncaissementDuGroupe>(`/api/groupes/${this.id}/encaissement`)));
+      const encaissement = await firstValueFrom(
+        this.http.get<EncaissementDuGroupe>(`/api/groupes/${this.id}/encaissement`, au ? { params: { au } } : {}),
+      );
+      if (numero === this.chargement) this.encaissement.set(encaissement);
     } catch {
-      this.encaissement.set(null);
+      if (numero === this.chargement) this.encaissement.set(null);
     }
   }
 

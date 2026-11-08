@@ -19,7 +19,10 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
     @if (caisse(); as caisse) {
       @if (aCloturer(); as ouverte) {
         <dl class="chiffres">
-          <div><dt>Encaissé</dt><dd><span class="num">{{ montant(ouverte.encaisse) }}</span><small> TND</small></dd><small>{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</small></div>
+          <div><dt>Encaissé en espèces</dt><dd><span class="num">{{ montant(ouverte.encaisse) }}</span><small> TND</small></dd><small>{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</small></div>
+          @if (ouverte.nombreDeCheques) {
+            <div><dt>Chèques</dt><dd><span class="num">{{ montant(ouverte.cheques ?? 0) }}</span><small> TND</small></dd><small>{{ ouverte.nombreDeCheques }} chèque{{ ouverte.nombreDeCheques > 1 ? 's' : '' }}, à part de la caisse</small></div>
+          }
           <div><dt>Sorties de caisse</dt><dd><span class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }}</span><small> TND</small></dd><small>Achats payés en espèces</small></div>
           <div><dt>Espèces attendues</dt><dd class="attendues"><span class="num">{{ montant(ouverte.attendu) }}</span><small> TND</small></dd><small>Encaissé moins les sorties</small></div>
         </dl>
@@ -37,9 +40,12 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
             <p class="note warn">Votre caisse du {{ jourCourt(ouverte.jour) }} n'est pas clôturée. Comptez ses espèces et clôturez-la.</p>
           }
           <dl class="kv">
-            <dt>Encaissé</dt><dd class="num">{{ montant(ouverte.encaisse) }} TND</dd>
+            <dt>Encaissé en espèces</dt><dd class="num">{{ montant(ouverte.encaisse) }} TND</dd>
             <dt>Sorties de caisse</dt><dd class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }} TND</dd>
             <dt><b>Espèces attendues</b></dt><dd class="num"><b>{{ montant(ouverte.attendu) }} TND</b></dd>
+            @if (ouverte.nombreDeCheques) {
+              <dt>Chèques, à remettre à part</dt><dd class="num">{{ montant(ouverte.cheques ?? 0) }} TND ({{ ouverte.nombreDeCheques }})</dd>
+            }
           </dl>
           @if (ouverte.recus > 0 || ouverte.annules > 0 || ouverte.sorties > 0 || ouverte.oubliee) {
             <div class="cloture">
@@ -69,6 +75,9 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
             <dt>Espèces attendues</dt><dd class="num">{{ montant(cloture.attendu) }} TND</dd>
             <dt>Montant compté</dt><dd class="num">{{ montant(cloture.compte) }} TND</dd>
             <dt>Écart</dt><dd class="num" [class.bad]="cloture.ecart !== 0" [class.ok]="cloture.ecart === 0">{{ ecrireUnEcart(cloture.ecart) }} TND</dd>
+            @if (cloture.nombreDeCheques) {
+              <dt>Chèques</dt><dd class="num">{{ montant(cloture.cheques ?? 0) }} TND ({{ cloture.nombreDeCheques }})</dd>
+            }
             <dt>Clôturée à</dt><dd>{{ heure(cloture.clotureeLe) }}</dd>
           </dl>
           <p class="aide">Le propriétaire voit votre clôture et marque « argent reçu » quand il récupère les espèces.</p>

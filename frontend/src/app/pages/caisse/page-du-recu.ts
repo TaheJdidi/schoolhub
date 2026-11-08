@@ -7,7 +7,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
 import { MessageWhatsApp } from '../inscriptions/inscription';
-import { AUCUN_EMAIL, RecuDecrit } from './recu';
+import { AUCUN_EMAIL, RecuDecrit, totalPaye } from './recu';
 
 /**
  * CAI-05, CAI-06 et CAI-07 : un reçu, son aperçu, et les trois façons de le remettre : l'imprimer (A5), l'envoyer par
@@ -87,7 +87,7 @@ import { AUCUN_EMAIL, RecuDecrit } from './recu';
               }
             </div>
             <div class="total-du-ticket">
-              <b>Total payé en espèces</b>
+              <b>{{ totalPaye(recu.mode) }}</b>
               <b class="num">{{ montant(recu.total) }} TND</b>
             </div>
             <small class="mention">Reçu par {{ recu.secretaire }}. Ce reçu ne peut être ni modifié ni supprimé.</small>
@@ -213,6 +213,7 @@ export class PageDuRecu implements OnInit {
   private readonly id = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
 
   protected readonly montant = ecrireUnMontant;
+  protected readonly totalPaye = totalPaye;
   protected readonly aucunEmail = AUCUN_EMAIL;
   protected readonly recu = signal<RecuDecrit | null>(null);
   protected readonly introuvable = signal(false);

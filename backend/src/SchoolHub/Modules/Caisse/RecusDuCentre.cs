@@ -86,7 +86,9 @@ public sealed partial class RecusDuCentre(
             if (aRegler.Any(s => s is null))
                 return Refus(StatusCodes.Status409Conflict, SommePlusAPayer);
 
-            recu = CreerLeRecu(auteur, eleve, aRegler.OfType<SommeEncaissable>().ToList(), await NumeroSuivantAsync());
+            if (LireLeMode(saisie.Mode) is not { } mode)
+                return Refus(StatusCodes.Status400BadRequest, ModeInconnu);
+            recu = CreerLeRecu(auteur, eleve, aRegler.OfType<SommeEncaissable>().ToList(), await NumeroSuivantAsync(), mode);
             await contexte.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -109,11 +111,12 @@ public sealed partial class RecusDuCentre(
     /// Le reçu de l'élève, à ce numéro, avec une ligne et un règlement par somme : les sommes deviennent réglées. Va au
     /// journal. Rien n'est encore enregistré : l'appelant enregistre et valide la transaction.
     /// </summary>
-    private Recu CreerLeRecu(Compte auteur, Eleve eleve, IReadOnlyList<SommeEncaissable> aRegler, int numero)
+    private Recu CreerLeRecu(Compte auteur, Eleve eleve, IReadOnlyList<SommeEncaissable> aRegler, int numero,
+        ModeDePaiement mode = ModeDePaiement.Especes)
     {
         var maintenant = temps.GetUtcNow();
         var recu = new Recu(numero, eleve.Id, auteur.Id, $"{auteur.Prenom} {auteur.Nom}", maintenant, DateDeTunis.Aujourdhui(temps),
-            aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)));
+            aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)), mode);
         contexte.Recus.Add(recu);
         // Une entrée à la bibliothèque (BIB-01) n'était pas due : elle n'a pas de règlement.
         foreach (var somme in aRegler.Where(s => s.AssuranceId is not null || s.InscriptionId is not null))
@@ -317,7 +320,8 @@ public sealed partial class RecusDuCentre(
                 .ToList(),
             EmailsDe(eleve),
             recu.AnnuleLe is null && PourquoiPasAnnulable(recu, lecteur) is null,
-            recu.AnnuleLe is null ? PourquoiPasAnnulable(recu, lecteur) : null);
+            recu.AnnuleLe is null ? PourquoiPasAnnulable(recu, lecteur) : null,
+            recu.Mode.ToString());
     }
 
     /// <summary>
@@ -336,10 +340,20 @@ public sealed partial class RecusDuCentre(
         lignes.AddRange(recu.Lignes.Select(l => l.AssuranceId is not null || l.InscriptionId is null
             ? $"• {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"
             : $"• {l.Groupe}, {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"));
-        lignes.Add($"Total payé en espèces : {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
+        lignes.Add($"Total payé {(recu.Mode == ModeDePaiement.Cheque ? "par chèque" : "en espèces")} : {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
         lignes.Add($"Reçu par {recu.Auteur}");
         return string.Join("\n", lignes);
     }
+
+    private const string ModeInconnu = "Choisissez Espèces ou Chèque";
+
+    /// <summary>« Cheque » ou « Especes » ; rien veut dire espèces. <c>null</c> pour un autre mode.</summary>
+    internal static ModeDePaiement? LireLeMode(string? mode) => mode?.Trim() switch
+    {
+        null or "" or "Especes" => ModeDePaiement.Especes,
+        "Cheque" => ModeDePaiement.Cheque,
+        _ => null,
+    };
 
     private static string Couper(string texte) => texte.Length > 500 ? texte[..500] : texte;
 

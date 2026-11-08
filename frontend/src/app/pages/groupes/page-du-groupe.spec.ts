@@ -145,6 +145,10 @@ describe('la fiche d’un groupe', () => {
     await harness.fixture.whenStable();
     expect(puces()[0]).toBe('sam. 16/10');
     expect(page.querySelector('.puce-seance.mois')?.textContent).toContain('‹ Mois 1');
+    // La colonne « Paiement » montre ce qui sera dû à cette séance à venir, pas seulement aujourd'hui.
+    const demandes = http.match((r) => /^\/api\/groupes\/[^/]+\/encaissement$/.test(r.url));
+    expect(demandes.at(-1)?.request.params.get('au')).toMatch(/-10-16$/);
+    demandes.forEach((r) => r.flush({ groupe: {}, aPayer: [], aJour: [] }));
     // SEA-07 : l'appel de la séance choisie s'ouvre sur la fiche même.
     expect(page.querySelector('sh-page-de-l-appel')).not.toBeNull();
   });

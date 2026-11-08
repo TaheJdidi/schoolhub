@@ -25,8 +25,9 @@ public static class CaisseEndpoints
         });
 
         // CAI-04 : l'encaissement groupé, depuis un groupe.
-        api.MapGet("/groupes/{id:guid}/encaissement", async Task<Results<Ok<EncaissementDuGroupe>, JsonHttpResult<Avis>>> (Guid id, RecusDuCentre recus) =>
-            await recus.EncaissementDuGroupeAsync(id) is { } encaissement
+        // ?au=2027-12-04 : ce qui est dû à la date d'une séance à venir (l'appel d'une séance du Mois suivant).
+        api.MapGet("/groupes/{id:guid}/encaissement", async Task<Results<Ok<EncaissementDuGroupe>, JsonHttpResult<Avis>>> (Guid id, DateOnly? au, RecusDuCentre recus) =>
+            await recus.EncaissementDuGroupeAsync(id, au) is { } encaissement
                 ? TypedResults.Ok(encaissement)
                 : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, RecusDuCentre.GroupeIntrouvable));
         api.MapPost("/groupes/{id:guid}/encaissement", async Task<Results<Created<RecusDuGroupe>, JsonHttpResult<Avis>>> (
@@ -97,13 +98,17 @@ public static class CaisseEndpoints
 public sealed record SommeChoisie(Guid? InscriptionId, string? Cle);
 
 /// <summary>CAI-03 : les sommes cochées sur la fiche de l'élève.</summary>
-public sealed record EncaissementSaisi(List<SommeChoisie>? Sommes);
+/// <summary>CAI-03 : les sommes cochées sur la fiche de l'élève, et le mode : « Especes » (par défaut) ou « Cheque ».</summary>
+public sealed record EncaissementSaisi(List<SommeChoisie>? Sommes, string? Mode = null);
 
 /// <summary>CAI-04 : un élève coché, avec les sommes que la page a montrées pour lui.</summary>
-public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes);
+public sealed record EleveCoche(Guid? EleveId, List<SommeChoisie>? Sommes, string? Mode = null);
 
-/// <summary>CAI-04 : les élèves cochés de l'encaissement groupé.</summary>
-public sealed record EncaissementGroupeSaisi(List<EleveCoche>? Eleves);
+/// <summary>
+/// CAI-04 : les élèves cochés de l'encaissement groupé ; <c>Au</c>, la date jusqu'à laquelle les sommes sont dues (celle
+/// de la séance affichée), aujourd'hui par défaut.
+/// </summary>
+public sealed record EncaissementGroupeSaisi(List<EleveCoche>? Eleves, DateOnly? Au = null);
 
 /// <summary>CAI-04 : une somme due à ce jour dans le groupe (ou l'assurance, sans inscription).</summary>
 public sealed record SommeDuGroupe(Guid? InscriptionId, string Cle, string Libelle, decimal Montant);
@@ -158,7 +163,8 @@ public sealed record RecuDecrit(
     List<MessageWhatsApp> Messages,
     List<string> Emails,
     bool Annulable,
-    string? PourquoiPasAnnulable);
+    string? PourquoiPasAnnulable,
+    string Mode = "Especes");
 
 /// <summary>CAI-06 : un reçu dans la liste.</summary>
 /// <summary>Un reçu sur la fiche de l'élève : son numéro, son jour, ce qu'il payait (« Mois 2 (4 séances) »).</summary>

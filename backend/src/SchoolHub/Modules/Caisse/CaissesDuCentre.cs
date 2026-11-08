@@ -51,7 +51,7 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
                 var encaisse = Encaisse(recus);
                 var sortiesDuJour = sorties.Where(a => a.Jour == jour).Sum(a => a.Montant);
                 return new CaisseOuverte(jour, rangs.GetValueOrDefault(jour) + 1, encaisse, sortiesDuJour, encaisse - sortiesDuJour, recus.Count(r => r.AnnuleLe is null),
-                    jour < aujourdhui, recus.Count(r => r.AnnuleLe is not null));
+                    jour < aujourdhui, recus.Count(r => r.AnnuleLe is not null), Cheques(recus), NombreDeCheques(recus));
             })
             .ToList();
         var clotures = await contexte.CloturesDeCaisse.Where(c => c.CompteId == compte.Id && c.Jour == aujourdhui).OrderBy(c => c.Rang).ToListAsync();
@@ -81,7 +81,7 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
 
         var rang = await contexte.CloturesDeCaisse.CountAsync(c => c.CompteId == auteur.Id && c.Jour == jour) + 1;
         var cloture = new ClotureDeCaisse(auteur.Id, $"{auteur.Prenom} {auteur.Nom}", jour, rang, Encaisse(recus), sorties.Sum(a => a.Montant), compte,
-            temps.GetUtcNow());
+            temps.GetUtcNow(), Cheques(recus), NombreDeCheques(recus));
         contexte.CloturesDeCaisse.Add(cloture);
         foreach (var recu in recus)
             recu.Ranger(cloture.Id);
@@ -144,15 +144,22 @@ public sealed class CaissesDuCentre(SchoolHubDbContext contexte, JournalDuCentre
     private IQueryable<SchoolHub.Modules.Achats.Achat> SortiesOuvertes(Guid compteId) =>
         contexte.Achats.Where(a => a.AuteurId == compteId && a.PayeDepuisLaCaisse && a.ClotureId == null);
 
-    /// <summary>L'encaissé : les reçus qui ne sont pas annulés.</summary>
-    private static decimal Encaisse(IEnumerable<Recu> recus) => recus.Where(r => r.AnnuleLe is null).Sum(r => r.Total);
+    /// <summary>L'encaissé en espèces : les reçus en espèces qui ne sont pas annulés ; c'est l'argent du tiroir.</summary>
+    private static decimal Encaisse(IEnumerable<Recu> recus) =>
+        recus.Where(r => r.AnnuleLe is null && r.Mode == ModeDePaiement.Especes).Sum(r => r.Total);
+
+    /// <summary>Les chèques reçus, pas annulés : comptés à part de la caisse.</summary>
+    private static decimal Cheques(IEnumerable<Recu> recus) =>
+        recus.Where(r => r.AnnuleLe is null && r.Mode == ModeDePaiement.Cheque).Sum(r => r.Total);
+
+    private static int NombreDeCheques(IEnumerable<Recu> recus) => recus.Count(r => r.AnnuleLe is null && r.Mode == ModeDePaiement.Cheque);
 
     /// <summary>« −5,000 », « +2,500 », « 0,000 ».</summary>
     internal static string Signe(decimal montant) =>
         (montant > 0 ? "+" : montant < 0 ? "−" : "") + SaisieDuGroupe.EcrireUnMontant(Math.Abs(montant));
 
     private static ClotureDecrite Decrire(ClotureDeCaisse c) => new(c.Id, c.Jour, c.Rang, c.CompteId, c.Secretaire, c.Encaisse, c.Sorties, c.Attendu,
-        c.Compte, c.Ecart, c.ClotureeLe, c.ArgentRecuLe is not null, c.ArgentRecuLe);
+        c.Compte, c.Ecart, c.ClotureeLe, c.ArgentRecuLe is not null, c.ArgentRecuLe, c.Cheques, c.NombreDeCheques);
 
     private static IssueDeLaCloture Refus(int statut, string message) => new(null, statut, message);
 }
@@ -168,7 +175,8 @@ public sealed record ArgentRecuSaisi(bool? Recu);
 /// attendues, le nombre de reçus valables, si elle est oubliée (d'un jour passé), et le nombre de reçus annulés : une
 /// caisse qui n'a que des reçus annulés se clôture aussi.
 /// </summary>
-public sealed record CaisseOuverte(DateOnly Jour, int Rang, decimal Encaisse, decimal Sorties, decimal Attendu, int Recus, bool Oubliee, int Annules);
+public sealed record CaisseOuverte(DateOnly Jour, int Rang, decimal Encaisse, decimal Sorties, decimal Attendu, int Recus, bool Oubliee, int Annules,
+    decimal Cheques = 0m, int NombreDeCheques = 0);
 
 /// <summary>Une clôture, telle que « Ma caisse » et le contrôle la montrent.</summary>
 public sealed record ClotureDecrite(
@@ -184,7 +192,9 @@ public sealed record ClotureDecrite(
     decimal Ecart,
     DateTimeOffset ClotureeLe,
     bool ArgentRecu,
-    DateTimeOffset? ArgentRecuLe);
+    DateTimeOffset? ArgentRecuLe,
+    decimal Cheques = 0m,
+    int NombreDeCheques = 0);
 
 /// <summary>CAI-09 : « Ma caisse » : les caisses ouvertes (oubliées d'abord), et les clôtures du jour.</summary>
 public sealed record MaCaisse(List<CaisseOuverte> Ouvertes, List<ClotureDecrite> Clotures);

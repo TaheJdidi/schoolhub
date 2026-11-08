@@ -8,7 +8,7 @@ import { garderUnBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
-import { EleveAEncaisser, RecusDuGroupe } from '../caisse/recu';
+import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
 import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
@@ -108,6 +108,7 @@ function memes(a: string[], b: string[]): boolean {
                 <span class="deux">Élève</span>
                 <span class="col-presence">Présence</span>
                 <span class="col-paiement">Paiement</span>
+                <span class="col-mode">Mode</span>
               </div>
             }
             @for (eleve of appel.eleves; track eleve.inscriptionId) {
@@ -146,6 +147,16 @@ function memes(a: string[], b: string[]): boolean {
                       <span class="a-jour">✓ Payé</span>
                     }
                   </span>
+                  <span class="col-mode">
+                    @if (aPayerDe(eleve.eleveId)) {
+                      <select class="inp mode" [value]="modeDe(eleve.eleveId)" [disabled]="envoiDuPaiement()"
+                              [attr.aria-label]="'Mode de paiement de ' + eleve.prenom + ' ' + eleve.nom"
+                              (change)="choisirLeMode(eleve.eleveId, $event)">
+                        <option value="Especes">Espèces</option>
+                        <option value="Cheque">Chèque</option>
+                      </select>
+                    }
+                  </span>
                 }
               </div>
             } @empty {
@@ -169,19 +180,20 @@ function memes(a: string[], b: string[]): boolean {
                   </span>
                   @if (colonneDePaiement()) {
                     <span class="col-paiement"><small class="ailleurs">dans son groupe</small></span>
+                    <span class="col-mode"></span>
                   }
                 </div>
               }
             }
             @if (aEncaisser().length > 0) {
               <div class="barre-paiement">
-                <span><b>{{ aEncaisser().length }}</b> élève{{ aEncaisser().length > 1 ? 's' : '' }} · <b class="num">{{ montant(totalAEncaisser()) }}</b> TND</span>
+                <span><b>{{ aEncaisser().length }}</b> élève{{ aEncaisser().length > 1 ? 's' : '' }} · <b class="num">{{ montant(totalAEncaisser()) }}</b> TND{{ chequesCoches() > 0 ? ' · dont ' + chequesCoches() + ' par chèque' : '' }}</span>
                 <button type="button" class="btn primary" [disabled]="envoiDuPaiement()" (click)="payerLesCoches()">Payer les cochés</button>
               </div>
             }
             @if (recusCrees(); as recus) {
               <p class="note ok paiement-fait" role="status">
-                {{ recus.length }} reçu{{ recus.length > 1 ? 's' : '' }} créé{{ recus.length > 1 ? 's' : '' }} · {{ montant(totalDesRecus()) }} TND en espèces ·
+                {{ recus.length }} reçu{{ recus.length > 1 ? 's' : '' }} créé{{ recus.length > 1 ? 's' : '' }} · {{ montant(totalDesRecus()) }} TND · {{ detailDesModes() }} ·
                 <a [href]="impressionDesRecus()" target="_blank" rel="noopener">Imprimer</a>
               </p>
             }
@@ -486,8 +498,18 @@ function memes(a: string[], b: string[]): boolean {
     /* Les colonnes « Présence » et « Paiement », alignées d'une ligne à l'autre. */
     .col-presence { display: inline-flex; justify-content: flex-end; flex: none; min-width: 84px; }
     .col-paiement { display: inline-flex; justify-content: flex-end; flex: none; width: 132px; }
+    .col-mode { display: inline-flex; justify-content: flex-end; flex: none; width: 104px; }
+    .col-mode .mode { width: 100%; padding: 5px 8px; font-size: 13px; }
     .titres-des-colonnes { padding-top: 8px; padding-bottom: 8px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 600; }
-    .titres-des-colonnes .col-presence, .titres-des-colonnes .col-paiement { justify-content: flex-end; }
+    .titres-des-colonnes .col-presence, .titres-des-colonnes .col-paiement, .titres-des-colonnes .col-mode { justify-content: flex-end; }
+    /* Sur un téléphone, le nom prend toute la ligne ; présence, paiement et mode passent dessous, à droite. */
+    @media (max-width: 560px) {
+      .ligne-appel { flex-wrap: wrap; row-gap: 8px; padding-left: 12px; padding-right: 12px; }
+      .ligne-appel .deux { flex-basis: calc(100% - 40px); }
+      .ligne-appel .col-presence { margin-left: auto; min-width: 0; }
+      .ligne-appel .col-paiement, .ligne-appel .col-mode { width: auto; }
+      .titres-des-colonnes { display: none; }
+    }
     .vide-point { visibility: hidden; }
     .case-paiement { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
     .case-paiement input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
@@ -522,6 +544,8 @@ export class PageDeLAppel implements OnInit {
   /** Dans la fiche du groupe : ce que chaque élève doit à ce jour ; la colonne « Paiement » les fait payer d'un coup. */
   readonly groupeId = input<string | null>(null);
   readonly aPayer = input<readonly EleveAEncaisser[]>([]);
+  /** La date de la séance à venir dont la colonne montre les sommes ; `null` : aujourd'hui. */
+  readonly paiementAu = input<string | null>(null);
   /** Des reçus viennent d'être créés : la fiche du groupe recharge ce que chacun doit. */
   readonly paye = output<void>();
 
@@ -535,6 +559,27 @@ export class PageDeLAppel implements OnInit {
   private readonly cochables = computed(() => this.aPayer().filter((e) => this.aEncaisser().includes(e.eleveId)));
   protected readonly totalAEncaisser = computed(() => this.cochables().reduce((total, e) => total + e.total, 0));
   protected readonly totalDesRecus = computed(() => (this.recusCrees() ?? []).reduce((total, r) => total + r.total, 0));
+  /** Le mode choisi pour chaque élève ; Espèces par défaut. */
+  private readonly modes = signal<Readonly<Record<string, ModeDePaiement>>>({});
+  protected readonly chequesCoches = computed(() => this.cochables().filter((e) => this.modeDe(e.eleveId) === 'Cheque').length);
+  /** « en espèces », « par chèque », ou « 2 en espèces, 1 par chèque ». */
+  protected readonly detailDesModes = computed(() => {
+    const recus = this.recusCrees() ?? [];
+    const cheques = recus.filter((r) => r.mode === 'Cheque').length;
+    const especes = recus.length - cheques;
+    if (cheques === 0) return 'en espèces';
+    if (especes === 0) return 'par chèque';
+    return `${especes} en espèces, ${cheques} par chèque`;
+  });
+
+  protected modeDe(eleveId: string): ModeDePaiement {
+    return this.modes()[eleveId] ?? 'Especes';
+  }
+
+  protected choisirLeMode(eleveId: string, evenement: Event): void {
+    const mode = (evenement.target as HTMLSelectElement).value === 'Cheque' ? 'Cheque' : 'Especes';
+    this.modes.update((modes) => ({ ...modes, [eleveId]: mode }));
+  }
 
   protected aPayerDe(eleveId: string): EleveAEncaisser | null {
     return this.aPayer().find((e) => e.eleveId === eleveId) ?? null;
@@ -546,7 +591,7 @@ export class PageDeLAppel implements OnInit {
     this.aEncaisser.update((ids) => (ids.includes(eleveId) ? ids.filter((id) => id !== eleveId) : [...ids, eleveId]));
   }
 
-  /** Un reçu en espèces par élève coché, avec tout ce qu'il doit à ce jour, comme « Paiement du groupe ». */
+  /** Un reçu par élève coché, en espèces ou par chèque, avec tout ce qu'il doit à ce jour, comme « Paiement du groupe ». */
   protected async payerLesCoches(): Promise<void> {
     const choisis = this.cochables();
     const groupeId = this.groupeId();
@@ -556,11 +601,17 @@ export class PageDeLAppel implements OnInit {
     try {
       const reponse = await firstValueFrom(
         this.http.post<RecusDuGroupe>(`/api/groupes/${groupeId}/encaissement`, {
-          eleves: choisis.map((e) => ({ eleveId: e.eleveId, sommes: e.sommes.map((s) => ({ inscriptionId: s.inscriptionId, cle: s.cle })) })),
+          eleves: choisis.map((e) => ({
+            eleveId: e.eleveId,
+            sommes: e.sommes.map((s) => ({ inscriptionId: s.inscriptionId, cle: s.cle })),
+            mode: this.modeDe(e.eleveId),
+          })),
+          ...(this.paiementAu() ? { au: this.paiementAu() } : {}),
         }),
       );
       this.recusCrees.set(reponse.recus);
       this.aEncaisser.set([]);
+      this.modes.set({});
       this.paye.emit();
     } catch (erreur) {
       this.erreurDuPaiement.set(messageDErreur(erreur));

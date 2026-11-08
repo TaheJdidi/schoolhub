@@ -7,8 +7,15 @@ using SchoolHub.Socle.Comptes;
 
 namespace SchoolHub.Modules.Caisse;
 
+/// <summary>Comment l'élève a payé : en espèces (dans la caisse) ou par chèque (compté à part).</summary>
+public enum ModeDePaiement
+{
+    Especes,
+    Cheque,
+}
+
 /// <summary>
-/// CAI-03 : la preuve d'un paiement en espèces, un par élève et par encaissement. Numéroté à la suite pour tout le
+/// CAI-03 : la preuve d'un paiement en espèces ou par chèque, un par élève et par encaissement. Numéroté à la suite pour tout le
 /// centre, il n'est jamais supprimé ni modifié : il garde ses lignes telles qu'encaissées. Annulé (CAI-07), il reste
 /// visible avec son motif.
 /// </summary>
@@ -19,8 +26,10 @@ public sealed class Recu : IAppartientAuCentre
 
     private readonly List<LigneDuRecu> _lignes = [];
 
-    internal Recu(int numero, Guid eleveId, Guid auteurId, string auteur, DateTimeOffset creeLe, DateOnly jour, IEnumerable<LigneDuRecu> lignes)
+    internal Recu(int numero, Guid eleveId, Guid auteurId, string auteur, DateTimeOffset creeLe, DateOnly jour, IEnumerable<LigneDuRecu> lignes,
+        ModeDePaiement mode = ModeDePaiement.Especes)
     {
+        Mode = mode;
         Numero = numero;
         EleveId = eleveId;
         AuteurId = auteurId;
@@ -58,6 +67,9 @@ public sealed class Recu : IAppartientAuCentre
     public DateOnly Jour { get; private set; }
 
     public decimal Total { get; private set; }
+
+    /// <summary>Espèces ou chèque : seules les espèces comptent dans la caisse à clôturer.</summary>
+    public ModeDePaiement Mode { get; private set; }
 
     public IReadOnlyList<LigneDuRecu> Lignes => _lignes;
 
@@ -108,6 +120,7 @@ internal sealed class RecuConfiguration : IEntityTypeConfiguration<Recu>
         recu.ToTable("recus");
         recu.Property(r => r.Auteur).HasMaxLength(201);
         recu.Property(r => r.Total).HasPrecision(12, 3);
+        recu.Property(r => r.Mode).HasConversion<string>().HasMaxLength(10);
         recu.Property(r => r.MotifDAnnulation).HasMaxLength(Recu.LongueurMaximaleDuMotif);
         // Le numéro se suit pour tout le centre, sans doublon.
         recu.HasIndex(r => new { r.CentreId, r.Numero }).IsUnique();
