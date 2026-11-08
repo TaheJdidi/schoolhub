@@ -107,7 +107,7 @@ export const routes: Routes = [
       { path: 'professeurs/groupes/:id/inscription', loadComponent: pageDInscription, data: { depuis: 'groupe' }, title: titre('Inscription') },
       // SEA-07 : l'appel d'une séance, sous son groupe.
       { path: 'professeurs/groupes/:id/feuille-d-appel', loadComponent: feuilleDAppel, title: titre("Feuille d'appel") },
-      { path: 'professeurs/groupes/:id/encaissement', loadComponent: encaissementGroupe, title: titre('Encaissement groupé') },
+      { path: 'professeurs/groupes/:id/encaissement', loadComponent: encaissementGroupe, title: titre('Paiement du groupe') },
       { path: 'professeurs/groupes/:id/appel/:seance', loadComponent: pageDeLAppel, title: titre('Appel') },
       { path: 'professeurs/groupes/:id', component: PageDuGroupe, title: titre('Groupe') },
       // La création et la fiche d'un élève, sous la page Élèves : le menu garde « Élèves » allumé.
@@ -120,7 +120,7 @@ export const routes: Routes = [
         title: titre('Changement de groupe'),
       },
       // CAI-03 : encaisser un élève, sous la page Élèves.
-      { path: 'eleves/:id/encaissement', loadComponent: pageDEncaissement, title: titre('Encaissement') },
+      { path: 'eleves/:id/encaissement', loadComponent: pageDEncaissement, title: titre('Paiement') },
       { path: 'eleves/:id', loadComponent: pageDeLEleve, title: titre('Élève') },
       // CAI-05 à CAI-07 : un reçu, sous la page Caisse.
       { path: 'caisse/recus/:id', loadComponent: pageDuRecu, title: titre('Reçu') },

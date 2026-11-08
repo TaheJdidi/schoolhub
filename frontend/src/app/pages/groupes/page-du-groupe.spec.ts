@@ -126,7 +126,7 @@ describe('la fiche d’un groupe', () => {
     expect(carte().textContent).toContain('18/09/2027');
     expect(carte().textContent).toContain('0 élève sur 16');
     // CAI-04 : l'encaissement groupé, depuis l'en-tête.
-    const encaissement = [...page.querySelectorAll('.pagehead a')].find((a) => a.textContent?.trim() === 'Encaissement groupé');
+    const encaissement = [...page.querySelectorAll('.pagehead a')].find((a) => a.textContent?.trim() === 'Paiement du groupe');
     expect(encaissement?.getAttribute('href')).toBe(`/professeurs/groupes/${FICHE.id}/encaissement`);
   });
 

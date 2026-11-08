@@ -86,7 +86,7 @@ const recus = (nombre: number) => `${nombre} reçu${nombre > 1 ? 's' : ''}`;
             <a routerLink="/professeurs">Professeurs</a> ›
             <a [routerLink]="['/professeurs/groupes', groupeId]">{{ encaissement.groupe.nom }}</a> ›
           </nav>
-          <h1 class="h1">Encaissement groupé</h1>
+          <h1 class="h1">Paiement du groupe</h1>
           <p class="sub">{{ encaissement.groupe.nom }} · {{ encaissement.groupe.matiere }}</p>
         </div>
       </div>

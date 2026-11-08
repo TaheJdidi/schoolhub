@@ -262,7 +262,7 @@ describe("l'encaissement groupé", () => {
     const harness = await RouterTestingHarness.create('/professeurs/groupes/g1/encaissement');
     page = harness.routeNativeElement as HTMLElement;
     (await vi.waitFor(() => http.expectOne('/api/groupes/g1/encaissement'))).flush(ENCAISSEMENT);
-    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('Encaissement groupé'));
+    await vi.waitFor(() => expect(page.querySelector('h1')?.textContent).toContain('Paiement du groupe'));
   });
 
   afterEach(() => http.verify());

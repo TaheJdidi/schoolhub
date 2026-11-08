@@ -52,7 +52,7 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
               <p class="aide">Après la clôture, seul le propriétaire peut annuler un reçu de cette caisse.</p>
             </div>
           } @else {
-            <p class="aide">Rien à clôturer pour le moment : votre caisse s'ouvre avec votre premier encaissement.</p>
+            <p class="aide">Rien à clôturer pour le moment : votre caisse s'ouvre avec votre premier paiement.</p>
           }
           @if (erreur(); as erreur) {
             <p class="note bad" role="alert">{{ erreur }}</p>

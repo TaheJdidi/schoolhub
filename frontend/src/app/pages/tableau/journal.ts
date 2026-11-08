@@ -27,7 +27,7 @@ export const ACTIONS: Record<string, string> = {
   PresenceCorrigee: 'Présence corrigée',
   SeanceAnnulee: 'Séance annulée',
   SeanceDeplacee: 'Séance déplacée',
-  Encaissement: 'Encaissement',
+  Encaissement: 'Paiement',
   RecuAnnule: 'Reçu annulé',
   CaisseCloturee: 'Caisse clôturée',
   SortieDeCaisse: 'Sortie de caisse',
