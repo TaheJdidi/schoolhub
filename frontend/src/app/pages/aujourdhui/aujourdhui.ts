@@ -97,7 +97,7 @@ const minutes = (texte: string) => {
         </div>
         @for (seance of seances(); track seance.seanceId) {
           <a class="seance" [class.en-cours]="moment(seance) === 'en-cours'" [class.annulee]="seance.etat === 'Annulee'"
-             [routerLink]="['/professeurs/groupes', seance.groupe.id, 'appel', seance.seanceId]">
+             [routerLink]="['/professeurs/groupes', seance.groupe.id]" [queryParams]="{ seance: seance.seanceId }">
             <span class="heures num"><b>{{ heure(seance.debut) }}</b><small>{{ heure(seance.fin) }}</small></span>
             <span class="deux">
               <b>{{ seance.groupe.matiere }}@if (seance.groupe.niveau) { · {{ seance.groupe.niveau }}}</b>
@@ -128,7 +128,7 @@ const minutes = (texte: string) => {
                 <b>{{ jour(seance.date) }} · {{ heure(seance.debut) }} → {{ heure(seance.fin) }}</b>
                 <small>{{ seance.groupe.matiere }}@if (seance.groupe.niveau) { · {{ seance.groupe.niveau }}} · {{ seance.groupe.nom }} · {{ seance.professeur }}</small>
               </span>
-              <a class="btn sm" [routerLink]="['/professeurs/groupes', seance.groupe.id, 'appel', seance.seanceId]">Recopier</a>
+              <a class="btn sm" [routerLink]="['/professeurs/groupes', seance.groupe.id]" [queryParams]="{ seance: seance.seanceId }">Recopier</a>
             </div>
           } @empty {
             <p class="vide">Aucun appel à recopier.</p>

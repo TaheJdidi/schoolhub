@@ -310,7 +310,7 @@ describe("les adresses de l'application", () => {
 
     await vi.waitFor(() => expect(texte()).toContain('sam. 20/11 · 10h → 12h'));
     expect(texte()).toContain('Mathématiques · Groupe Samedi 10h → 12h · Karim Ben Salah');
-    expect((harness.fixture.nativeElement as HTMLElement).querySelector('a[href="/professeurs/groupes/g1/appel/s1"]')?.textContent).toContain('Recopier');
+    expect((harness.fixture.nativeElement as HTMLElement).querySelector('a[href="/professeurs/groupes/g1?seance=s1"]')?.textContent).toContain('Recopier');
   });
 
   it("l'accueil montre les élèves en rouge, avec leur rappel de paiement", async () => {

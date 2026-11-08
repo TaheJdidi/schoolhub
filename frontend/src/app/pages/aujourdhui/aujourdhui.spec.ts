@@ -39,7 +39,8 @@ describe("l'accueil « Aujourd'hui »", () => {
     expect(premiere.textContent).toContain('5 à relancer');
     // Selon l'heure qu'il est : à venir, en cours, ou appel à faire.
     expect(premiere.textContent).toMatch(/À venir|En cours|Appel à faire/);
-    expect(premiere.getAttribute('href')).toBe('/professeurs/groupes/g1/appel/s1');
+    // Comme depuis le menu Professeurs : l'appel s'ouvre dans la fiche du groupe, sur la séance du jour.
+    expect(premiere.getAttribute('href')).toBe('/professeurs/groupes/g1?seance=s1');
     expect(page.querySelectorAll('.seance')[1].textContent).toContain('Annulée');
     // Seule la séance qui a lieu compte dans les élèves attendus.
     expect(page.textContent).toContain('2 séances · 14 élèves attendus');

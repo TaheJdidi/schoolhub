@@ -158,7 +158,8 @@ export class PageDuGroupe implements OnInit {
       ? fiche.mois.flatMap((mois) => mois.seances.map((seance) => ({ ...seance, mois: mois.numero as number | null })))
       : fiche.seances.map((seance) => ({ ...seance, mois: null as number | null }));
   });
-  private readonly seanceDemandee = signal<string | null>(null);
+  /** `?seance=…` (depuis Aujourd'hui) ouvre l'appel de cette séance dans la fiche du groupe. */
+  private readonly seanceDemandee = signal<string | null>(this.route.snapshot.queryParamMap.get('seance'));
   /** La séance choisie : celle qu'on a touchée, sinon celle du jour, sinon la dernière passée, sinon la première. */
   protected readonly seanceChoisie = computed(() => {
     const seances = this.toutesLesSeances();
