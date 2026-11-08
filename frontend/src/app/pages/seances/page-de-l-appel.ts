@@ -1,4 +1,4 @@
-import { formatDate } from '@angular/common';
+import { formatDate, NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -18,16 +18,24 @@ type Prevenable = EleveALAppel | EleveEnRattrapage;
 /** Ce que la secrétaire fait de la séance (SEA-03, SEA-04). */
 type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
 
+/** Les élèves marqués sur la page : absents, et présents ; ceux qui ne sont dans aucune liste sont à marquer. */
+type MarquesDeLAppel = { absents: string[]; presents: string[] };
+
+/** Les deux listes ont les mêmes identifiants, dans n'importe quel ordre. */
+function memes(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id));
+}
+
 /**
- * SEA-07, SEA-10 et SEA-11 : l'appel d'une séance. Tous les élèves sont présents ; un toucher marque un absent, un autre
- * le remet présent. « Enregistrer l'appel » fait passer la séance à « appel fait » ; ensuite, « Corriger l'appel » reste
+ * SEA-07, SEA-10 et SEA-11 : l'appel d'une séance. Aucun élève n'est marqué d'avance : P le marque présent, A absent ;
+ * l'appel s'enregistre quand chacun est marqué. « Enregistrer l'appel » fait passer la séance à « appel fait » ; ensuite, « Corriger l'appel » reste
  * possible à tout moment. Après l'enregistrement, « Prévenir les parents des absents » liste les messages WhatsApp prêts ;
  * un message ouvert est marqué, pour ne pas l'envoyer deux fois.
  */
 @Component({
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, MessagesDuChangement, BrouillonRepris],
+  imports: [RouterLink, NgTemplateOutlet, MessagesDuChangement, BrouillonRepris],
   host: { '[class.integre]': 'integre()' },
   template: `
     @if (introuvable()) {
@@ -80,7 +88,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
                 } @else if (appel.appelFait && !correction()) {
                   <p class="aide">Fait{{ appel.appelFaitPar ? ' par ' + appel.appelFaitPar : '' }}{{ appel.appelFaitLe ? ' à ' + heureDuMoment(appel.appelFaitLe) : '' }}.</p>
                 } @else {
-                  <p class="aide">Tous les élèves sont présents par défaut : cochez seulement les absents.</p>
+                  <p class="aide">Marquez chaque élève : P présent, A absent.</p>
                 }
               </div>
               @if (appel.appelFait) {
@@ -105,10 +113,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
                   }
                 </span>
                 @if (modifiable()) {
-                  <label class="case-absent" [class.coche]="absents().includes(eleve.inscriptionId)">
-                    <input type="checkbox" [checked]="absents().includes(eleve.inscriptionId)" [disabled]="envoi()" (change)="basculer(eleve)" />
-                    Absent
-                  </label>
+                  <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
                 } @else if (appel.appelFait) {
                   @if (absents().includes(eleve.inscriptionId)) {
                     <span class="pill bad">Absent</span>
@@ -130,10 +135,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
                     <small>Vient du {{ eleve.groupeDOrigine }} · paie dans son groupe</small>
                   </span>
                   @if (modifiable()) {
-                    <label class="case-absent" [class.coche]="absents().includes(eleve.inscriptionId)">
-                      <input type="checkbox" [checked]="absents().includes(eleve.inscriptionId)" [disabled]="envoi()" (change)="basculer(eleve)" />
-                      Absent
-                    </label>
+                    <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
                   } @else if (appel.appelFait) {
                     <span [class]="absents().includes(eleve.inscriptionId) ? 'pill bad' : 'present'">{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</span>
                   }
@@ -142,8 +144,11 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
             }
             @if (appel.ouvert) {
               <div class="pied-appel">
-                <span class="compte">{{ presents() }} présent{{ presents() > 1 ? 's' : '' }} · {{ absents().length }} absent{{ absents().length > 1 ? 's' : '' }}</span>
+                <span class="compte">{{ compte() }}</span>
                 <span class="boutons">
+                  @if (modifiable() && aMarquer() > 0) {
+                    <button type="button" class="btn ghost" [disabled]="envoi()" (click)="tousPresents()">Tous présents</button>
+                  }
                   @if (!appel.annulee) {
                     <button type="button" class="btn ghost" (click)="ouvrirLeRattrapage()">+ Rattrapage</button>
                   }
@@ -176,7 +181,7 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
               <span class="pill" [class.ok]="appel.appelFait" [class.warn]="!appel.appelFait && appel.ouvert">{{ appel.appelFait ? 'Appel fait' : appel.ouvert ? 'Appel à faire' : 'À venir' }}</span>
             }
             @if (appel.eleves.length > 0) {
-              <span class="compte">{{ presents() }} présents · {{ absents().length }} {{ absents().length > 1 ? 'absents' : 'absent' }}</span>
+              <span class="compte">{{ compte() }}</span>
             }
           </div>
           <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'appel que vous n'aviez pas enregistré." action="Annuler les changements" />
@@ -185,24 +190,25 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
           } @else if (!appel.ouvert) {
             <p class="note" role="status">L'appel s'ouvre le jour de la séance.</p>
           } @else {
-            <p class="aide">Touchez un élève pour le marquer absent ; touchez-le de nouveau pour le remettre présent.</p>
+            <p class="aide">Marquez chaque élève : P présent, A absent.</p>
+            @if (aMarquer() > 0) {
+              <div><button type="button" class="btn ghost" [disabled]="envoi()" (click)="tousPresents()">Tous présents</button></div>
+            }
           }
           <div class="eleves">
             @for (eleve of appel.eleves; track eleve.inscriptionId) {
-              <button
-                type="button"
-                class="eleve"
-                [class.absent]="absents().includes(eleve.inscriptionId)"
-                [attr.aria-pressed]="absents().includes(eleve.inscriptionId)"
-                [disabled]="!appel.ouvert || envoi()"
-                (click)="basculer(eleve)"
-              >
-                <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-                <small>{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</small>
-                @if (eleve.rattrapeeLe; as le) {
-                  <small class="origine">Rattrapée le {{ court(le) }}</small>
+              <div class="eleve" [class.absent]="etatDe(eleve) === 'absent'" [class.present]="etatDe(eleve) === 'present'">
+                <span class="deux">
+                  <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                  <small class="etat">{{ libelleDeLEtat(eleve) }}</small>
+                  @if (eleve.rattrapeeLe; as le) {
+                    <small class="origine">Rattrapée le {{ court(le) }}</small>
+                  }
+                </span>
+                @if (appel.ouvert && !appel.annulee) {
+                  <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
                 }
-              </button>
+              </div>
             } @empty {
               <p class="vide">Aucun élève attendu à cette séance.</p>
             }
@@ -213,18 +219,16 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
             <div class="eleves">
               @for (eleve of appel.rattrapages; track eleve.rattrapageId) {
                 <div class="en-rattrapage">
-                  <button
-                    type="button"
-                    class="eleve"
-                    [class.absent]="absents().includes(eleve.inscriptionId)"
-                    [attr.aria-pressed]="absents().includes(eleve.inscriptionId)"
-                    [disabled]="!appel.ouvert || envoi()"
-                    (click)="basculer(eleve)"
-                  >
-                    <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-                    <small>{{ absents().includes(eleve.inscriptionId) ? 'Absent' : 'Présent' }}</small>
-                    <small class="origine">Paie dans son groupe d'origine · {{ eleve.groupeDOrigine }}, rattrape le {{ court(eleve.seanceRattrapee) }}</small>
-                  </button>
+                  <div class="eleve" [class.absent]="etatDe(eleve) === 'absent'" [class.present]="etatDe(eleve) === 'present'">
+                    <span class="deux">
+                      <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                      <small class="etat">{{ libelleDeLEtat(eleve) }}</small>
+                      <small class="origine">Paie dans son groupe d'origine · {{ eleve.groupeDOrigine }}, rattrape le {{ court(eleve.seanceRattrapee) }}</small>
+                    </span>
+                    @if (appel.ouvert && !appel.annulee) {
+                      <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
+                    }
+                  </div>
                   <button type="button" class="btn ghost retirer" [disabled]="envoi()" (click)="retirerLeRattrapage(eleve.rattrapageId)">
                     Retirer {{ eleve.prenom }}
                   </button>
@@ -373,6 +377,15 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     } @else if (erreur(); as erreur) {
       <p class="note bad" role="alert">{{ erreur }}</p>
     }
+  
+    <ng-template #ronds let-eleve>
+      <span class="ronds" role="group" [attr.aria-label]="'Présence de ' + eleve.prenom + ' ' + eleve.nom">
+        <button type="button" class="rond p" title="Présent" aria-label="Présent" [class.choisi]="etatDe(eleve) === 'present'"
+                [attr.aria-pressed]="etatDe(eleve) === 'present'" [disabled]="envoi()" (click)="marquer(eleve, 'present')">P</button>
+        <button type="button" class="rond a" title="Absent" aria-label="Absent" [class.choisi]="etatDe(eleve) === 'absent'"
+                [attr.aria-pressed]="etatDe(eleve) === 'absent'" [disabled]="envoi()" (click)="marquer(eleve, 'absent')">A</button>
+      </span>
+    </ng-template>
   `,
   styleUrls: ['../eleves/eleves.css', '../inscriptions/inscriptions.css'],
   styles: `
@@ -385,9 +398,12 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     .eleves { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
     .eleve { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
       background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; min-height: 52px; }
-    .eleve small { color: var(--ok); font-size: 12.5px; }
+    .eleve { display: flex !important; align-items: center; justify-content: space-between; gap: 10px; }
+    .eleve .deux { display: grid; gap: 2px; min-width: 0; }
+    .eleve small.etat { color: var(--warn); font-size: 12.5px; }
+    .eleve.present small.etat { color: var(--ok); }
     .eleve.absent { border-color: var(--bad); background: var(--bad-soft); }
-    .eleve.absent small { color: var(--bad); font-weight: 600; }
+    .eleve.absent small.etat { color: var(--bad); font-weight: 600; }
     .eleve:disabled { cursor: default; }
     .absent-a-prevenir { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
     .absent-a-prevenir:first-of-type { border-top: 0; }
@@ -409,9 +425,13 @@ type ActionSurLaSeance = 'annuler' | 'deplacer' | 'remplacer';
     .point.APayer { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
     .point.Orange { background: var(--warn); }
     .point.Rouge { background: var(--bad); }
-    .case-absent { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
-    .case-absent input { width: 16px; height: 16px; margin: 0; accent-color: var(--bad); }
-    .case-absent.coche { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+    /* Les ronds P et A (style C) : rien de coloré tant que l'élève n'est pas marqué. */
+    .ronds { display: inline-flex; flex: none; gap: 8px; }
+    .rond { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line-2); border-radius: 50%; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .rond:hover:not(:disabled) { background: var(--sunk); }
+    .rond.p.choisi { border-color: var(--ok); background: var(--ok); color: #fff; }
+    .rond.a.choisi { border-color: var(--bad); background: var(--bad); color: #fff; }
+    .rond:disabled { cursor: default; opacity: 0.6; }
     .present { color: var(--ink-3); font-size: 13.5px; }
     .bande { margin: 0; padding: 8px 18px; background: var(--sunk); border-top: 1px solid var(--line); color: var(--ink-2); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
     .pied-appel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); }
@@ -472,15 +492,24 @@ export class PageDeLAppel implements OnInit {
   protected readonly heure = heure;
   protected readonly appel = signal<AppelDeLaSeance | null>(null);
   protected readonly introuvable = signal(false);
-  /** Les inscriptions marquées absentes sur la page, enregistrées ou pas. */
+  /** Les inscriptions marquées absentes, et celles marquées présentes, sur la page, enregistrées ou pas ; les autres sont à marquer. */
   protected readonly absents = signal<string[]>([]);
+  protected readonly presentsMarques = signal<string[]>([]);
   protected readonly envoi = signal(false);
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
-  protected readonly presents = computed(
-    () => (this.appel()?.eleves.length ?? 0) + (this.appel()?.rattrapages?.length ?? 0) - this.absents().length,
-  );
+  /** Toutes les inscriptions attendues à la séance, élèves en rattrapage compris. */
+  private readonly attendus = computed(() => [...(this.appel()?.eleves ?? []), ...(this.appel()?.rattrapages ?? [])].map((e) => e.inscriptionId));
+  protected readonly presents = computed(() => this.presentsMarques().length);
+  protected readonly aMarquer = computed(() => this.attendus().length - this.presents() - this.absents().length);
+  /** « 1 présent · 1 absent · 2 à marquer ». */
+  protected readonly compte = computed(() => {
+    const presents = this.presents();
+    const absents = this.absents().length;
+    const reste = this.aMarquer();
+    return `${presents} présent${presents > 1 ? 's' : ''} · ${absents} absent${absents > 1 ? 's' : ''}${reste > 0 ? ` · ${reste} à marquer` : ''}`;
+  });
   /** Les absents tels qu'enregistrés, élèves en rattrapage compris : ceux à prévenir. */
   protected readonly absentsEnregistres = computed<Prevenable[]>(() => [
     ...(this.appel()?.eleves.filter((e) => e.absent) ?? []),
@@ -488,19 +517,32 @@ export class PageDeLAppel implements OnInit {
   ]);
 
   /** Un appel coché puis laissé pour une autre page sans l'enregistrer se retrouve en revenant. */
-  protected readonly brouillon = garderUnBrouillon(() => `appel-${this.seanceId}`, {
-    lire: () => this.absents(),
-    ecrire: (absents) => {
-      // Seulement les élèves encore attendus à cette séance.
-      const attendus = new Set([...(this.appel()?.eleves ?? []), ...(this.appel()?.rattrapages ?? [])].map((e) => e.inscriptionId));
-      this.absents.set(absents.filter((id) => attendus.has(id)));
-    },
+  protected readonly brouillon = garderUnBrouillon<MarquesDeLAppel | string[]>(() => `appel-${this.seanceId}`, {
+    lire: () => ({ absents: this.absents(), presents: this.presentsMarques() }),
+    // Un ancien brouillon ne gardait que les absents.
+    ecrire: (marques) => this.garderLesMarques(Array.isArray(marques) ? { absents: marques, presents: [] } : marques),
     aGarder: () => {
-      const enregistres = this.absentsEnregistres().map((e) => e.inscriptionId);
-      const coches = this.absents();
-      return coches.length !== enregistres.length || coches.some((id) => !enregistres.includes(id));
+      const enregistre = this.marquesEnregistrees();
+      return !memes(enregistre.absents, this.absents()) || !memes(enregistre.presents, this.presentsMarques());
     },
   });
+
+  /** Ce que l'appel enregistré marque : un appel fait a ses absents, et tous les autres présents ; sinon, rien. */
+  private marquesEnregistrees(): MarquesDeLAppel {
+    const appel = this.appel();
+    const tous = appel ? [...appel.eleves, ...(appel.rattrapages ?? [])] : [];
+    return {
+      absents: tous.filter((e) => e.absent).map((e) => e.inscriptionId),
+      presents: appel?.appelFait ? tous.filter((e) => !e.absent).map((e) => e.inscriptionId) : [],
+    };
+  }
+
+  /** Seulement les élèves encore attendus à cette séance. */
+  private garderLesMarques(marques: MarquesDeLAppel): void {
+    const attendus = new Set(this.attendus());
+    this.absents.set(marques.absents.filter((id) => attendus.has(id)));
+    this.presentsMarques.set(marques.presents.filter((id) => attendus.has(id) && !marques.absents.includes(id)));
+  }
 
   // ----- Le rattrapage (SEA-12) -----
 
@@ -550,11 +592,9 @@ export class PageDeLAppel implements OnInit {
     this.envoi.set(true);
     this.erreurDuRattrapage.set(null);
     try {
-      const marques = this.absents();
-      const appel = await firstValueFrom(requete);
-      const presentes = new Set([...appel.eleves, ...(appel.rattrapages ?? [])].map((e) => e.inscriptionId));
-      this.appel.set(appel);
-      this.absents.set(marques.filter((id) => presentes.has(id)));
+      const marques = { absents: this.absents(), presents: this.presentsMarques() };
+      this.appel.set(await firstValueFrom(requete));
+      this.garderLesMarques(marques);
       this.rattrapables.set(null);
     } catch (erreur) {
       this.erreurDuRattrapage.set(messageDErreur(erreur));
@@ -580,19 +620,48 @@ export class PageDeLAppel implements OnInit {
 
   private montrer(appel: AppelDeLaSeance): void {
     this.appel.set(appel);
-    this.absents.set([...appel.eleves, ...(appel.rattrapages ?? [])].filter((e) => e.absent).map((e) => e.inscriptionId));
+    this.garderLesMarques(this.marquesEnregistrees());
   }
 
-  protected basculer(eleve: { inscriptionId: string }): void {
+  protected etatDe(eleve: { inscriptionId: string }): 'present' | 'absent' | null {
+    if (this.absents().includes(eleve.inscriptionId)) return 'absent';
+    return this.presentsMarques().includes(eleve.inscriptionId) ? 'present' : null;
+  }
+
+  protected libelleDeLEtat(eleve: { inscriptionId: string }): string {
+    const etat = this.etatDe(eleve);
+    return etat === 'present' ? 'Présent' : etat === 'absent' ? 'Absent' : 'À marquer';
+  }
+
+  /** P ou A ; toucher de nouveau le même rond enlève la marque. */
+  protected marquer(eleve: { inscriptionId: string }, etat: 'present' | 'absent'): void {
     this.succes.set(null);
-    this.absents.update((absents) =>
-      absents.includes(eleve.inscriptionId) ? absents.filter((id) => id !== eleve.inscriptionId) : [...absents, eleve.inscriptionId],
-    );
+    this.erreur.set(null);
+    const id = eleve.inscriptionId;
+    const dejaLa = this.etatDe(eleve) === etat;
+    this.absents.update((ids) => ids.filter((x) => x !== id));
+    this.presentsMarques.update((ids) => ids.filter((x) => x !== id));
+    if (dejaLa) return;
+    (etat === 'absent' ? this.absents : this.presentsMarques).update((ids) => [...ids, id]);
+  }
+
+  /** Marque présents tous les élèves pas encore marqués. */
+  protected tousPresents(): void {
+    this.succes.set(null);
+    this.erreur.set(null);
+    const absents = this.absents();
+    this.presentsMarques.set(this.attendus().filter((id) => !absents.includes(id)));
   }
 
   protected async enregistrer(): Promise<void> {
     const appel = this.appel();
     if (this.envoi() || !appel) return;
+    const reste = this.aMarquer();
+    if (reste > 0) {
+      this.succes.set(null);
+      this.erreur.set(`Marquez encore ${reste} élève${reste > 1 ? 's' : ''} : présent (P) ou absent (A)`);
+      return;
+    }
     this.envoi.set(true);
     this.erreur.set(null);
     this.succes.set(null);
