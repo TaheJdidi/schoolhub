@@ -12,6 +12,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { eleves, heure, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
 import { FRANCAIS } from '../../socle/francais';
 import { AUTRE_MATIERE, listeDesMatieres, normaliser } from '../groupes/matieres';
+import { Icone } from '../../socle/icone';
 import { EnregistrementDuProfesseur, groupesOuverts, nombreDeProfesseurs, nomComplet, Professeur, trier } from './professeur';
 
 const ADRESSE = '/api/professeurs';
@@ -36,7 +37,7 @@ import { BadgeDuGroupeComponent } from '../caisse/paiement';
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, BrouillonRepris],
+  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, BrouillonRepris, Icone],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
@@ -49,6 +50,9 @@ export class Professeurs implements OnInit {
   protected readonly groupesOuverts = groupesOuverts;
   protected readonly estRempli = (texte: string | null | undefined) => !!texte;
   protected readonly nomComplet = nomComplet;
+  /** « HK » pour Hassen Kharrat : l'avatar de la fiche. */
+  protected readonly initiales = (professeur: Professeur) =>
+    `${professeur.prenom.charAt(0)}${professeur.nom.charAt(0)}`.toUpperCase();
   protected readonly eleves = eleves;
   protected readonly jours = JOURS;
   protected readonly types = TYPES;

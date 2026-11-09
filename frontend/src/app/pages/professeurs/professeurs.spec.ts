@@ -89,7 +89,7 @@ describe('la page « Professeurs »', () => {
     expect(fiche().querySelector('h2')?.textContent).toContain('Karim Ben Salah');
     expect(fiche().textContent).toContain('98 401 220');
     expect(fiche().textContent).toContain('karim@exemple.tn');
-    expect(boutons(entete())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
+    expect(boutons(entete())).toEqual(['Nouveau groupe', 'Modifier', 'Marquer parti', 'Supprimer']);
   });
 
   it("dit quand il n'y a aucun professeur", async () => {
@@ -194,7 +194,7 @@ describe('la page « Professeurs »', () => {
     await cliquer(fiche(), 'Supprimer');
     expect(fiche().textContent).toContain("Supprimer Karim Ben Salah ? Seulement en cas d'erreur de saisie.");
     await cliquer(fiche(), 'Non');
-    expect(boutons(entete())).toEqual(['Modifier', 'Marquer parti', 'Supprimer']);
+    expect(boutons(entete())).toEqual(['Nouveau groupe', 'Modifier', 'Marquer parti', 'Supprimer']);
 
     await cliquer(fiche(), 'Supprimer');
     await cliquer(fiche(), 'Oui');
@@ -373,6 +373,8 @@ describe('la page « Professeurs »', () => {
   };
   const DE_LEILA: ResumeDuGroupe = { ...SAMEDI, id: 'g3', nom: 'Physique du lundi', professeurId: 'l', creneaux: [{ jour: 'Lundi', debut: '17:00', fin: '19:00' }] };
   const groupesDuProfesseur = () => page.querySelector('.groupes-du-professeur') as HTMLElement;
+  // « Nouveau groupe » est dans l'en-tête de la fiche, en premier, juste sous le nom.
+  const enteteDeLaFiche = () => page.querySelector('.entete-fiche') as HTMLElement;
   const cadres = () => [...page.querySelectorAll('.cadre')] as HTMLAnchorElement[];
 
   it('montre les groupes du professeur dans des cadres', async () => {
@@ -413,13 +415,14 @@ describe('la page « Professeurs »', () => {
     await ouvrir([KARIM]);
 
     expect(groupesDuProfesseur().textContent).toContain('Aucun groupe ouvert');
-    expect(boutons(groupesDuProfesseur())).toEqual(['Nouveau groupe']);
+    expect(boutons(groupesDuProfesseur())).toEqual([]);
+    expect(boutons(enteteDeLaFiche())[0]).toBe('Nouveau groupe');
   });
 
   it('ouvre la création d’un groupe pour ce professeur', async () => {
     await ouvrir([KARIM]);
 
-    await cliquer(groupesDuProfesseur(), 'Nouveau groupe');
+    await cliquer(enteteDeLaFiche(), 'Nouveau groupe');
 
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/professeurs/groupes/nouveau?professeur=k'));
   });
@@ -429,14 +432,14 @@ describe('la page « Professeurs »', () => {
 
     await cliquer(page, 'Professeurs partis');
 
-    expect(boutons(groupesDuProfesseur())).not.toContain('Nouveau groupe');
+    expect(boutons(enteteDeLaFiche())).not.toContain('Nouveau groupe');
   });
 
   it("bloque « Nouveau groupe » si les groupes n'ont pas pu se charger", async () => {
     await ouvrir([KARIM], 'erreur');
 
     expect(page.querySelector('.liste .note.bad')?.textContent).toContain('Erreur des groupes');
-    expect(bouton(groupesDuProfesseur(), 'Nouveau groupe').disabled).toBe(true);
+    expect(bouton(enteteDeLaFiche(), 'Nouveau groupe').disabled).toBe(true);
   });
 
   // ----- Les types et les anciens groupes (GRP-05, GRP-06) -----

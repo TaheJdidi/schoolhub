@@ -19,13 +19,25 @@
 .note { margin: 0; }
 
 .cote { display: grid; gap: 12px; min-width: 0; }
-/* La fiche (style A) : les initiales, le nom et le téléphone, les boutons à droite ; ses groupes sous un trait. */
-.fiche { display: grid; gap: 14px; }
-.entete-fiche { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
-.identite { display: grid; gap: 2px; flex: 1 1 180px; min-width: 0; }
+/* La fiche : un en-tête de profil (les initiales, le nom, ses coordonnées en puces, les actions juste dessous), puis
+   ses groupes. */
+.fiche { display: grid; gap: 18px; }
+.entete-fiche { display: flex; align-items: flex-start; gap: 14px; padding: 16px; border-radius: 14px; background: var(--sunk); }
+.avatar { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.identite { display: grid; gap: 8px; flex: 1; min-width: 0; }
 .fiche .titre { font-size: 19px; }
-.entete-fiche .actions { margin-left: auto; }
+.coordonnees { display: flex; flex-wrap: wrap; gap: 6px; }
+.puce { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; min-width: 0; overflow-wrap: anywhere; }
+.puce svg.lucide { width: 13px; height: 13px; }
+.barre-d-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.barre-d-actions .btn.primary { margin-right: 4px; }
+.separateur { width: 1px; height: 22px; margin: 0 6px 0 2px; background: var(--line-2); }
+.btn svg.lucide { width: 16px; height: 16px; }
+.btn.discret { border-color: transparent; background: none; color: var(--ink-2); padding-inline: 10px; }
+.btn.discret:hover:not(:disabled) { background: var(--surface); color: var(--ink); }
 .btn.danger { color: var(--bad); }
+.btn.discret.danger:hover:not(:disabled) { background: var(--bad-soft); color: var(--bad); }
+.nombre { padding: 1px 8px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); font-size: 12px; font-weight: 500; }
 .groupes-du-professeur { display: grid; gap: 12px; }
 .groupes-du-professeur .titre { font-size: 15px; }
 .carte { display: grid; gap: 14px; padding: 16px; }
@@ -40,7 +52,7 @@
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
 /* Les groupes du professeur, dans des cadres (GRP-02) */
-.entete-groupes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.entete-groupes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .jours { margin-bottom: 0; }
 .filtre.off { color: var(--ink-3); border-style: dashed; }
 .cadres { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }

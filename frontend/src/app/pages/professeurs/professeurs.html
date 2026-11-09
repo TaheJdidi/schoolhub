@@ -93,9 +93,11 @@
         </div>
       </form>
     } @else if (choisi(); as professeur) {
-      <!-- Comme le prototype : le nom, « Matière · téléphone », puis ses groupes ; les actions restent discrètes à droite. -->
+      <!-- L'en-tête de profil : les initiales, le nom, ses coordonnées en puces, et toutes les actions juste dessous,
+           « Nouveau groupe » en premier. -->
       <section class="fiche">
         <div class="entete-fiche">
+          <span class="avatar" aria-hidden="true">{{ initiales(professeur) }}</span>
           <div class="identite">
             <div class="entete">
               <h2 class="titre">{{ nomComplet(professeur) }}</h2>
@@ -104,20 +106,40 @@
               }
             </div>
             <p class="coordonnees">
-              {{ [professeur.matiere, professeur.telephone, professeur.email].filter(estRempli).join(' · ') }}
-            </p>
-          </div>
-          @if (!aConfirmer()) {
-            <div class="actions">
-              <button type="button" class="btn sm" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">Modifier</button>
-              @if (professeur.parti) {
-                <button type="button" class="btn sm" [disabled]="envoi()" (click)="revenir(professeur, $event)">Revenir au centre</button>
-              } @else {
-                <button type="button" class="btn sm" [disabled]="envoi()" (click)="partir(professeur, $event)">Marquer parti</button>
+              @if (professeur.matiere) {
+                <span class="puce"><sh-icone nom="book-open" />{{ professeur.matiere }}</span>
               }
-              <button type="button" class="btn sm danger" [disabled]="envoi()" (click)="demanderConfirmation()">Supprimer</button>
-            </div>
-          }
+              <span class="puce"><sh-icone nom="phone" />{{ professeur.telephone }}</span>
+              @if (professeur.email) {
+                <span class="puce"><sh-icone nom="mail" />{{ professeur.email }}</span>
+              }
+            </p>
+            @if (!aConfirmer()) {
+              <div class="barre-d-actions">
+                @if (!professeur.parti) {
+                  <button type="button" class="btn primary" [disabled]="!groupesCharges() || envoi()" (click)="nouveauGroupe(professeur)">
+                    <sh-icone nom="plus" />Nouveau groupe
+                  </button>
+                  <span class="separateur" aria-hidden="true"></span>
+                }
+                <button type="button" class="btn discret" [disabled]="envoi()" (click)="ouvrirLaModification(professeur)">
+                  <sh-icone nom="pencil" />Modifier
+                </button>
+                @if (professeur.parti) {
+                  <button type="button" class="btn discret" [disabled]="envoi()" (click)="revenir(professeur, $event)">
+                    <sh-icone nom="undo-2" />Revenir au centre
+                  </button>
+                } @else {
+                  <button type="button" class="btn discret" [disabled]="envoi()" (click)="partir(professeur, $event)">
+                    <sh-icone nom="log-out" />Marquer parti
+                  </button>
+                }
+                <button type="button" class="btn discret danger" [disabled]="envoi()" (click)="demanderConfirmation()">
+                  <sh-icone nom="trash-2" />Supprimer
+                </button>
+              </div>
+            }
+          </div>
         </div>
 
         @if (aConfirmer()) {
@@ -132,11 +154,7 @@
         <div class="groupes-du-professeur">
           <div class="entete-groupes">
             <h3 class="titre">Ses groupes</h3>
-            @if (!professeur.parti) {
-              <button type="button" class="btn" [disabled]="!groupesCharges() || envoi()" (click)="nouveauGroupe(professeur)">
-                Nouveau groupe
-              </button>
-            }
+            <span class="nombre">{{ cadresOuverts().length }}</span>
           </div>
 
           @if (cadresOuverts().length === 0) {
