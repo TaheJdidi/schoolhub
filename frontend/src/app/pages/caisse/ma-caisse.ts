@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, s
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
+import { Icone } from '../../socle/icone';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './caisse-du-soir';
 
@@ -15,17 +16,36 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
 @Component({
   selector: 'sh-ma-caisse',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icone],
   template: `
     @if (caisse(); as caisse) {
       @if (aCloturer(); as ouverte) {
-        <dl class="chiffres">
-          <div><dt>Encaissé en espèces</dt><dd><span class="num">{{ montant(ouverte.encaisse) }}</span><small> TND</small></dd><small>{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</small></div>
+        <!-- Le calcul se lit tout seul : encaissé − sorties = espèces attendues ; les chèques, à part, en dessous. -->
+        <div class="chiffres">
+          <dl class="chiffre">
+            <dt><span class="icone info"><sh-icone nom="receipt" /></span>Encaissé en espèces</dt>
+            <dd class="montant"><span class="num">{{ montant(ouverte.encaisse) }}</span><small> TND</small></dd>
+            <dd class="detail">{{ ouverte.recus }} reçu{{ ouverte.recus > 1 ? 's' : '' }}</dd>
+          </dl>
+          <span class="operateur" aria-hidden="true">−</span>
+          <dl class="chiffre">
+            <dt><span class="icone bad"><sh-icone nom="shopping-cart" /></span>Sorties de caisse</dt>
+            <dd class="montant" [class.zero]="!ouverte.sorties"><span class="num">{{ montant(ouverte.sorties) }}</span><small> TND</small></dd>
+            <dd class="detail">Achats payés en espèces</dd>
+          </dl>
+          <span class="operateur" aria-hidden="true">=</span>
+          <dl class="chiffre attendues">
+            <dt><span class="icone ok"><sh-icone nom="wallet" /></span>Espèces attendues</dt>
+            <dd class="montant"><span class="num">{{ montant(ouverte.attendu) }}</span><small> TND</small></dd>
+            <dd class="detail">À trouver dans le tiroir</dd>
+          </dl>
           @if (ouverte.nombreDeCheques) {
-            <div><dt>Chèques</dt><dd><span class="num">{{ montant(ouverte.cheques ?? 0) }}</span><small> TND</small></dd><small>{{ ouverte.nombreDeCheques }} chèque{{ ouverte.nombreDeCheques > 1 ? 's' : '' }}, à part de la caisse</small></div>
+            <dl class="cheques">
+              <dt><span class="icone info"><sh-icone nom="file-text" /></span>Chèques, à remettre à part · <b>{{ ouverte.nombreDeCheques }} chèque{{ ouverte.nombreDeCheques > 1 ? 's' : '' }}</b></dt>
+              <dd class="num">{{ montant(ouverte.cheques ?? 0) }}<small> TND</small></dd>
+            </dl>
           }
-          <div><dt>Sorties de caisse</dt><dd><span class="num">{{ ouverte.sorties > 0 ? '−' : '' }}{{ montant(ouverte.sorties) }}</span><small> TND</small></dd><small>Achats payés en espèces</small></div>
-          <div><dt>Espèces attendues</dt><dd class="attendues"><span class="num">{{ montant(ouverte.attendu) }}</span><small> TND</small></dd><small>Encaissé moins les sorties</small></div>
-        </dl>
+        </div>
       }
       <div class="colonne-cloture">
       @if (aCloturer(); as ouverte) {
@@ -96,13 +116,32 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
     .colonne-cloture { grid-area: cloture; display: grid; gap: 16px; align-content: start; }
     .carte.oubliee { border-color: var(--warn); }
     .entete { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 0; }
-    .chiffres div { display: grid; gap: 4px; padding: 16px 18px; border-radius: 14px; background: var(--sunk); }
-    .chiffres dt { font-size: 13px; color: var(--ink-2); }
-    .chiffres dd { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
-    .chiffres dd small { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink-2); }
-    .chiffres dd.attendues { color: var(--ok); }
-    .chiffres > div > small { color: var(--ink-2); font-size: 13px; }
+    /* Trois cartes reliées par « − » et « = » ; les espèces attendues, en vert, un peu plus larges. Les chèques dessous. */
+    .chiffres { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1.15fr); gap: 6px 6px; align-items: stretch; }
+    @media (max-width: 760px) { .chiffres { grid-template-columns: minmax(0, 1fr); } .operateur { height: 18px; } }
+    .chiffre { display: grid; gap: 10px; align-content: start; margin: 0; padding: 16px 18px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+    .chiffre dt { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+    .chiffre dd { margin: 0; }
+    .icone { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; }
+    .icone svg.lucide { width: 19px; height: 19px; }
+    .icone.info { background: var(--accent-soft); color: var(--accent); }
+    .icone.bad { background: var(--bad-soft); color: var(--bad); }
+    .icone.ok { background: var(--surface); color: var(--ok); }
+    .montant { font-family: var(--font-mono); font-size: 30px; font-weight: 600; line-height: 1.1; }
+    .montant small { margin-left: 2px; font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink-2); }
+    .montant.zero { color: var(--ink-3); }
+    .detail { font-size: 12px; color: var(--ink-3); }
+    .operateur { display: grid; place-items: center; font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--ink-3); }
+    .chiffre.attendues { background: var(--ok-soft); border-color: transparent; }
+    .chiffre.attendues dt, .chiffre.attendues .detail, .chiffre.attendues .montant small { color: var(--ok); }
+    .chiffre.attendues .montant { color: var(--ok); }
+    .cheques { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 0; padding: 10px 14px; border: 1px dashed var(--line-2); border-radius: 12px; background: var(--surface); }
+    .cheques dt { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+    .cheques dt b { color: var(--ink); font-weight: 500; }
+    .cheques .icone { width: 28px; height: 28px; }
+    .cheques .icone svg.lucide { width: 16px; height: 16px; }
+    .cheques dd { margin: 0; font-family: var(--font-mono); font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .cheques dd small { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink-2); }
     .cloture { display: grid; gap: 10px; }
     .ecart { margin: 0; font-weight: 500; color: var(--ink-3); }
     .ecart.ok, .kv .ok { color: var(--ok); }

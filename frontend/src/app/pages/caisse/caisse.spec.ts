@@ -448,6 +448,23 @@ describe('« Ma caisse » et sa clôture du soir', () => {
     await vi.waitFor(() => expect(page.querySelector('.ecart')?.textContent).toContain("Pas d'écart"));
   });
 
+  it('se lit comme un calcul : encaissé − sorties = attendues, les chèques à part', async () => {
+    await ouvrir({ ouvertes: [{ ...OUVERTE, encaisse: 100, sorties: 15, attendu: 85, recus: 3, cheques: 50, nombreDeCheques: 1 }], clotures: [] });
+
+    const cartes = [...page.querySelectorAll('.chiffres .chiffre')].map((carte) => [
+      carte.querySelector('dt')?.textContent?.trim(),
+      carte.querySelector('.montant')?.textContent?.replace(/\s+/g, ' ').trim(),
+    ]);
+    expect(cartes).toEqual([
+      ['Encaissé en espèces', '100,000 TND'],
+      ['Sorties de caisse', '15,000 TND'],
+      ['Espèces attendues', '85,000 TND'],
+    ]);
+    expect([...page.querySelectorAll('.operateur')].map((o) => o.textContent)).toEqual(['−', '=']);
+    expect(page.querySelector('.cheques')?.textContent?.replace(/\s+/g, ' ')).toContain('1 chèque');
+    expect(page.querySelector('.cheques dd')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('50,000 TND');
+  });
+
   it('clôture avec le montant compté, puis montre la caisse clôturée', async () => {
     await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
     saisir('840');
