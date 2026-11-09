@@ -874,7 +874,8 @@ public sealed record SommeEncaissable(
     decimal Montant,
     DateOnly DueLe,
     decimal ReportDeduit,
-    decimal Avance = 0m)
+    decimal Avance = 0m,
+    decimal? Reste = null)
 {
     /// <summary>Ce qui finit le libellé d'une somme déjà payée en partie.</summary>
     public const string SuffixeDuReste = " (reste)";

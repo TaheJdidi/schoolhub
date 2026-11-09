@@ -162,6 +162,11 @@ public sealed class EncaissementGroupeTests(PostgreSqlDeTest postgreSql) : IAsyn
         var recuDeLAvance = (await avance.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
         Assert.Equal([("Assurance 2027-2028", 20m), ("Mois 3 (avance)", 10m)], recuDeLAvance.Lignes.Select(l => (l.Libelle, l.Montant)));
         Assert.Equal(30m, recuDeLAvance.Total);
+        // Le reçu dit ce qui reste à payer du Mois 3 : l'assurance est payée en entier, il reste 30 sur le Mois 3.
+        Assert.Equal([null, 30m], recuDeLAvance.Lignes.Select(l => l.Reste));
+        Assert.Contains("Mois 3 (avance) : 10,000 TND (reste à payer : 30,000 TND)", recuDeLAvance.Texte);
+        Assert.Contains("Reste à payer : 30,000 TND", recuDeLAvance.Texte);
+        Assert.Equal(30m, recuDeLAvance.ResteAPayer);
 
         // Il reste 30 sur le Mois 3 : toujours dû depuis le 13/11, il reste en rouge.
         var adem = (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem");
@@ -169,13 +174,23 @@ public sealed class EncaissementGroupeTests(PostgreSqlDeTest postgreSql) : IAsyn
         Assert.Equal([("Mois 3", "Mois 3 (reste)", 30m, 10m)], adem.Sommes.Select(s => (s.Cle, s.Libelle, s.Montant, s.Avance)));
 
         // Une seconde avance, puis le reste.
-        Assert.Equal(HttpStatusCode.Created, (await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
-            new EncaissementGroupeSaisi([new EleveCoche(_adem.Eleve, [new SommeChoisie(_adem.Inscription, "Mois 3")], Montant: 5m)]))).StatusCode);
+        var secondeAvance = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([new EleveCoche(_adem.Eleve, [new SommeChoisie(_adem.Inscription, "Mois 3")], Montant: 5m)]));
+        Assert.Equal(HttpStatusCode.Created, secondeAvance.StatusCode);
+        // Sur le reste de 30, il en donne 5 : il en reste 25, et le reçu le dit, lu à nouveau comme imprimé.
+        var recuDeLaSecondeAvance = (await secondeAvance.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
+        var relu = (await _amira.GetFromJsonAsync<RecuDecrit>($"/api/recus/{recuDeLaSecondeAvance.Id}"))!;
+        Assert.Equal([("Mois 3 (avance)", 5m, (decimal?)25m)], relu.Lignes.Select(l => (l.Libelle, l.Montant, l.Reste)));
+        Assert.Contains("Reste à payer : 25,000 TND", relu.Texte);
         Assert.Equal(25m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
         var reste = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
             new EncaissementGroupeSaisi([new EleveCoche(_adem.Eleve, [new SommeChoisie(_adem.Inscription, "Mois 3")])]));
         var recuDuReste = (await reste.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
         Assert.Equal([("Mois 3 (reste)", 25m)], recuDuReste.Lignes.Select(l => (l.Libelle, l.Montant)));
+        // Payé en entier : plus rien à payer, le reçu n'en parle pas.
+        Assert.Equal([null], recuDuReste.Lignes.Select(l => l.Reste));
+        Assert.Null(recuDuReste.ResteAPayer);
+        Assert.DoesNotContain("Reste à payer", recuDuReste.Texte);
         var apres = await EncaissementAsync();
         Assert.Contains("Adem", apres.AJour.Select(e => e.Prenom));
 
@@ -190,6 +205,21 @@ public sealed class EncaissementGroupeTests(PostgreSqlDeTest postgreSql) : IAsyn
         Assert.Equal(25m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
         Assert.Equal(HttpStatusCode.OK, (await _amira.PostAsJsonAsync($"/api/recus/{recuDeLAvance.Id}/annulation", new AnnulationDuRecu("Erreur"))).StatusCode);
         Assert.Equal(55m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
+    }
+
+    [Fact]
+    public async Task Une_partie_qui_ne_paie_que_l_assurance_dit_aussi_ce_qui_reste()
+    {
+        // Adem doit 60 (l'assurance, 20, et le Mois 3, 40) ; il donne 20 : l'assurance en entier, le Mois 3 pas du tout.
+        var reponse = await _amira.PostAsJsonAsync($"/api/groupes/{_maths}/encaissement",
+            new EncaissementGroupeSaisi([Coche(_adem) with { Montant = 20m }]));
+        Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
+        var recu = (await reponse.Content.ReadFromJsonAsync<RecusDuGroupe>())!.Recus.Single();
+        Assert.Equal([("Assurance 2027-2028", 20m)], recu.Lignes.Select(l => (l.Libelle, l.Montant)));
+        // Le reçu le dit quand même : payé 20, il reste 40.
+        Assert.Equal((20m, (decimal?)40m), (recu.Total, recu.ResteAPayer));
+        Assert.Contains("Reste à payer : 40,000 TND", recu.Texte);
+        Assert.Equal(40m, (await EncaissementAsync()).APayer.Single(e => e.Prenom == "Adem").Total);
     }
 
     [Fact]

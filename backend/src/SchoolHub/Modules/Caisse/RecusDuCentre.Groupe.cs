@@ -85,7 +85,7 @@ public sealed partial class RecusDuCentre
                 $"SELECT 1 FROM eleves WHERE id = ANY({ids}) AND centre_id = {CentreId} ORDER BY id FOR NO KEY UPDATE");
 
             var duGroupe = (await ElevesDuGroupeAsync(groupeId)).ToDictionary(e => e.Eleve.Id);
-            var aEncaisser = new List<(Eleve Eleve, List<SommeEncaissable> Sommes, ModeDePaiement Mode)>();
+            var aEncaisser = new List<(Eleve Eleve, List<SommeEncaissable> Sommes, ModeDePaiement Mode, decimal? Reste)>();
             foreach (var coche in coches)
             {
                 if (!duGroupe.TryGetValue(coche.EleveId!.Value, out var inscrit))
@@ -99,8 +99,11 @@ public sealed partial class RecusDuCentre
                     return RefusDuGroupe(StatusCodes.Status400BadRequest, ModeInconnu);
                 // Dans l'ordre où elles sont dues, comme la page les montre.
                 var aRegler = sommes.OfType<SommeEncaissable>().OrderBy(dues.IndexOf).ToList();
+                decimal? reste = null;
                 if (coche.Montant is { } donne)
                 {
+                    // 95 dus, 70 donnés : 25 restent à payer, quelles que soient les sommes que couvrent les 70.
+                    reste = aRegler.Sum(s => s.Montant) - donne;
                     if (donne <= 0 || decimal.Round(donne, 3) != donne || donne > aRegler.Sum(s => s.Montant))
                         return RefusDuGroupe(StatusCodes.Status400BadRequest, MontantPartielPasValable);
                     if (await EnPartieAsync(aRegler, donne) is not { } enPartie)
@@ -108,12 +111,12 @@ public sealed partial class RecusDuCentre
                     aRegler = enPartie;
                 }
 
-                aEncaisser.Add((inscrit.Eleve, aRegler, mode));
+                aEncaisser.Add((inscrit.Eleve, aRegler, mode, reste));
             }
 
             var numero = await NumeroSuivantAsync();
-            foreach (var (eleve, sommes, mode) in aEncaisser.OrderBy(e => e.Eleve.Nom).ThenBy(e => e.Eleve.Prenom).ThenBy(e => e.Eleve.Id))
-                recus.Add(CreerLeRecu(auteur, eleve, sommes, numero++, mode));
+            foreach (var (eleve, sommes, mode, reste) in aEncaisser.OrderBy(e => e.Eleve.Nom).ThenBy(e => e.Eleve.Prenom).ThenBy(e => e.Eleve.Id))
+                recus.Add(CreerLeRecu(auteur, eleve, sommes, numero++, mode, reste));
             await contexte.SaveChangesAsync();
             await transaction.CommitAsync();
         }
@@ -157,7 +160,8 @@ public sealed partial class RecusDuCentre
             var libelle = somme.Libelle.EndsWith(SommeEncaissable.SuffixeDuReste, StringComparison.Ordinal)
                 ? somme.Libelle[..^SommeEncaissable.SuffixeDuReste.Length]
                 : somme.Libelle;
-            payees.Add(somme with { Cle = Echeancier.CleDAvance(somme.Cle, numero), Libelle = $"{libelle} (avance)", Montant = donne, ReportDeduit = 0m });
+            payees.Add(somme with { Cle = Echeancier.CleDAvance(somme.Cle, numero), Libelle = $"{libelle} (avance)", Montant = donne, ReportDeduit = 0m,
+                Reste = somme.Montant - donne });
             donne = 0;
         }
 

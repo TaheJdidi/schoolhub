@@ -422,7 +422,8 @@ describe("la page de l'appel", () => {
     expect(requete.request.body).toEqual({
       eleves: [{ eleveId: 'e-i2', sommes: [{ inscriptionId: 'i2', cle: 'Mois 3' }], mode: 'Especes', montant: 50 }],
     });
-    requete.flush({ recus: [{ id: 'r1', total: 50, mode: 'Especes' }] });
+    requete.flush({ recus: [{ id: 'r1', total: 50, mode: 'Especes', lignes: [{ groupe: 'Maths', libelle: 'Mois 3 (avance)', montant: 50, reste: 40 }] }] });
     await vi.waitFor(() => expect(page.querySelector('.paiement-fait')?.textContent).toContain('1 reçu créé · 50,000 TND'));
+    expect(page.querySelector('.paiement-fait')?.textContent?.replace(/\s+/g, ' ')).toContain('reste à payer 40,000 TND');
   });
 });

@@ -27,9 +27,10 @@ public sealed class Recu : IAppartientAuCentre
     private readonly List<LigneDuRecu> _lignes = [];
 
     internal Recu(int numero, Guid eleveId, Guid auteurId, string auteur, DateTimeOffset creeLe, DateOnly jour, IEnumerable<LigneDuRecu> lignes,
-        ModeDePaiement mode = ModeDePaiement.Especes)
+        ModeDePaiement mode = ModeDePaiement.Especes, decimal? resteAPayer = null)
     {
         Mode = mode;
+        ResteAPayer = resteAPayer is > 0 ? resteAPayer : null;
         Numero = numero;
         EleveId = eleveId;
         AuteurId = auteurId;
@@ -73,6 +74,12 @@ public sealed class Recu : IAppartientAuCentre
 
     public IReadOnlyList<LigneDuRecu> Lignes => _lignes;
 
+    /// <summary>
+    /// CAI-04 : l'élève a donné une partie seulement de ce qu'il devait (95, il donne 70) : ce qui en restait à payer juste
+    /// après (25), tel qu'imprimé sur le reçu. <c>null</c> quand il a tout payé.
+    /// </summary>
+    public decimal? ResteAPayer { get; private set; }
+
     /// <summary>CAI-07 : le moment de l'annulation ; <c>null</c> tant que le reçu vaut.</summary>
     public DateTimeOffset? AnnuleLe { get; private set; }
 
@@ -96,8 +103,10 @@ public sealed class Recu : IAppartientAuCentre
 /// <summary>
 /// Une ligne du reçu : le groupe (« Mathématiques · Groupe Samedi 10h → 12h », ou « Assurance »), ce qui est payé
 /// (« Mois 3 »), le montant, et la somme qu'elle règle (l'inscription et sa clé, ou l'assurance). Elle fait partie du reçu.
+/// Une avance garde aussi ce qui restait à payer de la somme juste après elle (« Mois 2 (avance) » : 70, reste 25).
 /// </summary>
-public sealed class LigneDuRecu(string groupe, string libelle, decimal montant, Guid? inscriptionId, Guid? assuranceId, string cle)
+public sealed class LigneDuRecu(string groupe, string libelle, decimal montant, Guid? inscriptionId, Guid? assuranceId, string cle,
+    decimal? reste = null)
 {
     public string Groupe { get; private set; } = groupe;
 
@@ -110,6 +119,9 @@ public sealed class LigneDuRecu(string groupe, string libelle, decimal montant, 
     public Guid? AssuranceId { get; private set; } = assuranceId;
 
     public string Cle { get; private set; } = cle;
+
+    /// <summary>Ce qui reste à payer de la somme après cette avance ; <c>null</c> pour une somme payée en entier.</summary>
+    public decimal? Reste { get; private set; } = reste;
 }
 
 internal sealed class RecuConfiguration : IEntityTypeConfiguration<Recu>
@@ -120,6 +132,7 @@ internal sealed class RecuConfiguration : IEntityTypeConfiguration<Recu>
         recu.ToTable("recus");
         recu.Property(r => r.Auteur).HasMaxLength(201);
         recu.Property(r => r.Total).HasPrecision(12, 3);
+        recu.Property(r => r.ResteAPayer).HasPrecision(12, 3);
         recu.Property(r => r.Mode).HasConversion<string>().HasMaxLength(10);
         recu.Property(r => r.MotifDAnnulation).HasMaxLength(Recu.LongueurMaximaleDuMotif);
         // Le numéro se suit pour tout le centre, sans doublon.
@@ -135,6 +148,7 @@ internal sealed class RecuConfiguration : IEntityTypeConfiguration<Recu>
             ligne.Property(l => l.Libelle).HasMaxLength(100);
             ligne.Property(l => l.Cle).HasMaxLength(30);
             ligne.Property(l => l.Montant).HasPrecision(12, 3);
+            ligne.Property(l => l.Reste).HasPrecision(12, 3);
         });
         // Les règlements d'un encaissement pointent vers leur reçu.
         recu.HasMany<Reglement>().WithOne().HasForeignKey(r => r.RecuId).OnDelete(DeleteBehavior.Restrict);

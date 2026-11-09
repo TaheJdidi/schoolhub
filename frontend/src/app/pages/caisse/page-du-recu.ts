@@ -7,7 +7,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
 import { MessageWhatsApp } from '../inscriptions/inscription';
-import { AUCUN_EMAIL, RecuDecrit, totalPaye } from './recu';
+import { AUCUN_EMAIL, RecuDecrit, resteAPayer, totalPaye } from './recu';
 
 /**
  * CAI-05, CAI-06 et CAI-07 : un reçu, son aperçu, et les trois façons de le remettre : l'imprimer (A5), l'envoyer par
@@ -81,7 +81,12 @@ import { AUCUN_EMAIL, RecuDecrit, totalPaye } from './recu';
             <div class="lignes-du-ticket">
               @for (ligne of recu.lignes; track $index) {
                 <div class="ligne-du-ticket">
-                  <span>{{ ligne.groupe }} · {{ ligne.libelle }}</span>
+                  <span>
+                    {{ ligne.groupe }} · {{ ligne.libelle }}
+                    @if (ligne.reste) {
+                      <small class="reste-de-la-ligne">Reste à payer : {{ montant(ligne.reste) }} TND</small>
+                    }
+                  </span>
                   <span class="num">{{ montant(ligne.montant) }}</span>
                 </div>
               }
@@ -90,6 +95,12 @@ import { AUCUN_EMAIL, RecuDecrit, totalPaye } from './recu';
               <b>{{ totalPaye(recu.mode) }}</b>
               <b class="num">{{ montant(recu.total) }} TND</b>
             </div>
+            @if (resteAPayer(recu); as reste) {
+              <div class="total-du-ticket reste-du-ticket">
+                <span>Reste à payer</span>
+                <b class="num">{{ montant(reste) }} TND</b>
+              </div>
+            }
             <small class="mention">Reçu par {{ recu.secretaire }}. Ce reçu ne peut être ni modifié ni supprimé.</small>
           </div>
         </article>
@@ -190,6 +201,8 @@ import { AUCUN_EMAIL, RecuDecrit, totalPaye } from './recu';
     .infos { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
     .infos dt { color: var(--ink-2); }
     .infos dd { margin: 0; }
+    .reste-de-la-ligne { display: block; color: var(--ink-3); font-size: 12px; }
+    .reste-du-ticket { color: var(--ink-2); }
     .lignes-du-ticket { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 13px; }
     .ligne-du-ticket { display: flex; justify-content: space-between; gap: 12px; }
     .total-du-ticket { display: flex; justify-content: space-between; gap: 12px; }
@@ -214,6 +227,7 @@ export class PageDuRecu implements OnInit {
 
   protected readonly montant = ecrireUnMontant;
   protected readonly totalPaye = totalPaye;
+  protected readonly resteAPayer = resteAPayer;
   protected readonly aucunEmail = AUCUN_EMAIL;
   protected readonly recu = signal<RecuDecrit | null>(null);
   protected readonly introuvable = signal(false);

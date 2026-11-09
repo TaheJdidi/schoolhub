@@ -113,11 +113,12 @@ public sealed partial class RecusDuCentre(
     /// journal. Rien n'est encore enregistré : l'appelant enregistre et valide la transaction.
     /// </summary>
     private Recu CreerLeRecu(Compte auteur, Eleve eleve, IReadOnlyList<SommeEncaissable> aRegler, int numero,
-        ModeDePaiement mode = ModeDePaiement.Especes)
+        ModeDePaiement mode = ModeDePaiement.Especes, decimal? resteAPayer = null)
     {
         var maintenant = temps.GetUtcNow();
         var recu = new Recu(numero, eleve.Id, auteur.Id, $"{auteur.Prenom} {auteur.Nom}", maintenant, DateDeTunis.Aujourdhui(temps),
-            aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle)), mode);
+            aRegler.Select(s => new LigneDuRecu(s.Groupe, s.Libelle, s.Montant, s.InscriptionId, s.AssuranceId, s.Cle, s.Reste)), mode,
+            resteAPayer);
         contexte.Recus.Add(recu);
         // Une entrée à la bibliothèque (BIB-01) n'était pas due : elle n'a pas de règlement.
         foreach (var somme in aRegler.Where(s => s.AssuranceId is not null || s.InscriptionId is not null))
@@ -320,7 +321,7 @@ public sealed partial class RecusDuCentre(
             recu.CreeLe,
             new CentreDuRecu(centre.Nom, centre.Telephone is { } telephone ? TelephoneTunisien.Grouper(telephone) : null),
             new EleveDuRecu(eleve.Id, eleve.Prenom, eleve.Nom),
-            recu.Lignes.Select(l => new LigneDecrite(l.Groupe, l.Libelle, l.Montant)).ToList(),
+            recu.Lignes.Select(l => new LigneDecrite(l.Groupe, l.Libelle, l.Montant, l.Reste)).ToList(),
             recu.Total,
             recu.Auteur,
             recu.AnnuleLe is not null,
@@ -333,7 +334,8 @@ public sealed partial class RecusDuCentre(
             EmailsDe(eleve),
             recu.AnnuleLe is null && PourquoiPasAnnulable(recu, lecteur) is null,
             recu.AnnuleLe is null ? PourquoiPasAnnulable(recu, lecteur) : null,
-            recu.Mode.ToString());
+            recu.Mode.ToString(),
+            ResteAPayer(recu) is > 0 and var reste ? reste : null);
     }
 
     /// <summary>
@@ -349,13 +351,19 @@ public sealed partial class RecusDuCentre(
         lignes.Add($"Le {SaisieDuGroupe.EcrireUneDate(recu.Jour)}");
         lignes.Add($"Élève : {eleve.Prenom} {eleve.Nom}");
         // L'assurance et la bibliothèque n'ont pas de groupe : leur libellé suffit.
-        lignes.AddRange(recu.Lignes.Select(l => l.AssuranceId is not null || l.InscriptionId is null
+        lignes.AddRange(recu.Lignes.Select(l => (l.AssuranceId is not null || l.InscriptionId is null
             ? $"• {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"
-            : $"• {l.Groupe}, {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND"));
+            : $"• {l.Groupe}, {l.Libelle} : {SaisieDuGroupe.EcrireUnMontant(l.Montant)} TND")
+            + (l.Reste is > 0 ? $" (reste à payer : {SaisieDuGroupe.EcrireUnMontant(l.Reste.Value)} TND)" : "")));
         lignes.Add($"Total payé {(recu.Mode == ModeDePaiement.Cheque ? "par chèque" : "en espèces")} : {SaisieDuGroupe.EcrireUnMontant(recu.Total)} TND");
+        if (ResteAPayer(recu) is > 0 and var reste)
+            lignes.Add($"Reste à payer : {SaisieDuGroupe.EcrireUnMontant(reste)} TND");
         lignes.Add($"Reçu par {recu.Auteur}");
         return string.Join("\n", lignes);
     }
+
+    /// <summary>Ce qui reste à payer après ce reçu, quand l'élève n'a donné qu'une partie ; 0 s'il a tout payé.</summary>
+    internal static decimal ResteAPayer(Recu recu) => recu.ResteAPayer ?? recu.Lignes.Sum(l => l.Reste ?? 0m);
 
     private const string ModeInconnu = "Choisissez Espèces ou Chèque";
 

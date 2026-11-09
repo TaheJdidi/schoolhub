@@ -8,7 +8,7 @@ import { garderUnBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
-import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe } from '../caisse/recu';
+import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe, resteAPayer } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
 import { MessageWhatsApp } from '../inscriptions/inscription';
 import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
@@ -219,6 +219,9 @@ function memes(a: string[], b: string[]): boolean {
             @if (recusCrees(); as recus) {
               <p class="note ok paiement-fait" role="status">
                 {{ recus.length }} reçu{{ recus.length > 1 ? 's' : '' }} créé{{ recus.length > 1 ? 's' : '' }} · {{ montant(totalDesRecus()) }} TND · {{ detailDesModes() }} ·
+                @if (resteDesRecus(); as reste) {
+                  reste à payer {{ montant(reste) }} TND ·
+                }
                 <a [href]="impressionDesRecus()" target="_blank" rel="noopener">Imprimer</a>
               </p>
             }
@@ -633,6 +636,8 @@ export class PageDeLAppel implements OnInit {
     return null;
   }
   protected readonly totalDesRecus = computed(() => (this.recusCrees() ?? []).reduce((total, r) => total + r.total, 0));
+  /** Ce qui reste à payer après les avances des reçus créés (« payé 70, reste 25 »). */
+  protected readonly resteDesRecus = computed(() => (this.recusCrees() ?? []).reduce((total, r) => total + resteAPayer(r), 0));
   /** Le mode choisi pour chaque élève ; Espèces par défaut. */
   private readonly modes = signal<Readonly<Record<string, ModeDePaiement>>>({});
   protected readonly chequesCoches = computed(() => this.cochables().filter((e) => this.modeDe(e.eleveId) === 'Cheque').length);

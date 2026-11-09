@@ -438,6 +438,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("numero");
 
+                    b.Property<decimal?>("ResteAPayer")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("reste_a_payer");
+
                     b.Property<decimal>("Total")
                         .HasPrecision(12, 3)
                         .HasColumnType("numeric(12,3)")
@@ -1981,6 +1986,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
                                 .HasPrecision(12, 3)
                                 .HasColumnType("numeric(12,3)")
                                 .HasColumnName("montant");
+
+                            b1.Property<decimal?>("Reste")
+                                .HasPrecision(12, 3)
+                                .HasColumnType("numeric(12,3)")
+                                .HasColumnName("reste");
 
                             b1.HasKey("RecuId", "Id")
                                 .HasName("pk_lignes_des_recus");

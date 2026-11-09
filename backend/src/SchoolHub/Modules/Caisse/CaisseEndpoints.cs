@@ -143,7 +143,8 @@ public sealed record Encaissable(EleveDuRecu Eleve, List<SommeAEncaisser> Sommes
 
 public sealed record CentreDuRecu(string Nom, string? Telephone);
 
-public sealed record LigneDecrite(string Groupe, string Libelle, decimal Montant);
+/// <summary>Une ligne du reçu ; <c>Reste</c>, ce qui reste à payer après une avance (<c>null</c> si payée en entier).</summary>
+public sealed record LigneDecrite(string Groupe, string Libelle, decimal Montant, decimal? Reste = null);
 
 /// <summary>
 /// CAI-05 : un reçu, tel que la page le montre et l'imprime ; son texte pour WhatsApp et l'email, un message par
@@ -167,7 +168,8 @@ public sealed record RecuDecrit(
     List<string> Emails,
     bool Annulable,
     string? PourquoiPasAnnulable,
-    string Mode = "Especes");
+    string Mode = "Especes",
+    decimal? ResteAPayer = null);
 
 /// <summary>CAI-06 : un reçu dans la liste.</summary>
 /// <summary>Un reçu sur la fiche de l'élève : son numéro, son jour, ce qu'il payait (« Mois 2 (4 séances) »).</summary>

@@ -30,7 +30,8 @@ export interface RecuDecrit {
   creeLe: string;
   centre: { nom: string; telephone: string | null };
   eleve: { id: string; prenom: string; nom: string };
-  lignes: { groupe: string; libelle: string; montant: number }[];
+  /** `reste` : ce qui reste à payer de la somme après une avance ; absent ou `null` si elle est payée en entier. */
+  lignes: { groupe: string; libelle: string; montant: number; reste?: number | null }[];
   total: number;
   secretaire: string;
   annule: boolean;
@@ -45,6 +46,8 @@ export interface RecuDecrit {
   pourquoiPasAnnulable: string | null;
   /** « Especes » ou « Cheque » ; absent d'un vieux reçu : espèces. */
   mode?: ModeDePaiement;
+  /** CAI-04 : l'élève n'a donné qu'une partie (70 sur 95) : ce qui restait à payer après ce reçu (25). */
+  resteAPayer?: number | null;
 }
 
 /** Comment l'élève paie : en espèces (dans la caisse) ou par chèque (compté à part). */
@@ -53,6 +56,11 @@ export type ModeDePaiement = 'Especes' | 'Cheque';
 /** « Total payé en espèces » ou « Total payé par chèque ». */
 export function totalPaye(mode: ModeDePaiement | undefined): string {
   return mode === 'Cheque' ? 'Total payé par chèque' : 'Total payé en espèces';
+}
+
+/** Ce qui reste à payer après les avances du reçu (« payé 70, reste 25 ») ; 0 si tout est payé en entier. */
+export function resteAPayer(recu: Partial<Pick<RecuDecrit, 'lignes' | 'resteAPayer'>>): number {
+  return recu.resteAPayer ?? (recu.lignes ?? []).reduce((total, l) => total + (l.reste ?? 0), 0);
 }
 
 /** Un reçu dans la liste (GET /api/recus). */

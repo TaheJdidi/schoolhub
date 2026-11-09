@@ -210,6 +210,28 @@ describe('le reçu à imprimer', () => {
     expect(page.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(page.querySelector('tfoot')?.textContent).toContain('60,000 TND');
     expect(page.querySelector('.secretaire')?.textContent).toContain('Reçu par Amira Jlassi');
+    // Tout est payé en entier : pas de « Reste à payer ».
+    expect(page.textContent).not.toContain('Reste à payer');
+    http.verify();
+  });
+
+  it('une avance : le reçu montre ce qui est payé et ce qui reste à payer', async () => {
+    const http = configurer();
+    const harness = await RouterTestingHarness.create('/recus/r1/impression');
+    const page = harness.routeNativeElement as HTMLElement;
+    (await vi.waitFor(() => http.expectOne('/api/recus/r1'))).flush({
+      ...RECU,
+      lignes: [{ groupe: 'Mathématiques · Groupe Samedi 10h → 12h', libelle: 'Mois 2 (avance)', montant: 70, reste: 25 }],
+      total: 70,
+    });
+    await vi.waitFor(() => expect(page.querySelector('table')).not.toBeNull());
+
+    expect(page.querySelector('tbody')?.textContent).toContain('Reste à payer : 25,000 TND');
+    const pied = [...page.querySelectorAll('tfoot tr')].map((tr) => [...tr.children].map((td) => td.textContent?.trim()));
+    expect(pied).toEqual([
+      ['Total payé en espèces', '70,000 TND'],
+      ['Reste à payer', '25,000 TND'],
+    ]);
     http.verify();
   });
 

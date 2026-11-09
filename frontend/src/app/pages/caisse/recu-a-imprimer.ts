@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant } from '../../socle/montants';
-import { RecuDecrit, totalPaye } from './recu';
+import { RecuDecrit, resteAPayer, totalPaye } from './recu';
 
 /**
  * CAI-05 : le reçu à imprimer, une page A5 sans le menu : le centre et son téléphone, le numéro, la date, l'élève, une
@@ -46,13 +46,21 @@ import { RecuDecrit, totalPaye } from './recu';
               @for (ligne of recu.lignes; track $index) {
                 <tr>
                   <td>{{ ligne.groupe }}</td>
-                  <td>{{ ligne.libelle }}</td>
+                  <td>
+                    {{ ligne.libelle }}
+                    @if (ligne.reste) {
+                      <small class="reste-de-la-ligne">Reste à payer : {{ montant(ligne.reste) }} TND</small>
+                    }
+                  </td>
                   <td class="montant">{{ montant(ligne.montant) }} TND</td>
                 </tr>
               }
             </tbody>
             <tfoot>
               <tr><td colspan="2">{{ totalPaye(recu.mode) }}</td><td class="montant">{{ montant(recu.total) }} TND</td></tr>
+              @if (resteAPayer(recu); as reste) {
+                <tr class="reste"><td colspan="2">Reste à payer</td><td class="montant">{{ montant(reste) }} TND</td></tr>
+              }
             </tfoot>
           </table>
           <p class="secretaire">Reçu par {{ recu.secretaire }}</p>
@@ -77,6 +85,8 @@ import { RecuDecrit, totalPaye } from './recu';
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { border-bottom: 1px solid #999; padding: 5px 4px; text-align: left; vertical-align: top; }
     tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid #111; }
+    tfoot .reste td { border-top: 1px solid #999; }
+    .reste-de-la-ligne { display: block; font-size: 11px; color: #444; }
     .montant { text-align: right; white-space: nowrap; }
     .annule { margin: 0; padding: 3mm; border: 2px solid #b00; color: #b00; font-weight: 700; text-align: center; letter-spacing: 0.08em; }
     @page { size: A5; margin: 8mm; }
@@ -95,6 +105,7 @@ export class RecuAImprimer implements OnInit {
 
   protected readonly montant = ecrireUnMontant;
   protected readonly totalPaye = totalPaye;
+  protected readonly resteAPayer = resteAPayer;
   protected readonly recus = signal<RecuDecrit[]>([]);
   protected readonly erreur = signal<string | null>(null);
 
