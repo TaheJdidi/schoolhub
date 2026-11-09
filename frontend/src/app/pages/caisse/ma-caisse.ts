@@ -39,12 +39,18 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
             <dd class="montant"><span class="num">{{ montant(ouverte.attendu) }}</span><small> TND</small></dd>
             <dd class="detail">À trouver dans le tiroir</dd>
           </dl>
-          @if (ouverte.nombreDeCheques) {
-            <dl class="cheques">
-              <dt><span class="icone info"><sh-icone nom="file-text" /></span>Chèques, à remettre à part · <b>{{ ouverte.nombreDeCheques }} chèque{{ ouverte.nombreDeCheques > 1 ? 's' : '' }}</b></dt>
-              <dd class="num">{{ montant(ouverte.cheques ?? 0) }}<small> TND</small></dd>
-            </dl>
-          }
+          <!-- Les chèques, toujours là : à remettre à part, ou « Aucun chèque » en gris. -->
+          <dl class="cheques" [class.aucun]="!ouverte.nombreDeCheques">
+            <dt>
+              <span class="icone info"><sh-icone nom="file-text" /></span>
+              @if (ouverte.nombreDeCheques; as nombre) {
+                Chèques, à remettre à part · <b>{{ nombre }} chèque{{ nombre > 1 ? 's' : '' }}</b>
+              } @else {
+                Chèques · <b>aucun chèque reçu</b>
+              }
+            </dt>
+            <dd class="num">{{ montant(ouverte.cheques ?? 0) }}<small> TND</small></dd>
+          </dl>
         </div>
       }
       <div class="colonne-cloture">
@@ -142,6 +148,8 @@ import { CaisseOuverte, Cloture, ecrireUnEcart, jourCourt, MaCaisse } from './ca
     .cheques .icone svg.lucide { width: 16px; height: 16px; }
     .cheques dd { margin: 0; font-family: var(--font-mono); font-size: 16px; font-weight: 600; white-space: nowrap; }
     .cheques dd small { font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--ink-2); }
+    .cheques.aucun dt b, .cheques.aucun dd { color: var(--ink-3); font-weight: 500; }
+    .cheques.aucun .icone { background: var(--sunk); color: var(--ink-3); }
     .cloture { display: grid; gap: 10px; }
     .ecart { margin: 0; font-weight: 500; color: var(--ink-3); }
     .ecart.ok, .kv .ok { color: var(--ok); }

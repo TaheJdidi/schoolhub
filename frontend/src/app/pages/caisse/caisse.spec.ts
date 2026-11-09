@@ -465,6 +465,15 @@ describe('« Ma caisse » et sa clôture du soir', () => {
     expect(page.querySelector('.cheques dd')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('50,000 TND');
   });
 
+  it('montre la ligne des chèques même sans chèque, en gris', async () => {
+    await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
+
+    const cheques = page.querySelector('.cheques') as HTMLElement;
+    expect(cheques.classList).toContain('aucun');
+    expect(cheques.textContent?.replace(/\s+/g, ' ')).toContain('aucun chèque reçu');
+    expect(cheques.querySelector('dd')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('0,000 TND');
+  });
+
   it('clôture avec le montant compté, puis montre la caisse clôturée', async () => {
     await ouvrir({ ouvertes: [OUVERTE], clotures: [] });
     saisir('840');
