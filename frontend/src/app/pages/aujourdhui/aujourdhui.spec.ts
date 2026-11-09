@@ -31,7 +31,6 @@ describe("l'accueil « Aujourd'hui »", () => {
       clotures: [],
     });
     http.expectOne('/api/bibliotheque').flush({ presents: 7, capacite: 30, entrees: 11 });
-    http.expectOne('/api/seances/a-recopier').flush([]);
     http.expectOne('/api/eleves/en-rouge').flush([]);
     http.expectOne('/api/groupes').flush([{ id: 'g1', badge: { etat: 'Rappels', nombre: 5 } }]);
     await vi.waitFor(() => expect(page.querySelectorAll('.seance')).toHaveLength(2));
@@ -53,6 +52,9 @@ describe("l'accueil « Aujourd'hui »", () => {
     expect(caisse.querySelector('.detail-de-la-caisse')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('845,000 TND espèces · 50,000 TND chèque');
     expect(caisse.textContent).toContain('12 reçus');
     expect(caisse.textContent).not.toContain('attendues');
+    // SEA-09 : les appels à recopier sont masqués pour le moment, ni carte ni liste, et rien n'est demandé à l'API.
+    expect(page.textContent).not.toContain('à recopier');
+    http.expectNone('/api/seances/a-recopier');
     expect(page.textContent?.replace(/\s+/g, ' ')).toContain('7 / 30');
     http.verify();
   });
@@ -68,7 +70,6 @@ describe("l'accueil « Aujourd'hui »", () => {
     (await vi.waitFor(() => http.expectOne('/api/seances/du-jour'))).flush([]);
     http.expectOne('/api/caisse').flush({ ouvertes: [{ jour: '2027-11-27', rang: 1, encaisse: 150, sorties: 0, attendu: 150, recus: 2, oubliee: false, annules: 0 }], clotures: [] });
     http.expectOne('/api/bibliotheque').flush({ presents: 0, capacite: null, entrees: 0 });
-    http.expectOne('/api/seances/a-recopier').flush([]);
     http.expectOne('/api/eleves/en-rouge').flush([]);
     http.expectOne('/api/groupes').flush([]);
 

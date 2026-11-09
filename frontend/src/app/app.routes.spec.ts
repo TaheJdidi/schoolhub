@@ -5,6 +5,7 @@ import { Title } from '@angular/platform-browser';
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
+import { AFFICHER_LES_APPELS_A_RECOPIER } from './pages/aujourdhui/aujourdhui';
 import { Moi } from './socle/session/moi';
 import { intercepteurDeSession } from './socle/session/intercepteur';
 import { AMIRA, HEDI } from './test/personnes';
@@ -295,7 +296,8 @@ describe("les adresses de l'application", () => {
     expect((harness.fixture.nativeElement as HTMLElement).querySelector('.rail')).not.toBeNull();
   });
 
-  it("l'accueil montre les appels à recopier", async () => {
+  // SEA-09 : masqués pour le moment, le test revient avec eux.
+  it.skipIf(!AFFICHER_LES_APPELS_A_RECOPIER)("l'accueil montre les appels à recopier", async () => {
     await ouvrir('/aujourdhui', AMIRA);
     http.expectOne('/api/seances/a-recopier').flush([
       {

@@ -34,6 +34,12 @@ const MOMENTS: Record<Moment, { libelle: string; classe: string }> = {
   'appel-a-faire': { libelle: 'Appel à faire', classe: 'warn' },
 };
 
+/**
+ * SEA-09 : les « Appels à recopier » sont masqués pour le moment (la carte du haut et la liste à droite) ; l'API et le
+ * code restent en place. Remettre à `true` pour les afficher à nouveau.
+ */
+export const AFFICHER_LES_APPELS_A_RECOPIER = false;
+
 /** « 10:42 » : les minutes depuis minuit, pour comparer aux heures des séances (« 10:00 »). */
 const minutes = (texte: string) => {
   const [h, m] = texte.split(':').map(Number);
@@ -72,11 +78,13 @@ const minutes = (texte: string) => {
         </small>
         <small>{{ caisse()?.recus ?? 0 }} reçu{{ (caisse()?.recus ?? 0) > 1 ? 's' : '' }}</small>
       </a>
-      <div class="chiffre">
-        <span>Appels à recopier</span>
-        <b class="num" [class.attention]="aRecopier().length > 0">{{ aRecopier().length }}</b>
-        <small>Feuilles revenues, pas encore saisies</small>
-      </div>
+      @if (afficherLesAppelsARecopier) {
+        <div class="chiffre">
+          <span>Appels à recopier</span>
+          <b class="num" [class.attention]="aRecopier().length > 0">{{ aRecopier().length }}</b>
+          <small>Feuilles revenues, pas encore saisies</small>
+        </div>
+      }
       <a class="chiffre" routerLink="/demandes">
         <span>Demandes d'inscription</span>
         <b class="num">{{ demandes() ?? 0 }}</b>
@@ -122,23 +130,25 @@ const minutes = (texte: string) => {
       </section>
 
       <div class="cote">
-        <section class="card bloc" aria-labelledby="titre-a-recopier">
-          <div class="entete">
-            <h2 id="titre-a-recopier" class="titre">Appels à recopier</h2>
-            <span class="pill warn">{{ aRecopier().length }}</span>
-          </div>
-          @for (seance of aRecopier(); track seance.seanceId) {
-            <div class="ligne">
-              <span class="deux">
-                <b>{{ jour(seance.date) }} · {{ heure(seance.debut) }} → {{ heure(seance.fin) }}</b>
-                <small>{{ seance.groupe.matiere }}@if (seance.groupe.niveau) { · {{ seance.groupe.niveau }}} · {{ seance.groupe.nom }} · {{ seance.professeur }}</small>
-              </span>
-              <a class="btn sm" [routerLink]="['/professeurs/groupes', seance.groupe.id]" [queryParams]="{ seance: seance.seanceId }">Recopier</a>
+        @if (afficherLesAppelsARecopier) {
+          <section class="card bloc" aria-labelledby="titre-a-recopier">
+            <div class="entete">
+              <h2 id="titre-a-recopier" class="titre">Appels à recopier</h2>
+              <span class="pill warn">{{ aRecopier().length }}</span>
             </div>
-          } @empty {
-            <p class="vide">Aucun appel à recopier.</p>
-          }
-        </section>
+            @for (seance of aRecopier(); track seance.seanceId) {
+              <div class="ligne">
+                <span class="deux">
+                  <b>{{ jour(seance.date) }} · {{ heure(seance.debut) }} → {{ heure(seance.fin) }}</b>
+                  <small>{{ seance.groupe.matiere }}@if (seance.groupe.niveau) { · {{ seance.groupe.niveau }}} · {{ seance.groupe.nom }} · {{ seance.professeur }}</small>
+                </span>
+                <a class="btn sm" [routerLink]="['/professeurs/groupes', seance.groupe.id]" [queryParams]="{ seance: seance.seanceId }">Recopier</a>
+              </div>
+            } @empty {
+              <p class="vide">Aucun appel à recopier.</p>
+            }
+          </section>
+        }
 
         <!-- CAI-08 : les élèves en rouge, avec ce qu'ils doivent, et leur rappel de paiement. -->
         <section class="card bloc" aria-labelledby="titre-en-rouge">
@@ -225,6 +235,7 @@ export class Aujourdhui implements OnInit {
   /** La caisse du jour : les espèces du tiroir et les chèques, comptés à part ; le total est leur somme. */
   protected readonly caisse = signal<{ especes: number; cheques: number; recus: number } | null>(null);
   protected readonly bibliotheque = signal<{ presents: number; capacite: number | null; entrees: number } | null>(null);
+  protected readonly afficherLesAppelsARecopier = AFFICHER_LES_APPELS_A_RECOPIER;
   protected readonly aRecopier = signal<AppelARecopier[]>([]);
   protected readonly enRouge = signal<EleveEnRouge[]>([]);
   /** CAI-02 : le badge de chaque groupe, pour « 5 à relancer » sur ses séances du jour. */
@@ -247,7 +258,7 @@ export class Aujourdhui implements OnInit {
         this.caisse.set({ especes: duJour?.encaisse ?? 0, cheques: duJour?.cheques ?? 0, recus: duJour?.recus ?? 0 });
       }),
       this.charger('/api/bibliotheque', (journee: { presents: number; capacite: number | null; entrees: number }) => this.bibliotheque.set(journee)),
-      this.charger('/api/seances/a-recopier', (liste: AppelARecopier[]) => this.aRecopier.set(liste)),
+      AFFICHER_LES_APPELS_A_RECOPIER ? this.charger('/api/seances/a-recopier', (liste: AppelARecopier[]) => this.aRecopier.set(liste)) : null,
       this.charger('/api/eleves/en-rouge', (liste: EleveEnRouge[]) => this.enRouge.set(liste)),
       this.charger('/api/groupes', (groupes: ResumeDuGroupe[]) =>
         this.badges.set(new Map(groupes.filter((g) => g.badge).map((g) => [g.id, g.badge!]))),
