@@ -1,29 +1,76 @@
 <section class="card carte">
-  <h2 class="titre">Le centre</h2>
+  @if (enModification() || !reglages()) {
+    <div class="entete">
+      <h2 class="titre">Le centre</h2>
+    </div>
+  }
   <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez les changements que vous n'aviez pas enregistrés." action="Annuler les changements" (recommence)="charger()" />
 
   @if (!enModification() && reglages(); as r) {
-    <dl class="lecture">
-      <div><dt>Nom</dt><dd>{{ r.nom }}</dd></div>
-      <div><dt>Téléphone</dt><dd>{{ r.telephone || '—' }}</dd></div>
-      <div><dt>Email</dt><dd>{{ r.email || '—' }}</dd></div>
-      <div>
-        <dt>Année scolaire</dt>
-        <dd>{{ r.anneeScolaire ? 'Du ' + date(r.anneeScolaire.debut) + ' au ' + date(r.anneeScolaire.fin) : 'Pas encore fixée' }}</dd>
+    <div class="lecture">
+      <div class="entete identite">
+        <span class="pastille"><sh-icone nom="graduation-cap" /></span>
+        <h2 class="nom-du-centre">{{ r.nom }}</h2>
+        <button type="button" class="btn" (click)="modifier()"><sh-icone nom="pencil" />Modifier</button>
       </div>
-      <div><dt>Assurance</dt><dd>{{ r.montantDeLAssurance === null ? '—' : montant(r.montantDeLAssurance) + ' TND' }}</dd></div>
-      <div><dt>Part du centre par défaut</dt><dd>{{ r.partDuCentreParDefaut === null ? '—' : (r.partDuCentreParDefaut + ' %').replace('.', ',') }}</dd></div>
-      <div>
-        <dt>Bibliothèque : entrée à la journée</dt>
-        <dd>{{ r.prixDeLEntreeALaBibliotheque === null ? '—' : montant(r.prixDeLEntreeALaBibliotheque) + ' TND' }}</dd>
+
+      <div class="colonnes">
+        <div class="colonne">
+          <div class="bloc-de-lecture">
+            <p class="legende">Coordonnées</p>
+            @if (r.telephone) {
+              <span class="coordonnee"><sh-icone nom="phone" /><span class="num">{{ r.telephone }}</span></span>
+            } @else {
+              <button type="button" class="lien-a-completer" (click)="modifier()"><sh-icone nom="phone" />Ajouter un téléphone</button>
+            }
+            @if (r.email) {
+              <span class="coordonnee"><sh-icone nom="mail" />{{ r.email }}</span>
+            } @else {
+              <button type="button" class="lien-a-completer" (click)="modifier()"><sh-icone nom="mail" />Ajouter un email</button>
+            }
+          </div>
+
+          <div class="bloc-de-lecture">
+            <p class="legende">Année scolaire</p>
+            @if (r.anneeScolaire; as annee) {
+              <span>{{ date(annee.debut) }} → {{ date(annee.fin) }}</span>
+              @if (etatDeLAnnee(annee.debut, annee.fin); as etat) {
+                <span class="avancement" aria-hidden="true"><i [class]="etat.ton" [style.width.%]="etat.avance"></i></span>
+                <span class="pill" [class]="etat.ton">{{ etat.texte }}</span>
+              }
+            } @else {
+              <button type="button" class="lien-a-completer" (click)="modifier()"><sh-icone nom="calendar" />Fixer l'année scolaire</button>
+            }
+          </div>
+        </div>
+
+        <dl class="prix">
+          <div class="ligne-de-prix">
+            <dt><sh-icone nom="receipt" /><span>Assurance<small>par élève et par an</small></span></dt>
+            <dd [class.manquant]="r.montantDeLAssurance === null">
+              @if (r.montantDeLAssurance !== null) {<b>{{ montant(r.montantDeLAssurance) }}</b>&ngsp;<small>TND</small>} @else {Non fixée}
+            </dd>
+          </div>
+          <div class="ligne-de-prix">
+            <dt><sh-icone nom="percent" /><span>Part du centre<small>par défaut, pour un nouveau groupe</small></span></dt>
+            <dd [class.manquant]="r.partDuCentreParDefaut === null">
+              @if (r.partDuCentreParDefaut !== null) {<b>{{ (r.partDuCentreParDefaut + '').replace('.', ',') }}</b>&ngsp;<small>%</small>} @else {Non fixée}
+            </dd>
+          </div>
+          <div class="ligne-de-prix">
+            <dt><sh-icone nom="book-open" /><span>Bibliothèque<small>entrée à la journée</small></span></dt>
+            <dd [class.manquant]="r.prixDeLEntreeALaBibliotheque === null">
+              @if (r.prixDeLEntreeALaBibliotheque !== null) {<b>{{ montant(r.prixDeLEntreeALaBibliotheque) }}</b>&ngsp;<small>TND</small>} @else {Non fixée}
+            </dd>
+          </div>
+          <div class="ligne-de-prix">
+            <dt><sh-icone nom="users" /><span>Places en bibliothèque</span></dt>
+            <dd [class.manquant]="r.capaciteDeLaBibliotheque === null">
+              @if (r.capaciteDeLaBibliotheque !== null) {<b>{{ r.capaciteDeLaBibliotheque }}</b>&ngsp;<small>places</small>} @else {Sans limite}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <div>
-        <dt>Bibliothèque : capacité</dt>
-        <dd>{{ r.capaciteDeLaBibliotheque === null ? 'Sans limite' : r.capaciteDeLaBibliotheque + ' places' }}</dd>
-      </div>
-    </dl>
-    <div class="actions">
-      <button type="button" class="btn" (click)="modifier()">Modifier</button>
     </div>
   } @else if (enModification()) {
   <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>

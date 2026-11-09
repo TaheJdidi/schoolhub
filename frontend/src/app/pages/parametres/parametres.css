@@ -1,5 +1,9 @@
 /* Les champs passent les uns sous les autres sur un téléphone : aucun défilement de côté. */
-.carte { display: grid; gap: 14px; padding: 16px; }
+.carte { display: grid; gap: 16px; padding: 18px 20px; }
+/* La carte ne s'étire pas sur tout un grand écran : ses boutons restent près des champs. */
+.carte { max-width: 920px; }
+/* Le titre à gauche, l'action ou le compte à droite. */
+.entete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
 .titre { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0; }
 .formulaire { display: grid; gap: 14px; }
 /* Les champs d'une ligne s'alignent par le bas, même quand un libellé passe sur deux lignes. */
@@ -8,23 +12,69 @@
 .groupe legend { padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .note { margin: 0; }
-/* Les réglages enregistrés, en lecture : un libellé pâle, la valeur en dessous. */
-.lecture { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 12px; margin: 0; }
-.lecture dt { font-size: 13px; color: var(--ink-2); }
-.lecture dd { margin: 2px 0 0; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
-/* La carte ne s'étire pas sur tout un grand écran : ses boutons restent près des champs. */
-.carte { max-width: 920px; }
+svg.lucide { width: 16px; height: 16px; flex: none; }
+
+/* La carte du centre, en lecture : le nom en titre, puis deux colonnes. À gauche qui joindre et l'année ; à droite les prix. */
+.lecture { display: grid; gap: 0; margin: -18px -20px; }
+.manquant { color: var(--ink-3); font-style: italic; }
+.identite { flex-wrap: nowrap; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.pastille { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); flex: none; }
+.pastille svg.lucide { width: 20px; height: 20px; }
+.nom-du-centre { flex: 1; min-width: 0; margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+
+.colonnes { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+.colonne { display: grid; gap: 18px; align-content: start; padding: 16px 20px; border-right: 1px solid var(--line); }
+.bloc-de-lecture { display: grid; gap: 6px; justify-items: start; }
+.legende { margin: 0; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.coordonnee, .lien-a-completer { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.coordonnee svg.lucide, .lien-a-completer svg.lucide { width: 15px; height: 15px; }
+.coordonnee svg.lucide { color: var(--ink-3); }
+.lien-a-completer { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.lien-a-completer:hover { text-decoration: underline; }
+.avancement { display: block; justify-self: stretch; height: 6px; margin-top: 2px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.avancement i { display: block; height: 100%; background: var(--accent); }
+.avancement i.warn { background: var(--warn); }
+.avancement i.muted { background: var(--line-2); }
+
+.prix { display: grid; align-content: start; margin: 0; padding: 4px 20px; }
+.ligne-de-prix { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.ligne-de-prix:last-child { border-bottom: 0; }
+.ligne-de-prix dt { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); }
+.ligne-de-prix dt svg.lucide { width: 16px; height: 16px; color: var(--ink-3); }
+.ligne-de-prix dt small { display: block; font-size: 12px; color: var(--ink-3); }
+.ligne-de-prix dd { margin: 0; white-space: nowrap; color: var(--ink-2); text-align: right; }
+.ligne-de-prix dd b { font-size: 15px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ligne-de-prix dd small { font-size: 12px; color: var(--ink-2); }
+
+/* Sur un téléphone, les deux colonnes passent l'une sous l'autre. */
+@media (max-width: 640px) {
+  .colonnes { grid-template-columns: minmax(0, 1fr); }
+  .colonne { border-right: 0; border-bottom: 1px solid var(--line); }
+}
 
 /* La carte des niveaux */
-.intro, .vide { margin: 0; color: var(--ink-2); }
-.liste { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r); }
+.intro { margin: -8px 0 0; color: var(--ink-2); }
+.bloc { display: grid; gap: 10px; }
+.sous-titre { margin: 0; font-size: 13px; font-weight: 600; color: var(--ink); }
+.vide { margin: 0; padding: 14px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-3); text-align: center; }
+.liste { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
 .liste:empty { display: none; }
-.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); }
 .ligne:last-child { border-bottom: 0; }
 .ligne .inp { flex: 1 1 220px; width: auto; }
-.nom, .question { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
-.ligne .actions { margin-left: auto; }
+.nom, .question { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.ligne .actions { margin-left: auto; gap: 2px; }
+.btn.ghost.retirer { color: var(--bad); }
+.btn.ghost.retirer:hover { background: var(--bad-soft); }
 .ajout { display: flex; flex-wrap: wrap; gap: 8px; }
 .ajout .inp { flex: 1 1 220px; width: auto; }
-.office summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
-.office .liste { margin-top: 10px; }
+
+/* Les niveaux d'office, repliés : des étiquettes, pas une longue liste. */
+.office { border-top: 1px solid var(--line); padding-top: 12px; }
+.office summary { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--ink-2); font-weight: 500; list-style: none; }
+.office summary::-webkit-details-marker { display: none; }
+.office summary svg.lucide { transition: transform .15s; }
+.office[open] summary svg.lucide { transform: rotate(90deg); }
+.office summary:hover { color: var(--ink); }
+.etiquettes { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 12px 0 0; padding: 0; }
+.etiquette { padding: 4px 10px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); font-size: 13px; }

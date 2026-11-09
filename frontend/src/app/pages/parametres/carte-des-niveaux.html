@@ -1,46 +1,52 @@
 <section class="card carte">
-  <h2 class="titre">Les niveaux</h2>
-  <p class="intro">Les niveaux ajoutés par le centre :</p>
+  <div class="entete">
+    <h2 class="titre">Les niveaux</h2>
+    <span class="pill muted">{{ ajoutes().length + dOffice().length }} niveaux</span>
+  </div>
+  <p class="intro">Les niveaux d'office sont déjà prêts. Ajoutez ici ceux que votre centre propose en plus.</p>
 
-  @if (ajoutes().length === 0) {
-    <p class="vide">Aucun niveau ajouté</p>
-  }
-  <ul class="liste ajoutes">
-    @for (niveau of ajoutes(); track niveau.id) {
-      <li class="ligne">
-        @if (enRenommage() === niveau.id) {
-          <input class="inp" [formControl]="nouveauNom" aria-label="Nouveau nom du niveau" (keydown.enter)="renommer(niveau)" />
-          <div class="actions">
-            <button type="button" class="btn primary" [disabled]="envoi()" (click)="renommer(niveau)">Enregistrer</button>
-            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLeRenommage()">Annuler</button>
-          </div>
-        } @else if (aConfirmer() === niveau.id) {
-          <span class="question">Retirer « {{ niveau.nom }} » ?</span>
-          <div class="actions">
-            <button type="button" class="btn primary" [disabled]="envoi()" (click)="retirer(niveau)">Oui</button>
-            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaConfirmation()">Non</button>
-          </div>
-        } @else {
-          <span class="nom">{{ niveau.nom }}</span>
-          <div class="actions">
-            <button type="button" class="btn" [disabled]="envoi()" (click)="commencerLeRenommage(niveau)">Renommer</button>
-            <button type="button" class="btn" [disabled]="envoi()" (click)="demanderConfirmation(niveau)">Retirer</button>
-          </div>
-        }
-      </li>
+  <div class="bloc">
+    <h3 class="sous-titre">Ajoutés par le centre</h3>
+    @if (ajoutes().length === 0) {
+      <p class="vide">Aucun niveau ajouté</p>
     }
-  </ul>
+    <ul class="liste ajoutes">
+      @for (niveau of ajoutes(); track niveau.id) {
+        <li class="ligne">
+          @if (enRenommage() === niveau.id) {
+            <input class="inp" [formControl]="nouveauNom" aria-label="Nouveau nom du niveau" (keydown.enter)="renommer(niveau)" />
+            <div class="actions">
+              <button type="button" class="btn primary" [disabled]="envoi()" (click)="renommer(niveau)">Enregistrer</button>
+              <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLeRenommage()">Annuler</button>
+            </div>
+          } @else if (aConfirmer() === niveau.id) {
+            <span class="question">Retirer « {{ niveau.nom }} » ?</span>
+            <div class="actions">
+              <button type="button" class="btn primary" [disabled]="envoi()" (click)="retirer(niveau)">Oui</button>
+              <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaConfirmation()">Non</button>
+            </div>
+          } @else {
+            <span class="nom">{{ niveau.nom }}</span>
+            <div class="actions">
+              <button type="button" class="btn ghost" [disabled]="envoi()" (click)="commencerLeRenommage(niveau)"><sh-icone nom="pencil" />Renommer</button>
+              <button type="button" class="btn ghost retirer" [disabled]="envoi()" (click)="demanderConfirmation(niveau)">Retirer</button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
 
-  <form class="ajout" [formGroup]="ajout" (ngSubmit)="ajouter()" novalidate>
-    <input class="inp" formControlName="nouveau" placeholder="Nouveau niveau…" aria-label="Nouveau niveau" />
-    <button type="submit" class="btn" [disabled]="envoi()">Ajouter</button>
-  </form>
+    <form class="ajout" [formGroup]="ajout" (ngSubmit)="ajouter()" novalidate>
+      <input class="inp" formControlName="nouveau" placeholder="Par exemple : Université, 1ʳᵉ année" aria-label="Nouveau niveau" />
+      <button type="submit" class="btn primary" [disabled]="envoi()"><sh-icone nom="plus" />Ajouter</button>
+    </form>
+  </div>
 
   <details class="office">
-    <summary>Les {{ dOffice().length }} niveaux d'office (ils ne se modifient pas)</summary>
-    <ul class="liste">
+    <summary><sh-icone nom="chevron-right" />Les {{ dOffice().length }} niveaux d'office (ils ne se modifient pas)</summary>
+    <ul class="etiquettes">
       @for (niveau of dOffice(); track niveau.id) {
-        <li class="ligne">{{ niveau.nom }}</li>
+        <li class="etiquette">{{ niveau.nom }}</li>
       }
     </ul>
   </details>

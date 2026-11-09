@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@ang
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { Icone } from '../../socle/icone';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
@@ -23,6 +24,13 @@ export interface Reglages {
 
 const ADRESSE = '/api/centre/parametres';
 
+/** L'année scolaire vue d'aujourd'hui, pour la fiche en lecture. */
+interface EtatDeLAnnee {
+  texte: string;
+  ton: 'info' | 'warn' | 'muted';
+  avance: number;
+}
+
 /**
  * CEN-02 : les coordonnées, l'année scolaire et les prix du centre, enregistrés d'un coup.
  * La carte lit les nombres écrits avec une virgule ; les autres règles sont celles du serveur, qui répond.
@@ -30,7 +38,7 @@ const ADRESSE = '/api/centre/parametres';
 @Component({
   selector: 'sh-carte-du-centre',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BrouillonRepris],
+  imports: [ReactiveFormsModule, BrouillonRepris, Icone],
   templateUrl: './carte-du-centre.html',
   styleUrl: './parametres.css',
 })
@@ -89,6 +97,26 @@ export class CarteDuCentre implements OnInit {
   /** « 15/09/2026 ». */
   protected date(texte: string | null): string {
     return texte ? formatDate(texte, 'dd/MM/yyyy', FRANCAIS) : '';
+  }
+
+  /**
+   * Où en est l'année scolaire aujourd'hui : un texte, une couleur et la part écoulée (0 à 100).
+   * Les dates sont des jours (« 2026-09-15 ») : on compare des jours entiers, sans les heures.
+   */
+  protected etatDeLAnnee(debut: string | null, fin: string | null, aujourdhui = new Date()): EtatDeLAnnee | null {
+    if (!debut || !fin) return null;
+    const jour = (texte: string) => Date.UTC(+texte.slice(0, 4), +texte.slice(5, 7) - 1, +texte.slice(8, 10));
+    const ce = Date.UTC(aujourdhui.getFullYear(), aujourdhui.getMonth(), aujourdhui.getDate());
+    const [d, f] = [jour(debut), jour(fin)];
+    const UN_JOUR = 86_400_000;
+
+    if (ce < d) return { texte: `Commence le ${this.date(debut)}`, ton: 'muted', avance: 0 };
+    if (ce > f) return { texte: 'Terminée', ton: 'warn', avance: 100 };
+    if (ce === f) return { texte: "Se termine aujourd'hui", ton: 'warn', avance: 100 };
+
+    const semaines = Math.max(1, Math.ceil((f - d + UN_JOUR) / (7 * UN_JOUR)));
+    const semaine = Math.min(semaines, Math.floor((ce - d) / (7 * UN_JOUR)) + 1);
+    return { texte: `En cours · semaine ${semaine} sur ${semaines}`, ton: 'info', avance: Math.round(((ce - d) / (f - d)) * 100) };
   }
 
   ngOnInit(): Promise<void> {

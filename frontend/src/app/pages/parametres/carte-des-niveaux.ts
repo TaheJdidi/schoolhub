@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
+import { Icone } from '../../socle/icone';
 
 /** Un niveau, tel que l'API le décrit (GET /api/niveaux). Un niveau d'office ne se modifie pas. */
 export interface Niveau {
@@ -22,7 +23,7 @@ const NOM_VIDE = 'Saisissez le nom du niveau';
 @Component({
   selector: 'sh-carte-des-niveaux',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, Icone],
   templateUrl: './carte-des-niveaux.html',
   styleUrl: './parametres.css',
 })

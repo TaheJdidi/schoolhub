@@ -69,7 +69,7 @@ describe('la carte « Le centre »', () => {
     harness = await RouterTestingHarness.create('/carte');
     page = harness.routeNativeElement as HTMLElement;
     (await vi.waitFor(() => http.expectOne(ADRESSE))).flush(REGLAGES);
-    await attendre('Du 15/09/2027 au 30/06/2028');
+    await attendre('15/09/2027 → 30/06/2028');
 
     expect(page.querySelector('input')).toBeNull();
     const lecture = page.querySelector('.lecture')!.textContent!;
@@ -83,6 +83,21 @@ describe('la carte « Le centre »', () => {
     // « Annuler » referme les champs sans rien envoyer, et oublie la saisie.
     expect(page.querySelector('.lecture')?.textContent).toContain('Centre Les Jasmins');
     http.expectNone((r) => r.method === 'PUT');
+  });
+
+  it("dit où en est l'année scolaire, vue d'un jour donné", () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const carte = TestBed.runInInjectionContext(() => new CarteDuCentre());
+    const etat = (aujourdhui: string) =>
+      (carte as unknown as { etatDeLAnnee(d: string, f: string, a: Date): { texte: string; ton: string; avance: number } })
+        .etatDeLAnnee('2027-09-15', '2028-06-30', new Date(`${aujourdhui}T10:00:00`));
+
+    expect(etat('2027-09-01')).toEqual({ texte: 'Commence le 15/09/2027', ton: 'muted', avance: 0 });
+    expect(etat('2027-09-15')).toMatchObject({ texte: 'En cours · semaine 1 sur 42', ton: 'info', avance: 0 });
+    expect(etat('2027-09-22').texte).toBe('En cours · semaine 2 sur 42');
+    expect(etat('2028-06-30')).toEqual({ texte: "Se termine aujourd'hui", ton: 'warn', avance: 100 });
+    expect(etat('2028-07-01')).toEqual({ texte: 'Terminée', ton: 'warn', avance: 100 });
   });
 
   it('remplit le formulaire avec les réglages', async () => {
