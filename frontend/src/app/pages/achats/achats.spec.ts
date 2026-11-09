@@ -98,17 +98,37 @@ describe('les achats', () => {
     http.expectOne({ method: 'DELETE', url: '/api/achats/a1' }).flush(null, { status: 204, statusText: 'No Content' });
     (await vi.waitFor(() => http.expectOne((r) => r.url === '/api/achats'))).flush(LISTE);
 
-    const [periode, categorie] = [...page.querySelectorAll('.filtres select')] as HTMLSelectElement[];
-    periode.value = 'annee';
-    periode.dispatchEvent(new Event('change'));
+    bouton('Année').click();
     const parAnnee = await vi.waitFor(() => http.expectOne((r) => r.url === '/api/achats'));
-    expect(parAnnee.request.params.get('annee')).toMatch(/^\d{4}$/);
+    const annee = parAnnee.request.params.get('annee')!;
+    expect(annee).toMatch(/^\d{4}$/);
     parAnnee.flush(LISTE);
+    await vi.waitFor(() => expect(page.querySelector('.periode')?.textContent?.trim()).toBe(annee));
 
-    categorie.value = 'Service';
-    categorie.dispatchEvent(new Event('change'));
+    // ‹ : l'année d'avant.
+    (page.querySelector('[aria-label="Année précédente"]') as HTMLButtonElement).click();
+    const anneeDAvant = await vi.waitFor(() => http.expectOne((r) => r.url === '/api/achats'));
+    expect(anneeDAvant.request.params.get('annee')).toBe(String(Number(annee) - 1));
+    anneeDAvant.flush(LISTE);
+
+    bouton('Service').click();
     const parCategorie = await vi.waitFor(() => http.expectOne((r) => r.url === '/api/achats'));
     expect(parCategorie.request.params.get('categorie')).toBe('Service');
     parCategorie.flush(LISTE);
+    await vi.waitFor(() => expect(bouton('Service').getAttribute('aria-pressed')).toBe('true'));
+  });
+
+  it('passe au mois suivant ; une période sans achat invite à en ajouter un', async () => {
+    const suivant = page.querySelector('[aria-label="Mois suivant"]') as HTMLButtonElement;
+    const avant = page.querySelector('.periode')?.textContent?.trim();
+    suivant.click();
+    const requete = await vi.waitFor(() => http.expectOne((r) => r.url === '/api/achats'));
+    const mois = requete.request.params.get('mois')!;
+    expect(mois).toMatch(/^\d{4}-\d{2}$/);
+    requete.flush({ ...LISTE, achats: [], total: 0, totalMateriel: 0, totalService: 0 });
+    await vi.waitFor(() => expect(page.querySelector('.periode')?.textContent?.trim()).not.toBe(avant));
+    // Une période sans achat : un message et « Nouvel achat ».
+    expect(page.querySelector('.vide b')?.textContent).toContain('Aucun achat en');
+    expect(page.querySelector('.vide button')?.textContent?.trim()).toBe('Nouvel achat');
   });
 });

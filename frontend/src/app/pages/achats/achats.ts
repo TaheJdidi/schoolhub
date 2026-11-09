@@ -110,32 +110,37 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     }
 
     <section class="card carte">
-      <!-- Les filtres à gauche, « Imprimer » et « Exporter » à droite. -->
+      <!-- Les filtres en un clic : Mois ou Année, ‹ la période ›, la catégorie en puces ; « Imprimer » et « Exporter » à droite. -->
       <div class="barre">
-      <div class="filtres">
-        <label class="f">
-          Période
-          <select class="inp" #periode (change)="filtrer(periode.value, valeur.value, categorie.value)">
-            <option value="mois">Un mois</option>
-            <option value="annee">Une année</option>
-          </select>
-        </label>
-        <label class="f">
-          {{ parAnnee() ? 'Année' : 'Mois' }}
-          <input class="inp" #valeur [type]="parAnnee() ? 'number' : 'month'" [value]="parAnnee() ? annee : mois" (change)="filtrer(periode.value, valeur.value, categorie.value)" />
-        </label>
-        <label class="f">
-          Catégorie
-          <select class="inp" #categorie (change)="filtrer(periode.value, valeur.value, categorie.value)">
-            <option value="">Toutes</option>
-            <option value="Materiel">Matériel</option>
-            <option value="Service">Service</option>
-          </select>
-        </label>
-      </div>
-      <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
+        <div class="filtres">
+          <div class="segments" role="group" aria-label="Période">
+            <button type="button" [attr.aria-pressed]="!parAnnee()" (click)="choisirLaPeriode(false)">Mois</button>
+            <button type="button" [attr.aria-pressed]="parAnnee()" (click)="choisirLaPeriode(true)">Année</button>
+          </div>
+          <div class="navigation">
+            <button type="button" [attr.aria-label]="parAnnee() ? 'Année précédente' : 'Mois précédent'" (click)="decaler(-1)"><sh-icone nom="chevron-left" /></button>
+            <span class="periode" aria-live="polite">{{ libelleDeLaPeriode() }}</span>
+            <button type="button" [attr.aria-label]="parAnnee() ? 'Année suivante' : 'Mois suivant'" (click)="decaler(1)"><sh-icone nom="chevron-right" /></button>
+          </div>
+          <div class="puces" role="group" aria-label="Catégorie">
+            <button type="button" [attr.aria-pressed]="categorie() === ''" (click)="choisirLaCategorie('')">Toutes</button>
+            <button type="button" [attr.aria-pressed]="categorie() === 'Materiel'" (click)="choisirLaCategorie('Materiel')">Matériel</button>
+            <button type="button" [attr.aria-pressed]="categorie() === 'Service'" (click)="choisirLaCategorie('Service')">Service</button>
+          </div>
+        </div>
+        <sh-actions-de-liste titre="Achats" [nombre]="liste()?.achats?.length ?? 0" exporter="/api/exports/achats" [filtres]="filtresCourants()" />
       </div>
       @if (liste(); as liste) {
+        @if (liste.achats.length === 0) {
+          <div class="vide">
+            <span class="icone-du-vide"><sh-icone nom="shopping-cart" /></span>
+            <b>Aucun achat en {{ libelleDeLaPeriode().toLowerCase() }}</b>
+            <small>Les dépenses du centre apparaîtront ici.</small>
+            @if (!ouvert()) {
+              <button type="button" class="btn primary" (click)="nouveau()"><sh-icone nom="plus" />Nouvel achat</button>
+            }
+          </div>
+        } @else {
         <div>
           <table>
             <thead>
@@ -144,15 +149,15 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
             <tbody>
               @for (achat of liste.achats; track achat.id) {
                 <tr>
-                  <td class="num">{{ date(achat.jour) }}</td>
+                  <td class="num date">{{ date(achat.jour) }}</td>
                   <td>
-                    {{ achat.libelle }}
+                    <span class="libelle">{{ achat.libelle }}</span>
                     @if (achat.payeDepuisLaCaisse) {
                       <span class="pill warn">sortie de caisse</span>
                     }
                     <br /><small>{{ achat.fournisseur ? achat.fournisseur + ' · ' : '' }}{{ achat.auteur }}</small>
                   </td>
-                  <td class="categorie">{{ libelleDe(achat.categorie) }}</td>
+                  <td class="categorie"><span class="badge" [class.service]="achat.categorie === 'Service'">{{ libelleDe(achat.categorie) }}</span></td>
                   <td class="r num">{{ montant(achat.montant) }}</td>
                   <td class="menu-col">
                     <!-- Les actions de la ligne, rangées dans un menu « ⋮ » pour laisser la place au tableau. -->
@@ -171,15 +176,19 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
                     </details>
                   </td>
                 </tr>
-              } @empty {
-                <tr><td colspan="5" class="vide">Aucun achat sur cette période.</td></tr>
               }
             </tbody>
             <tfoot>
-              <tr class="fin"><td colspan="2">Total</td><td class="categorie"></td><td class="r num">{{ montant(liste.total) }} TND</td><td></td></tr>
+              <tr class="fin">
+                <td colspan="2">Total · {{ liste.achats.length }} achat{{ liste.achats.length > 1 ? 's' : '' }}</td>
+                <td class="categorie"></td>
+                <td class="r num">{{ montant(liste.total) }} <small>TND</small></td>
+                <td></td>
+              </tr>
             </tfoot>
           </table>
         </div>
+        }
       }
     </section>
 
@@ -202,20 +211,44 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
     .chiffres b { font-family: var(--font-display); font-size: 24px; font-weight: 600; line-height: 1.2; }
     .chiffres b small { font-size: 13px; color: var(--ink-2); font-weight: 500; }
     .chiffres .caisse-sortie b { color: var(--warn); }
-    .barre { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-    .filtres { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
-    .filtres .f { width: 160px; }
+    /* La barre de filtres (croquis A) : des boutons d'un clic, pas de listes déroulantes. */
+    .barre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .filtres { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .segments { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--sunk); }
+    .segments button { padding: 5px 12px; border: 0; border-radius: 8px; background: none; color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .segments button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / 12%); }
+    .navigation { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--surface); }
+    .navigation button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; background: none; color: var(--ink-2); cursor: pointer; }
+    .navigation button:hover { background: var(--sunk); color: var(--ink); }
+    .periode { min-width: 130px; padding: 0 10px; text-align: center; font-family: var(--font-display); font-weight: 600; font-size: 13.5px; border-inline: 1px solid var(--line); line-height: 32px; }
+    .puces { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+    .puces button { padding: 5px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+    .puces button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 500; }
+    .vide { display: grid; justify-items: center; gap: 6px; padding: 28px 16px; text-align: center; }
+    .vide b { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+    .vide small { color: var(--ink-2); font-size: 13px; }
+    .vide .btn { margin-top: 6px; }
+    .vide .btn svg.lucide { width: 16px; height: 16px; }
+    .icone-du-vide { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--sunk); color: var(--ink-3); }
+    .icone-du-vide svg.lucide { width: 22px; height: 22px; }
+    .libelle { font-weight: 500; }
+    .date { font-weight: 500; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--accent-soft); color: var(--accent-ink); }
+    .badge.service { background: var(--sunk); color: var(--ink-2); }
     .caisse { display: inline-flex; gap: 8px; align-items: center; font-weight: 500; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    th, td { text-align: left; padding: 9px 8px; border-top: 1px solid var(--line); vertical-align: middle; }
-    th { color: var(--ink-2); font-weight: 500; border-top: 0; }
+    th, td { text-align: left; padding: 10px 10px; border-top: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--ink-3); font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); border-top: 0; }
+    tbody tr:hover { background: var(--bg); }
     td small { color: var(--ink-2); }
     th:first-child, td:first-child { width: 96px; white-space: nowrap; }
     .categorie { width: 120px; }
     .r { text-align: right; white-space: nowrap; width: 110px; }
     .menu-col { width: 44px; text-align: right; }
-    tfoot td { border-top: 2px solid var(--line-2); font-weight: 600; }
+    tfoot td { border-top: 1px solid var(--line-2); font-weight: 600; background: var(--bg); padding-block: 12px; }
+    tfoot .num { font-size: 16px; }
+    tfoot small { font-family: var(--font-body); font-size: 13px; color: var(--ink-2); font-weight: 500; }
     .menu { position: relative; display: inline-block; }
     .menu summary { list-style: none; padding: 4px 6px; color: var(--ink-2); }
     .menu summary::-webkit-details-marker { display: none; }
@@ -232,8 +265,7 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
       th:first-child, td:first-child { width: auto; }
       th, td { padding: 8px 4px; }
       .filtres { width: 100%; }
-      .filtres .f { width: auto; flex: 1 1 130px; min-width: 0; }
-      .filtres .inp { width: 100%; min-width: 0; }
+      .periode { min-width: 0; flex: 1; }
     }
   `,
 })
@@ -252,6 +284,16 @@ export class Achats implements OnInit {
   protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
   protected readonly filtresCourants = signal<Record<string, string>>({ mois: this.mois });
+  /** La période affichée : « 2026-11 » ou 2026, et la catégorie (vide : toutes). */
+  private readonly moisChoisi = signal(this.mois);
+  private readonly anneeChoisie = signal(Number(this.annee));
+  protected readonly categorie = signal<'' | 'Materiel' | 'Service'>('');
+  /** « Novembre 2026 », ou « 2026 ». */
+  protected readonly libelleDeLaPeriode = computed(() => {
+    if (this.parAnnee()) return String(this.anneeChoisie());
+    const texte = formatDate(`${this.moisChoisi()}-01`, 'MMMM y', FRANCAIS);
+    return texte.charAt(0).toUpperCase() + texte.slice(1);
+  });
   private facture: File | null = null;
 
   protected readonly formulaire = new FormGroup({
@@ -379,14 +421,35 @@ export class Achats implements OnInit {
     }
   }
 
-  protected async filtrer(periode: string, valeur: string, categorie: string): Promise<void> {
-    const parAnnee = periode === 'annee';
-    if (parAnnee !== this.parAnnee()) {
-      this.parAnnee.set(parAnnee);
-      valeur = parAnnee ? this.annee : this.mois;
+  /** Mois ou Année : on repart du mois (ou de l'année) en cours. */
+  protected async choisirLaPeriode(parAnnee: boolean): Promise<void> {
+    if (parAnnee === this.parAnnee()) return;
+    this.parAnnee.set(parAnnee);
+    this.moisChoisi.set(this.mois);
+    this.anneeChoisie.set(Number(this.annee));
+    await this.filtrer();
+  }
+
+  /** ‹ et › : le mois (ou l'année) d'avant ou d'après. */
+  protected async decaler(pas: number): Promise<void> {
+    if (this.parAnnee()) {
+      this.anneeChoisie.update((annee) => annee + pas);
+    } else {
+      const [annee, mois] = this.moisChoisi().split('-').map(Number);
+      const date = new Date(annee, mois - 1 + pas, 1);
+      this.moisChoisi.set(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
     }
-    const filtres: Record<string, string> = parAnnee ? { annee: valeur || this.annee } : { mois: valeur || this.mois };
-    if (categorie) filtres['categorie'] = categorie;
+    await this.filtrer();
+  }
+
+  protected async choisirLaCategorie(categorie: '' | 'Materiel' | 'Service'): Promise<void> {
+    this.categorie.set(categorie);
+    await this.filtrer();
+  }
+
+  private async filtrer(): Promise<void> {
+    const filtres: Record<string, string> = this.parAnnee() ? { annee: String(this.anneeChoisie()) } : { mois: this.moisChoisi() };
+    if (this.categorie()) filtres['categorie'] = this.categorie();
     this.filtresCourants.set(filtres);
     await this.charger();
   }
