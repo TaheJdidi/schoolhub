@@ -1,18 +1,49 @@
 /* La liste passe à la ligne d'elle-même : un téléphone de 375 pixels n'a pas de défilement de côté. */
-.page { display: grid; gap: 14px; }
+.page { display: grid; gap: 14px; max-width: 920px; }
 .page .note { margin: 0; }
+svg.lucide { width: 16px; height: 16px; flex: none; }
 
-.invitation { display: grid; gap: 14px; padding: 16px; }
-.champs { display: grid; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+/* Le formulaire d'invitation : un titre, les champs, puis ce que le rôle choisi permet. */
+.invitation { display: grid; gap: 14px; padding: 18px 20px; }
+.entete-du-formulaire { display: flex; align-items: center; gap: 12px; }
+.pastille { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); flex: none; }
+.titre { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+.aide { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
+.champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.champs .f { max-width: none; }
+.role-explique { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--sunk); color: var(--ink-2); font-size: 13px; }
+.role-explique svg.lucide { margin-top: 1px; color: var(--ink-3); }
+.role-explique b { color: var(--ink); font-weight: 600; }
 
 .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
+/* La liste : un en-tête qui compte, puis une ligne par personne, aux colonnes alignées. */
+.entete-de-liste { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 13px; font-weight: 500; }
 .liste { list-style: none; margin: 0; padding: 0; }
-.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.ligne { display: grid; grid-template-columns: 36px minmax(0, 1fr) 110px 96px auto; align-items: center; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .ligne:last-child { border-bottom: 0; }
-.personne { display: grid; flex: 1 1 220px; min-width: 0; }
-.nom { font-weight: 500; }
+.avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--sunk); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.avatar.proprietaire { background: var(--accent-soft); color: var(--accent-ink); }
+.personne { display: grid; min-width: 0; }
+.nom { font-weight: 500; overflow-wrap: anywhere; }
 .email { color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
-.role { color: var(--ink-2); min-width: 92px; }
-.ligne .actions { margin-left: auto; }
+.role { color: var(--ink-2); }
+.ligne .actions { justify-content: flex-end; }
+.ligne.desactive .nom, .ligne.desactive .avatar { color: var(--ink-3); }
 .question { color: var(--ink); }
+.btn.ghost.retirer { color: var(--bad); }
+.btn.ghost.retirer:hover { background: var(--bad-soft); }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+
+/* Une invitation à inviter, tant que le propriétaire est seul. */
+.seul { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 14px 16px; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--ink-2); }
+.seul svg.lucide { color: var(--ink-3); width: 20px; height: 20px; }
+.seul p { flex: 1 1 260px; margin: 0; }
+
+/* Sur un téléphone, le rôle, l'état et les boutons passent sous le nom. */
+@media (max-width: 640px) {
+  .ligne { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .role { grid-column: 2; }
+  .etat { grid-column: 3; grid-row: 1; }
+  .ligne .actions { grid-column: 1 / -1; }
+}

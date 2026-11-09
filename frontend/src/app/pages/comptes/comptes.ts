@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
+import { Icone } from '../../socle/icone';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
@@ -19,7 +20,7 @@ import { CompteDuCentre, ETATS } from './compte-du-centre';
 @Component({
   selector: 'sh-comptes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BrouillonRepris],
+  imports: [ReactiveFormsModule, BrouillonRepris, Icone],
   templateUrl: './comptes.html',
   styleUrl: './comptes.css',
 })
@@ -32,6 +33,8 @@ export class Comptes implements OnInit {
   protected readonly centre = computed(() => this.session.personne()?.centre ?? '');
 
   protected readonly comptes = signal<CompteDuCentre[]>([]);
+  /** Les invitations envoyées que personne n'a encore acceptées. */
+  protected readonly nombreDInvites = computed(() => this.comptes().filter((c) => c.etat === 'Invite').length);
   protected readonly formulaireOuvert = signal(false);
   /** Le compte dont la désactivation attend « Oui » ou « Non ». */
   protected readonly aConfirmer = signal<string | null>(null);
@@ -61,6 +64,11 @@ export class Comptes implements OnInit {
   /** « Sonia Mabrouk », et « (vous) » après le nom de la personne connectée. */
   protected nomAffiche(compte: CompteDuCentre): string {
     return `${compte.prenom} ${compte.nom}${compte.moi ? ' (vous)' : ''}`;
+  }
+
+  /** « HB » pour Hedi Ben Salah : la première lettre du prénom et celle du nom. */
+  protected initiales(compte: CompteDuCentre): string {
+    return `${compte.prenom.trim().charAt(0)}${compte.nom.trim().charAt(0)}`.toUpperCase();
   }
 
   protected ouvrirLeFormulaire(): void {

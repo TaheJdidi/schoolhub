@@ -4,7 +4,7 @@
     <p class="sub">Les personnes qui se connectent à SchoolHub pour le {{ centre() }}.</p>
   </div>
   @if (!formulaireOuvert()) {
-    <button type="button" class="btn primary" (click)="ouvrirLeFormulaire()">Inviter une personne</button>
+    <button type="button" class="btn primary" (click)="ouvrirLeFormulaire()"><sh-icone nom="plus" />Inviter une personne</button>
   }
 </div>
 
@@ -18,6 +18,13 @@
 
   @if (formulaireOuvert()) {
     <form class="card invitation" [formGroup]="formulaire" (ngSubmit)="inviter()" novalidate>
+      <div class="entete-du-formulaire">
+        <span class="pastille"><sh-icone nom="mail" /></span>
+        <div>
+          <h2 class="titre">Inviter une personne</h2>
+          <p class="aide">Elle reçoit un email pour choisir son mot de passe, puis se connecte.</p>
+        </div>
+      </div>
       <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'invitation que vous aviez commencée." action="Abandonner" />
       <div class="champs">
         <label class="f">
@@ -28,9 +35,9 @@
           Nom
           <input formControlName="nom" autocomplete="off" />
         </label>
-        <label class="f">
+        <label class="f large">
           Email
-          <input type="email" formControlName="email" autocomplete="off" inputmode="email" />
+          <input type="email" formControlName="email" autocomplete="off" inputmode="email" placeholder="prenom@exemple.tn" />
         </label>
         <label class="f">
           Rôle
@@ -40,6 +47,14 @@
           </select>
         </label>
       </div>
+      <p class="role-explique">
+        <sh-icone nom="user-cog" />
+        @if (formulaire.controls.role.value === 'Proprietaire') {
+          <span><b>Propriétaire</b> : tout SchoolHub, avec les parts des professeurs, le tableau de bord, les ressources humaines, le journal, les comptes et les paramètres du centre.</span>
+        } @else {
+          <span><b>Secrétaire</b> : le travail du quotidien (professeurs, élèves, caisse, bibliothèque, demandes et achats), sans les pages réservées au propriétaire.</span>
+        }
+      </p>
       <div class="actions">
         <button type="button" class="btn" (click)="fermerLeFormulaire()">Annuler</button>
         <button type="submit" class="btn primary" [disabled]="enCours() === 'invitation'">
@@ -49,40 +64,57 @@
     </form>
   }
 
-  <ul class="card liste">
-    @for (compte of comptes(); track compte.id) {
-      <li class="ligne">
-        <div class="personne">
-          <span class="nom">{{ nomAffiche(compte) }}</span>
-          <span class="email">{{ compte.email }}</span>
-        </div>
-        <span class="role">{{ libelleDuRole(compte.role) }}</span>
-        <span class="pill {{ etats[compte.etat].pastille }}">{{ etats[compte.etat].libelle }}</span>
+  <section class="card">
+    <div class="entete-de-liste">
+      <span>{{ comptes().length }} compte{{ comptes().length > 1 ? 's' : '' }}</span>
+      @if (nombreDInvites(); as invites) {
+        <span class="pill info">{{ invites }} invitation{{ invites > 1 ? 's' : '' }} en attente</span>
+      }
+    </div>
+    <ul class="liste">
+      @for (compte of comptes(); track compte.id) {
+        <li class="ligne" [class.desactive]="compte.etat === 'Desactive'">
+          <span class="avatar" [class.proprietaire]="compte.role === 'Proprietaire'" aria-hidden="true">{{ initiales(compte) }}</span>
+          <div class="personne">
+            <span class="nom">{{ nomAffiche(compte) }}</span>
+            <span class="email">{{ compte.email }}</span>
+          </div>
+          <span class="role">{{ libelleDuRole(compte.role) }}</span>
+          <span class="etat"><span class="pill {{ etats[compte.etat].pastille }}">{{ etats[compte.etat].libelle }}</span></span>
 
-        <div class="actions">
-          @if (aConfirmer() === compte.id) {
-            <span class="question">Désactiver le compte de {{ compte.prenom }} {{ compte.nom }} ?</span>
-            <button type="button" class="btn primary" (click)="desactiver(compte)">Oui</button>
-            <button type="button" class="btn" (click)="annulerLaConfirmation()">Non</button>
-          } @else {
-            @if (compte.etat === 'Invite') {
-              <button type="button" class="btn" [disabled]="enCours() === compte.id" (click)="renvoyerLInvitation(compte)">
-                Renvoyer l'invitation
-              </button>
+          <div class="actions">
+            @if (aConfirmer() === compte.id) {
+              <span class="question">Désactiver le compte de {{ compte.prenom }} {{ compte.nom }} ?</span>
+              <button type="button" class="btn danger" (click)="desactiver(compte)">Oui</button>
+              <button type="button" class="btn" (click)="annulerLaConfirmation()">Non</button>
+            } @else {
+              @if (compte.etat === 'Invite') {
+                <button type="button" class="btn" [disabled]="enCours() === compte.id" (click)="renvoyerLInvitation(compte)">
+                  Renvoyer l'invitation
+                </button>
+              }
+              @if (compte.etat !== 'Desactive' && !compte.moi) {
+                <button type="button" class="btn ghost retirer" [disabled]="enCours() === compte.id" (click)="demanderConfirmation(compte)">
+                  Désactiver
+                </button>
+              }
+              @if (compte.etat === 'Desactive') {
+                <button type="button" class="btn" [disabled]="enCours() === compte.id" (click)="reactiver(compte)">
+                  Réactiver
+                </button>
+              }
             }
-            @if (compte.etat !== 'Desactive' && !compte.moi) {
-              <button type="button" class="btn" [disabled]="enCours() === compte.id" (click)="demanderConfirmation(compte)">
-                Désactiver
-              </button>
-            }
-            @if (compte.etat === 'Desactive') {
-              <button type="button" class="btn" [disabled]="enCours() === compte.id" (click)="reactiver(compte)">
-                Réactiver
-              </button>
-            }
-          }
-        </div>
-      </li>
-    }
-  </ul>
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+
+  @if (comptes().length === 1 && !formulaireOuvert()) {
+    <div class="seul">
+      <sh-icone nom="users" />
+      <p>Personne d'autre n'a encore de compte. Invitez la personne de l'accueil pour lui confier les inscriptions et la caisse.</p>
+      <button type="button" class="btn" (click)="ouvrirLeFormulaire()">Inviter</button>
+    </div>
+  }
 </div>
