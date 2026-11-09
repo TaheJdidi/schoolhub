@@ -336,7 +336,7 @@ describe("les adresses de l'application", () => {
 
     const carte = () => (harness.fixture.nativeElement as HTMLElement).querySelector('main a[href="/demandes"]');
     await vi.waitFor(() => expect(carte()?.querySelector('b')?.textContent?.trim()).toBe('2'));
-    expect(carte()?.textContent).toContain('demandes d’inscription à traiter');
+    expect(carte()?.textContent).toContain('Traiter les demandes');
   });
 
   it("le formulaire public s'ouvre sans connexion sur /inscription/les-jasmins", async () => {

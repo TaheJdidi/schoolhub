@@ -49,17 +49,24 @@ describe("l'accueil « Aujourd'hui »", () => {
     // La caisse : le total (espèces + chèques), puis le détail, puis les reçus.
     const caisse = [...page.querySelectorAll('.chiffre')][0];
     expect(caisse.querySelector('b')?.textContent).toContain('895,000');
-    expect(caisse.querySelector('.detail-de-la-caisse')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('845,000 TND espèces · 50,000 TND chèque');
-    expect(caisse.textContent).toContain('12 reçus');
+    const parts = [...caisse.querySelectorAll('.part')].map((part) => [part.querySelector('small')?.textContent?.replace(/\s+/g, ' ').trim(), part.querySelector('b')?.textContent]);
+    expect(parts).toEqual([['Espèces', '845,000'], ['Chèque · 1', '50,000']]);
+    expect(caisse.querySelector('.pill')?.textContent?.trim()).toBe('12 reçus');
     expect(caisse.textContent).not.toContain('attendues');
     // SEA-09 : les appels à recopier sont masqués pour le moment, ni carte ni liste, et rien n'est demandé à l'API.
     expect(page.textContent).not.toContain('à recopier');
     http.expectNone('/api/seances/a-recopier');
-    expect(page.textContent?.replace(/\s+/g, ' ')).toContain('7 / 30');
+    const bibliotheque = page.querySelector('a.chiffre[href="/bibliotheque"]');
+    expect(bibliotheque?.querySelector('b .num')?.textContent).toBe('7');
+    expect(bibliotheque?.querySelector('b small')?.textContent).toBe('/ 30 places');
+    // 7 places sur 30 : la jauge est remplie à 23 %.
+    expect((page.querySelector('.jauge i') as HTMLElement).style.width).toBe('23%');
+    // Aucune demande : « Tout est traité ».
+    expect(page.querySelector('.tout-est-traite')?.textContent).toContain('Tout est traité');
     http.verify();
   });
 
-  it('la caisse sans chèque : « 0 chèque »', async () => {
+  it('la caisse sans chèque : le chèque à 0, en gris', async () => {
     TestBed.configureTestingModule({
       providers: [provideRouter([{ path: 'aujourdhui', component: Aujourdhui }, { path: '**', component: PageDeTest }]), provideHttpClient(), provideHttpClientTesting()],
     });
@@ -74,7 +81,11 @@ describe("l'accueil « Aujourd'hui »", () => {
     http.expectOne('/api/groupes').flush([]);
 
     await vi.waitFor(() => expect(page.querySelector('.chiffre b')?.textContent).toContain('150,000'));
-    expect(page.querySelector('.detail-de-la-caisse')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('150,000 TND espèces · 0 chèque');
+    const parts = [...page.querySelectorAll('.part')].map((part) => [part.querySelector('small')?.textContent?.replace(/\s+/g, ' ').trim(), part.querySelector('b')?.textContent]);
+    expect(parts).toEqual([['Espèces', '150,000'], ['Chèque', '0,000']]);
+    expect(page.querySelectorAll('.part b')[1].classList).toContain('zero');
+    // Sans capacité connue, pas de jauge.
+    expect(page.querySelector('.jauge')).toBeNull();
     http.verify();
   });
 });

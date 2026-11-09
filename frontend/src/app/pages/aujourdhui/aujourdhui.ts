@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
+import { Icone } from '../../socle/icone';
 import { NombreDeDemandes } from '../../socle/nombre-de-demandes';
 import { heure, ResumeDuGroupe } from '../groupes/groupe';
 import { AppelARecopier, GroupeDeLAppel } from '../seances/appel';
@@ -55,7 +56,7 @@ const minutes = (texte: string) => {
 @Component({
   selector: 'sh-aujourdhui',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, BoutonDeRappel],
+  imports: [RouterLink, BoutonDeRappel, Icone],
   template: `
     <div class="pagehead">
       <div>
@@ -65,39 +66,64 @@ const minutes = (texte: string) => {
     </div>
 
     <div class="chiffres">
-      <a class="chiffre" routerLink="/caisse">
-        <span>Caisse du jour</span>
-        <b><span class="num">{{ montant((caisse()?.especes ?? 0) + (caisse()?.cheques ?? 0)) }}</span> <small>TND</small></b>
-        <small class="detail-de-la-caisse">
-          {{ montant(caisse()?.especes ?? 0) }} TND espèces ·
-          @if (caisse()?.cheques) {
-            {{ montant(caisse()!.cheques) }} TND chèque
-          } @else {
-            0 chèque
-          }
-        </small>
-        <small>{{ caisse()?.recus ?? 0 }} reçu{{ (caisse()?.recus ?? 0) > 1 ? 's' : '' }}</small>
+      <a class="chiffre caisse" routerLink="/caisse">
+        <span class="tete">
+          <span class="icone ok"><sh-icone nom="wallet" /></span>
+          <span class="titre-du-chiffre">Caisse du jour</span>
+          <span class="pill muted">{{ caisse()?.recus ?? 0 }} reçu{{ (caisse()?.recus ?? 0) > 1 ? 's' : '' }}</span>
+          <span class="fleche"><sh-icone nom="chevron-right" /></span>
+        </span>
+        <b><span class="num">{{ montant(totalDeLaCaisse()) }}</span><small>TND</small></b>
+        <span class="repartition" aria-hidden="true">
+          <i class="especes" [style.flex-grow]="caisse()?.especes ?? 0"></i>
+          <i class="cheques" [style.flex-grow]="caisse()?.cheques ?? 0"></i>
+        </span>
+        <span class="detail-de-la-caisse">
+          <span class="part">
+            <small><i class="point-especes"></i>Espèces</small>
+            <b class="num" [class.zero]="!caisse()?.especes">{{ montant(caisse()?.especes ?? 0) }}</b>
+          </span>
+          <span class="part">
+            <small><i class="point-cheques"></i>Chèque@if (caisse()?.nombreDeCheques; as nombre) { · {{ nombre }}}</small>
+            <b class="num" [class.zero]="!caisse()?.cheques">{{ montant(caisse()?.cheques ?? 0) }}</b>
+          </span>
+        </span>
       </a>
       @if (afficherLesAppelsARecopier) {
         <div class="chiffre">
-          <span>Appels à recopier</span>
+          <span class="tete"><span class="titre-du-chiffre">Appels à recopier</span></span>
           <b class="num" [class.attention]="aRecopier().length > 0">{{ aRecopier().length }}</b>
           <small>Feuilles revenues, pas encore saisies</small>
         </div>
       }
-      <a class="chiffre" routerLink="/demandes">
-        <span>Demandes d'inscription</span>
-        <b class="num">{{ demandes() ?? 0 }}</b>
-        <small>{{ demandes() === 1 ? 'demande d’inscription à traiter' : 'demandes d’inscription à traiter' }}</small>
+      <a class="chiffre demandes" routerLink="/demandes" [class.a-traiter]="(demandes() ?? 0) > 0">
+        <span class="tete">
+          <span class="icone info"><sh-icone nom="inbox" /></span>
+          <span class="titre-du-chiffre">Demandes d'inscription</span>
+          <span class="fleche"><sh-icone nom="chevron-right" /></span>
+        </span>
+        <b class="num" [class.zero]="!demandes()">{{ demandes() ?? 0 }}</b>
+        @if (demandes()) {
+          <span class="btn primary">Traiter les demandes</span>
+        } @else {
+          <small class="tout-est-traite"><sh-icone nom="circle-check" /> Tout est traité</small>
+        }
       </a>
       <a class="chiffre" routerLink="/bibliotheque">
-        <span>Bibliothèque</span>
+        <span class="tete">
+          <span class="icone warn"><sh-icone nom="book-open" /></span>
+          <span class="titre-du-chiffre">Bibliothèque</span>
+          <span class="fleche"><sh-icone nom="chevron-right" /></span>
+        </span>
         <b>
-          <span class="num">{{ bibliotheque()?.presents ?? 0 }}</span>
+          <span class="num" [class.zero]="!bibliotheque()?.presents">{{ bibliotheque()?.presents ?? 0 }}</span>
           @if (bibliotheque()?.capacite; as capacite) {
-            <small> / {{ capacite }}</small>
+            <small>/ {{ capacite }} places</small>
           }
         </b>
+        @if (bibliotheque()?.capacite; as capacite) {
+          <span class="jauge" aria-hidden="true"><i [style.width.%]="remplissage(bibliotheque()?.presents ?? 0, capacite)"></i></span>
+        }
         <small>{{ bibliotheque()?.entrees ?? 0 }} entrée{{ (bibliotheque()?.entrees ?? 0) > 1 ? 's' : '' }} depuis ce matin</small>
       </a>
     </div>
@@ -182,13 +208,41 @@ const minutes = (texte: string) => {
   styles: `
     :host { display: grid; gap: 16px; }
     .pagehead { margin-bottom: 0; }
-    .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .chiffre { display: grid; gap: 4px; align-content: start; padding: 16px 18px; border-radius: 14px; background: var(--sunk); color: var(--ink); text-decoration: none; }
-    a.chiffre:hover { outline: 1px solid var(--line-2); }
-    .chiffre > span, .chiffre > small { color: var(--ink-2); font-size: 13px; }
-    .chiffre b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
-    .chiffre b small { margin-left: 4px; font-size: 14px; color: var(--ink-2); font-weight: 500; }
+    /* La caisse plus large, puis une colonne par chiffre ; deux colonnes sur tablette, une sur téléphone. */
+    .chiffres { display: grid; grid-template-columns: minmax(0, 1.7fr); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+    @media (max-width: 960px) { .chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row; } .chiffre.caisse { grid-column: 1 / -1; } }
+    @media (max-width: 560px) { .chiffres { grid-template-columns: minmax(0, 1fr); } }
+    .chiffre { display: grid; gap: 12px; align-content: start; padding: 16px 18px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); text-decoration: none; transition: border-color 0.15s; }
+    a.chiffre:hover { border-color: var(--line-2); }
+    .chiffre > small { color: var(--ink-3); font-size: 12px; }
+    .tete { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .titre-du-chiffre { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+    .icone { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; flex: none; }
+    .icone svg.lucide { width: 19px; height: 19px; }
+    .icone.ok { background: var(--ok-soft); color: var(--ok); }
+    .icone.info { background: var(--accent-soft); color: var(--accent); }
+    .icone.warn { background: var(--warn-soft); color: var(--warn); }
+    .fleche { display: flex; color: var(--ink-3); }
+    .chiffre > b { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono); font-size: 32px; font-weight: 600; line-height: 1.1; }
+    .chiffre > b small { font-family: var(--font-body); font-size: 14px; color: var(--ink-2); font-weight: 500; }
+    .chiffre .zero { color: var(--ink-3); }
     .chiffre b.attention { color: var(--warn); }
+    .repartition { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--sunk); }
+    .repartition i { flex-basis: 0; }
+    .repartition .especes, .point-especes { background: var(--ok); }
+    .repartition .cheques, .point-cheques { background: var(--accent); }
+    .detail-de-la-caisse { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .part { display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+    .part small { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+    .part small i { width: 8px; height: 8px; border-radius: 50%; }
+    .part b { font-size: 15px; font-weight: 600; }
+    .demandes.a-traiter { border-color: var(--accent-soft); }
+    .demandes.a-traiter > b { color: var(--accent); }
+    .demandes .btn { justify-self: start; padding: 5px 12px; font-size: 13px; }
+    .tout-est-traite { display: inline-flex; align-items: center; gap: 6px; color: var(--ok) !important; font-size: 13px !important; font-weight: 500; }
+    .tout-est-traite svg.lucide { width: 16px; height: 16px; }
+    .jauge { height: 8px; border-radius: 4px; overflow: hidden; background: var(--sunk); }
+    .jauge i { display: block; height: 100%; background: var(--warn); border-radius: 4px; }
     .colonnes { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
     @media (max-width: 960px) { .colonnes { grid-template-columns: minmax(0, 1fr); } }
     .cote { display: grid; gap: 16px; }
@@ -233,7 +287,8 @@ export class Aujourdhui implements OnInit {
   protected readonly seances = signal<SeanceDuJour[]>([]);
   protected readonly attendus = computed(() => this.seances().filter((s) => s.etat !== 'Annulee').reduce((total, s) => total + s.attendus, 0));
   /** La caisse du jour : les espèces du tiroir et les chèques, comptés à part ; le total est leur somme. */
-  protected readonly caisse = signal<{ especes: number; cheques: number; recus: number } | null>(null);
+  protected readonly caisse = signal<{ especes: number; cheques: number; nombreDeCheques: number; recus: number } | null>(null);
+  protected readonly totalDeLaCaisse = computed(() => (this.caisse()?.especes ?? 0) + (this.caisse()?.cheques ?? 0));
   protected readonly bibliotheque = signal<{ presents: number; capacite: number | null; entrees: number } | null>(null);
   protected readonly afficherLesAppelsARecopier = AFFICHER_LES_APPELS_A_RECOPIER;
   protected readonly aRecopier = signal<AppelARecopier[]>([]);
@@ -255,7 +310,12 @@ export class Aujourdhui implements OnInit {
       this.charger('/api/caisse', (caisse: MaCaisse) => {
         // La caisse du jour : la dernière ouverte (celle d'aujourd'hui).
         const duJour = caisse.ouvertes.at(-1);
-        this.caisse.set({ especes: duJour?.encaisse ?? 0, cheques: duJour?.cheques ?? 0, recus: duJour?.recus ?? 0 });
+        this.caisse.set({
+          especes: duJour?.encaisse ?? 0,
+          cheques: duJour?.cheques ?? 0,
+          nombreDeCheques: duJour?.nombreDeCheques ?? 0,
+          recus: duJour?.recus ?? 0,
+        });
       }),
       this.charger('/api/bibliotheque', (journee: { presents: number; capacite: number | null; entrees: number }) => this.bibliotheque.set(journee)),
       AFFICHER_LES_APPELS_A_RECOPIER ? this.charger('/api/seances/a-recopier', (liste: AppelARecopier[]) => this.aRecopier.set(liste)) : null,
@@ -264,6 +324,11 @@ export class Aujourdhui implements OnInit {
         this.badges.set(new Map(groupes.filter((g) => g.badge).map((g) => [g.id, g.badge!]))),
       ),
     ]);
+  }
+
+  /** La part des places occupées à la bibliothèque, en pour cent, sans dépasser 100. */
+  protected remplissage(presents: number, capacite: number): number {
+    return Math.min(100, Math.round((presents / capacite) * 100));
   }
 
   /** Où en est la séance : son appel s'il est fait, sinon l'heure qu'il est. */
