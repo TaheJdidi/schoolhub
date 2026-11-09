@@ -61,11 +61,16 @@ const minutes = (texte: string) => {
     <div class="chiffres">
       <a class="chiffre" routerLink="/caisse">
         <span>Caisse du jour</span>
-        <b><span class="num">{{ montant(caisse()?.encaisse ?? 0) }}</span> <small>TND</small></b>
-        <small>
-          {{ caisse()?.recus ?? 0 }} reçu{{ (caisse()?.recus ?? 0) > 1 ? 's' : '' }} ·
-          {{ montant(caisse()?.attendu ?? 0) }} TND en espèces attendues
+        <b><span class="num">{{ montant((caisse()?.especes ?? 0) + (caisse()?.cheques ?? 0)) }}</span> <small>TND</small></b>
+        <small class="detail-de-la-caisse">
+          {{ montant(caisse()?.especes ?? 0) }} TND espèces ·
+          @if (caisse()?.cheques) {
+            {{ montant(caisse()!.cheques) }} TND chèque
+          } @else {
+            0 chèque
+          }
         </small>
+        <small>{{ caisse()?.recus ?? 0 }} reçu{{ (caisse()?.recus ?? 0) > 1 ? 's' : '' }}</small>
       </a>
       <div class="chiffre">
         <span>Appels à recopier</span>
@@ -217,7 +222,8 @@ export class Aujourdhui implements OnInit {
   protected readonly heureQuIlEst = computed(() => formatDate(this.maintenant(), "H'h'mm", FRANCAIS));
   protected readonly seances = signal<SeanceDuJour[]>([]);
   protected readonly attendus = computed(() => this.seances().filter((s) => s.etat !== 'Annulee').reduce((total, s) => total + s.attendus, 0));
-  protected readonly caisse = signal<{ encaisse: number; attendu: number; recus: number } | null>(null);
+  /** La caisse du jour : les espèces du tiroir et les chèques, comptés à part ; le total est leur somme. */
+  protected readonly caisse = signal<{ especes: number; cheques: number; recus: number } | null>(null);
   protected readonly bibliotheque = signal<{ presents: number; capacite: number | null; entrees: number } | null>(null);
   protected readonly aRecopier = signal<AppelARecopier[]>([]);
   protected readonly enRouge = signal<EleveEnRouge[]>([]);
@@ -238,7 +244,7 @@ export class Aujourdhui implements OnInit {
       this.charger('/api/caisse', (caisse: MaCaisse) => {
         // La caisse du jour : la dernière ouverte (celle d'aujourd'hui).
         const duJour = caisse.ouvertes.at(-1);
-        this.caisse.set({ encaisse: duJour?.encaisse ?? 0, attendu: duJour?.attendu ?? 0, recus: duJour?.recus ?? 0 });
+        this.caisse.set({ especes: duJour?.encaisse ?? 0, cheques: duJour?.cheques ?? 0, recus: duJour?.recus ?? 0 });
       }),
       this.charger('/api/bibliotheque', (journee: { presents: number; capacite: number | null; entrees: number }) => this.bibliotheque.set(journee)),
       this.charger('/api/seances/a-recopier', (liste: AppelARecopier[]) => this.aRecopier.set(liste)),
