@@ -1,13 +1,12 @@
 import { AfterContentInit, DestroyRef, Directive, ElementRef, inject, Injector, OnInit, Renderer2 } from '@angular/core';
 import { AbstractControl, NG_VALIDATORS, NgControl, ValidationErrors, Validator } from '@angular/forms';
 
-/** L'exemple montré dans un champ de téléphone vide, et le message quand le numéro ne se lit pas. */
-export const EXEMPLE_DE_TELEPHONE = '22 345 678';
-export const TELEPHONE_PAS_VALABLE = `Le numéro doit avoir 8 chiffres, par exemple ${EXEMPLE_DE_TELEPHONE}`;
-
-/** L'exemple montré dans un champ d'email vide, et le message quand l'email ne se lit pas. */
-export const EXEMPLE_D_EMAIL = 'prenom@exemple.tn';
-export const EMAIL_PAS_VALABLE = `L'email n'est pas valable, par exemple ${EXEMPLE_D_EMAIL}`;
+/**
+ * Les messages sous un champ qui ne se lit pas : courts, pour tenir sur une ligne sous le champ, sans pousser les champs
+ * voisins. Les champs restent vides tant que rien n'est écrit (pas d'exemple, qu'on prendrait pour un vrai numéro).
+ */
+export const TELEPHONE_PAS_VALABLE = 'Il faut 8 chiffres';
+export const EMAIL_PAS_VALABLE = "Cet email n'est pas valable";
 
 /** La taille la plus grande d'un email, celle du serveur (AdresseEmail.LongueurMaximale). */
 const LONGUEUR_MAXIMALE_D_UN_EMAIL = 256;
@@ -36,8 +35,7 @@ export function estUnEmail(saisie: string): boolean {
 }
 
 /**
- * Ce que les deux champs ont en commun : un exemple quand le champ est vide, et un message sous le champ quand ce qui est
- * écrit ne se lit pas, dès qu'on sort du champ (ou que le formulaire est envoyé), jusqu'à ce que ce soit corrigé.
+ * Ce que les deux champs ont en commun : un message sous le champ quand ce qui est écrit ne se lit pas, dès qu'on sort du champ (ou que le formulaire est envoyé), jusqu'à ce que ce soit corrigé.
  * Un champ vide n'est pas refusé ici : c'est `requis` qui dit s'il est obligatoire.
  */
 @Directive()
@@ -50,7 +48,6 @@ abstract class ChampDeContact implements Validator, OnInit, AfterContentInit {
   private message: HTMLElement | null = null;
   private quitte = false;
 
-  protected abstract readonly exemple: string;
   protected abstract readonly pasValable: string;
   protected abstract readonly cle: string;
   protected abstract valable(texte: string): boolean;
@@ -61,7 +58,6 @@ abstract class ChampDeContact implements Validator, OnInit, AfterContentInit {
 
   ngOnInit(): void {
     this.champ = this.injecteur.get(NgControl, null, { self: true, optional: true });
-    if (!this.element.placeholder) this.element.placeholder = this.exemple;
     // Le formulaire envoyé montre aussi le message, sans attendre qu'on passe dans le champ.
     this.element.form?.addEventListener('submit', () => {
       this.quitte = true;
@@ -128,7 +124,6 @@ abstract class ChampDeContact implements Validator, OnInit, AfterContentInit {
   providers: [{ provide: NG_VALIDATORS, useExisting: ChampTelephone, multi: true }],
 })
 export class ChampTelephone extends ChampDeContact {
-  protected readonly exemple = EXEMPLE_DE_TELEPHONE;
   protected readonly pasValable = TELEPHONE_PAS_VALABLE;
   protected readonly cle = 'telephone';
 
@@ -166,7 +161,6 @@ export class ChampTelephone extends ChampDeContact {
   providers: [{ provide: NG_VALIDATORS, useExisting: ChampEmail, multi: true }],
 })
 export class ChampEmail extends ChampDeContact {
-  protected readonly exemple = EXEMPLE_D_EMAIL;
   protected readonly pasValable = EMAIL_PAS_VALABLE;
   protected readonly cle = 'email';
 

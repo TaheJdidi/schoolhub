@@ -80,10 +80,10 @@ describe('ChampTelephone et ChampEmail', () => {
     return { fixture, composant: fixture.componentInstance, telephone, email, taper, sortir };
   }
 
-  it('montre un exemple dans les champs vides', () => {
+  it('laisse les champs vides, sans exemple qu’on prendrait pour un vrai numéro', () => {
     const { telephone, email } = monter();
-    expect(telephone.placeholder).toBe('22 345 678');
-    expect(email.placeholder).toBe('prenom@exemple.tn');
+    expect(telephone.placeholder).toBe('');
+    expect(email.placeholder).toBe('');
   });
 
   it('groupe les chiffres du numéro, sans lettres ni plus de 8 chiffres, et retire l’indicatif', () => {

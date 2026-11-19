@@ -76,8 +76,12 @@ form.card{max-width:920px}
 .f{display:grid;gap:5px;font-size:13px;font-weight:500;color:var(--ink-2);min-width:0;max-width:560px}
 .f input,.inp{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:8px 10px;width:100%}
 .f input[aria-invalid="true"],.inp[aria-invalid="true"]{border-color:var(--bad)}
-/* Sous un numéro ou un email qui ne se lit pas (shTelephone, shEmail) : ce qu'il faut écrire. */
-.erreur-du-champ{display:block;margin-top:4px;color:var(--bad);font-size:12.5px;font-weight:400}
+/* Sous un numéro ou un email qui ne se lit pas (shTelephone, shEmail) : ce qu'il faut écrire. Le message est posé sous le
+   champ sans changer sa hauteur, pour que les champs voisins restent alignés ; la ligne suivante s'écarte pour lui. */
+:has(> .erreur-du-champ){position:relative}
+.erreur-du-champ{position:absolute;left:0;right:0;top:calc(100% + 3px);color:var(--bad);font-size:12.5px;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.champs:has(.erreur-du-champ){row-gap:28px}
+.f:has(> .erreur-du-champ):not(.champs .f){margin-bottom:18px}
 /* Après « Enregistrer », un champ obligatoire vide (ou une heure illisible) est entouré de rouge jusqu'à ce qu'il soit rempli. */
 :is(form.ng-submitted,form.champs-verifies) :is(input,select,textarea):is(.ng-invalid,.manquant){border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
 
