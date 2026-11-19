@@ -26,10 +26,12 @@
 .case { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .aide, .vide, .note { margin: 0; }
 .aide, .vide { color: var(--ink-2); }
-.matiere { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
-.matiere:first-of-type { border-top: 0; }
-.matiere .inp { min-width: 0; }
 .envoi { display: grid; gap: 10px; justify-items: start; }
 
 /* Le champ piège reste dans la page, hors de l'écran : un robot le voit, une personne non. */
 .piege { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+/* L'établissement : la liste seule ; avec « Autre… », la liste et le nom écrit côte à côte, sur toute la ligne. */
+.controles { display: grid; gap: 8px; }
+.etablissement-autre { grid-column: 1 / -1; max-width: none; }
+.etablissement-autre .controles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) { .etablissement-autre .controles { grid-template-columns: minmax(0, 1fr); } }

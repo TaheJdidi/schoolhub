@@ -86,6 +86,7 @@ describe("les adresses de l'application", () => {
       montantDeLAssurance: null, prixDeLEntreeALaBibliotheque: null, capaciteDeLaBibliotheque: null, partDuCentreParDefaut: null,
     });
     http.expectOne('/api/niveaux').flush([]);
+    http.expectOne('/api/etablissements').flush([]);
     await harness.fixture.whenStable();
 
     expect(texte()).toContain('Les informations et les prix de votre centre.');

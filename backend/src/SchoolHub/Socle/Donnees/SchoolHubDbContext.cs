@@ -37,6 +37,8 @@ public class SchoolHubDbContext(DbContextOptions options, CentreCourant centreCo
 
     public DbSet<Niveau> Niveaux => Set<Niveau>();
 
+    public DbSet<Etablissement> Etablissements => Set<Etablissement>();
+
     public DbSet<Professeur> Professeurs => Set<Professeur>();
 
     public DbSet<Matiere> Matieres => Set<Matiere>();

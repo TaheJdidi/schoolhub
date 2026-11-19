@@ -129,8 +129,12 @@ public sealed record NiveauDuFormulaire(Guid Id, string Nom, bool DOffice);
 /// <summary>Un groupe proposé : la matière, le niveau (vide pour une Formation ouverte à tous), le type, le professeur et l'horaire.</summary>
 public sealed record GroupeDuFormulaire(Guid Id, string Matiere, Guid? NiveauId, string Type, string Professeur, List<CreneauDuGroupe> Creneaux);
 
-/// <summary>Le formulaire public d'un centre : son nom, son année scolaire (« 2027-2028 »), ses niveaux et ses groupes.</summary>
-public sealed record FormulaireDuCentre(string Centre, string? Annee, List<NiveauDuFormulaire> Niveaux, List<GroupeDuFormulaire> Groupes);
+/// <summary>
+/// Le formulaire public d'un centre : son nom, son année scolaire (« 2027-2028 »), ses niveaux, ses groupes, et les
+/// établissements de sa liste, par nom.
+/// </summary>
+public sealed record FormulaireDuCentre(
+    string Centre, string? Annee, List<NiveauDuFormulaire> Niveaux, List<GroupeDuFormulaire> Groupes, List<string> Etablissements);
 
 /// <summary>
 /// Ce que le formulaire envoie : la fiche de l'élève, son groupe préféré pour chaque matière, les amis cités, et le champ

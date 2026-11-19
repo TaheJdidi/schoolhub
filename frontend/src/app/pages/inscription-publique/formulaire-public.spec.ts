@@ -26,6 +26,7 @@ describe("le formulaire public d'inscription", () => {
       { id: 'g4', matiere: 'Mathématiques', niveauId: 'n9', type: 'Revision', professeur: 'Sami Trabelsi', creneaux: [{ jour: 'Mardi', debut: '17:00', fin: '19:00' }] },
       { id: 'g5', matiere: 'Mathématiques', niveauId: 'n8', type: 'Etude', professeur: 'Sami Trabelsi', creneaux: SAMEDI },
     ],
+    etablissements: [],
   };
 
   let http: HttpTestingController;
@@ -59,7 +60,8 @@ describe("le formulaire public d'inscription", () => {
 
   const texte = () => page.textContent ?? '';
   const bouton = () => page.querySelector('button[type="submit"]') as HTMLButtonElement;
-  const matieres = () => [...page.querySelectorAll('.matiere > label')].map((l) => l.textContent?.trim());
+  const liste = (nom: string) => page.querySelector(`select[aria-label="${nom}"]`) as HTMLSelectElement;
+  const options = (nom: string) => [...liste(nom).options].map((o) => o.textContent?.trim());
 
   async function choisirLeNiveau(id: string): Promise<void> {
     const niveau = page.querySelector('select[aria-label="Niveau scolaire"]') as HTMLSelectElement;
@@ -68,8 +70,9 @@ describe("le formulaire public d'inscription", () => {
     await harness.fixture.whenStable();
   }
 
-  async function cocher(matiere: string): Promise<void> {
-    (page.querySelector(`input[type="checkbox"][aria-label="${matiere}"]`) as HTMLInputElement).click();
+  async function choisir(nom: string, valeur: string): Promise<void> {
+    liste(nom).value = valeur;
+    liste(nom).dispatchEvent(new Event('change'));
     await harness.fixture.whenStable();
   }
 
@@ -95,34 +98,87 @@ describe("le formulaire public d'inscription", () => {
     expect(page.querySelector('h1')?.textContent?.trim()).toBe("Demande d'inscription");
   });
 
-  it('propose les matières du niveau, et les Formations ouvertes à tous', async () => {
+  it('propose les matières du niveau et les Formations ouvertes à tous, puis leurs professeurs', async () => {
     await ouvrir();
 
     await choisirLeNiveau('n9');
-    expect(matieres()).toEqual(['Informatique', 'Mathématiques']);
+    expect(options('Matière souhaitée')).toEqual(['Choisir…', 'Informatique', 'Mathématiques']);
+    expect(liste('Professeur souhaité').disabled).toBe(true);
 
-    await cocher('Mathématiques');
-    const groupes = page.querySelector('select[aria-label="Groupe préféré en Mathématiques"]') as HTMLSelectElement;
-    expect([...groupes.options].map((o) => o.textContent?.trim())).toEqual([
-      'Karim Ben Salah · Samedi 10h → 12h',
-      'Sami Trabelsi · Mardi 17h → 19h · Révision',
-    ]);
-    await cocher('Informatique');
-    const informatique = page.querySelector('select[aria-label="Groupe préféré en Informatique"]') as HTMLSelectElement;
-    expect(informatique.options[0].textContent?.trim()).toBe('Karim Ben Salah · Samedi 10h → 12h · Formation');
+    await choisir('Matière souhaitée', 'Mathématiques');
+    expect(liste('Professeur souhaité').disabled).toBe(false);
+    expect(options('Professeur souhaité')).toEqual(['Choisir…', 'Karim Ben Salah', 'Sami Trabelsi']);
+    await choisir('Professeur souhaité', 'Sami Trabelsi');
+    expect(texte()).toContain('Horaire : Mardi 17h → 19h · Révision');
+
+    // Un seul professeur dans la matière : il est choisi d'office.
+    await choisir('Matière souhaitée', 'Informatique');
+    expect(liste('Professeur souhaité').value).toBe('Karim Ben Salah');
+    expect(texte()).toContain('Horaire : Samedi 10h → 12h · Formation');
   });
 
-  it('envoie le groupe affiché quand le niveau change', async () => {
+  it("fait choisir l'horaire quand le professeur a plusieurs groupes de la matière", async () => {
+    await ouvrir({
+      ...FORMULAIRE,
+      groupes: [
+        ...FORMULAIRE.groupes,
+        { id: 'g6', matiere: 'Mathématiques', niveauId: 'n9', type: 'Etude', professeur: 'Karim Ben Salah', creneaux: [{ jour: 'Lundi', debut: '17:00', fin: '19:00' }] },
+      ],
+    });
+    await choisirLeNiveau('n9');
+    await choisir('Matière souhaitée', 'Mathématiques');
+    await choisir('Professeur souhaité', 'Karim Ben Salah');
+
+    expect(options('Horaire préféré')).toEqual(['Samedi 10h → 12h', 'Lundi 17h → 19h']);
+    await choisir('Horaire préféré', 'g6');
+    const requete = await envoyer();
+    expect(requete.request.body.groupes).toEqual(['g6']);
+    requete.flush({ prenom: 'Adem' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('garde la matière et le professeur quand le niveau change, s’ils y sont encore proposés', async () => {
     await ouvrir();
     await choisirLeNiveau('n8');
-    await cocher('Mathématiques');
+    await choisir('Matière souhaitée', 'Mathématiques');
+    expect(liste('Professeur souhaité').value).toBe('Sami Trabelsi');
 
-    // Le groupe de 8ᵉ n'est plus proposé en 9ᵉ : la matière reste cochée, avec le premier groupe de la 9ᵉ.
+    // En 9ᵉ, Sami Trabelsi a la Révision de Mathématiques : c'est elle qui part.
     await choisirLeNiveau('n9');
-    const groupes = page.querySelector('select[aria-label="Groupe préféré en Mathématiques"]') as HTMLSelectElement;
-    expect(groupes.value).toBe('g1');
+    expect(liste('Matière souhaitée').value).toBe('Mathématiques');
+    expect(liste('Professeur souhaité').value).toBe('Sami Trabelsi');
     const requete = await envoyer();
-    expect(requete.request.body.groupes).toEqual(['g1']);
+    expect(requete.request.body.groupes).toEqual(['g4']);
+    requete.flush({ prenom: 'Adem' }, { status: 201, statusText: 'Created' });
+  });
+
+  it('demande la matière puis le professeur avant d’envoyer', async () => {
+    await ouvrir();
+    await choisirLeNiveau('n9');
+
+    bouton().click();
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain('Choisissez la matière souhaitée'));
+    await choisir('Matière souhaitée', 'Mathématiques');
+    bouton().click();
+    await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain('Choisissez le professeur souhaité'));
+  });
+
+  it("propose les établissements du centre, et « Autre… » pour écrire un nom absent de la liste", async () => {
+    await ouvrir({ ...FORMULAIRE, etablissements: ['Collège Ibn Khaldoun', 'Lycée Pilote Ariana'] });
+    await choisirLeNiveau('n9');
+    await choisir('Matière souhaitée', 'Mathématiques');
+    await choisir('Professeur souhaité', 'Sami Trabelsi');
+
+    expect(options('Établissement scolaire')).toEqual(['Choisir…', 'Collège Ibn Khaldoun', 'Lycée Pilote Ariana', 'Autre…']);
+    expect(page.querySelector(`[aria-label="Nom de l'établissement"]`)).toBeNull();
+    await choisir('Établissement scolaire', 'Lycée Pilote Ariana');
+    let requete = await envoyer();
+    expect(requete.request.body.etablissement).toBe('Lycée Pilote Ariana');
+    requete.flush({ message: 'Le prénom est obligatoire' }, { status: 400, statusText: 'Bad Request' });
+
+    await choisir('Établissement scolaire', '__autre__');
+    saisir(page, `[aria-label="Nom de l'établissement"]`, 'École primaire El Menzah 5');
+    requete = await envoyer();
+    expect(requete.request.body.etablissement).toBe('École primaire El Menzah 5');
     requete.flush({ prenom: 'Adem' }, { status: 201, statusText: 'Created' });
   });
 
@@ -148,12 +204,9 @@ describe("le formulaire public d'inscription", () => {
     saisir(page, '[aria-label="Téléphone de l\'élève"]', '22 345 678');
     saisir(page, '[aria-label="Email de l\'élève"]', 'adem@exemple.tn');
     saisir(page, '[aria-label="Téléphone WhatsApp du parent"]', '98 401 220');
-    await cocher('Mathématiques');
-    const groupes = page.querySelector('select[aria-label="Groupe préféré en Mathématiques"]') as HTMLSelectElement;
-    groupes.value = 'g4';
-    groupes.dispatchEvent(new Event('change'));
-    await cocher('Informatique');
-    saisir(page, '[aria-label="Amis qui suivront le même groupe"]', 'Sami Chaabane');
+    saisir(page, '[aria-label="Établissement scolaire"]', 'Collège Ibn Khaldoun');
+    await choisir('Matière souhaitée', 'Mathématiques');
+    await choisir('Professeur souhaité', 'Sami Trabelsi');
 
     const requete = await envoyer();
     expect(requete.request.body).toEqual({
@@ -165,9 +218,8 @@ describe("le formulaire public d'inscription", () => {
       emailParent: null,
       telephoneEleve: '22 345 678',
       emailEleve: 'adem@exemple.tn',
-      etablissement: null,
-      groupes: ['g3', 'g4'],
-      amis: 'Sami Chaabane',
+      etablissement: 'Collège Ibn Khaldoun',
+      groupes: ['g4'],
       siteWeb: null,
     });
     await vi.waitFor(() => expect(bouton().disabled).toBe(true));
@@ -179,6 +231,21 @@ describe("le formulaire public d'inscription", () => {
       ),
     );
     expect(page.querySelector('form')).toBeNull();
+  });
+
+  it('entoure de rouge les champs obligatoires encore vides après « Envoyer ma demande »', async () => {
+    await ouvrir();
+    const formulaire = page.querySelector('form') as HTMLFormElement;
+    const prenom = page.querySelector('[aria-label="Prénom"]') as HTMLInputElement;
+    expect(formulaire.classList).not.toContain('champs-verifies');
+    expect(prenom.required).toBe(true);
+    expect((page.querySelector('[aria-label="Email du parent"]') as HTMLInputElement).required).toBe(false);
+
+    (await envoyer()).flush({ message: 'Le prénom est obligatoire' }, { status: 400, statusText: 'Bad Request' });
+    await vi.waitFor(() => expect(formulaire.classList).toContain('champs-verifies'));
+    expect(prenom.matches(':invalid')).toBe(true);
+    saisir(page, '[aria-label="Prénom"]', 'Adem');
+    expect(prenom.matches(':invalid')).toBe(false);
   });
 
   it('cache le champ piège aux personnes', async () => {

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { CarteDesEtablissements } from './carte-des-etablissements';
 import { CarteDesNiveaux } from './carte-des-niveaux';
 import { CarteDuCentre } from './carte-du-centre';
 
@@ -6,7 +7,7 @@ import { CarteDuCentre } from './carte-du-centre';
 @Component({
   selector: 'sh-parametres',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CarteDuCentre, CarteDesNiveaux],
+  imports: [CarteDuCentre, CarteDesNiveaux, CarteDesEtablissements],
   template: `
     <div class="pagehead">
       <div>
@@ -17,6 +18,7 @@ import { CarteDuCentre } from './carte-du-centre';
     <div class="cartes">
       <sh-carte-du-centre />
       <sh-carte-des-niveaux />
+      <sh-carte-des-etablissements />
     </div>
   `,
   styles: '.cartes { display: grid; gap: 16px; }',

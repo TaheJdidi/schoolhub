@@ -63,11 +63,11 @@ public sealed class TraiterLesDemandesTests(PostgreSqlDeTest postgreSql) : IAsyn
 
     /// <summary>Adem Miled, en 9ᵉ année de base, qui veut les Mathématiques et l'Informatique, avec son ami Sami.</summary>
     private DemandeEnvoyee Adem => new(
-        "Adem", "Miled", Niveau("9ᵉ année de base"), false, "98 401 220", null, "22 345 678", "adem@exemple.tn", null,
+        "Adem", "Miled", Niveau("9ᵉ année de base"), false, "98 401 220", null, "22 345 678", "adem@exemple.tn", "Collège Ibn Khaldoun",
         [_maths, _informatique], "Sami Chaabane", null);
 
     private DemandeEnvoyee Lina => new(
-        "Lina", "Gharbi", Niveau("9ᵉ année de base"), false, "97 111 222", null, "50 111 222", "lina@exemple.tn", null, [_maths], null, null);
+        "Lina", "Gharbi", Niveau("9ᵉ année de base"), false, "97 111 222", null, "50 111 222", "lina@exemple.tn", "Collège Ibn Khaldoun", [_maths], null, null);
 
     /// <summary>La fiche telle que la demande l'a envoyée, vérifiée par la secrétaire.</summary>
     private FicheSaisieDeLEleve FicheDAdem => new("Adem", "Miled", Niveau("9ᵉ année de base"), false, "98 401 220", null, "22 345 678", "adem@exemple.tn", null);

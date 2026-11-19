@@ -16,9 +16,13 @@ interface MatiereProposee {
 
 /**
  * DEM-01 : le formulaire public d'inscription d'un centre, ouvert sans compte depuis son lien ou son QR code. La fiche
- * de l'élève suit les règles d'ELV-02 (le serveur les vérifie) ; pour chaque matière cochée, l'élève choisit son groupe
- * préféré parmi ceux de son niveau et les Formations ouvertes à tous. Un champ piège, invisible, arrête les robots.
+ * de l'élève suit les règles d'ELV-02 (le serveur les vérifie), avec l'établissement en plus. Chaque élève s'inscrit
+ * seul : il choisit une matière, puis son professeur, parmi les groupes de son niveau et les Formations ouvertes à tous
+ * (et l'horaire, si ce professeur en a plusieurs). Un champ piège, invisible, arrête les robots.
  */
+/** La valeur de « Autre… » dans la liste des établissements, qu'aucun vrai nom n'a. */
+const AUTRE_ETABLISSEMENT = '__autre__';
+
 @Component({
   selector: 'sh-formulaire-public',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,22 +38,29 @@ export class FormulairePublic implements OnInit {
   protected readonly introuvable = signal(false);
   protected readonly envoi = signal(false);
   protected readonly erreur = signal<string | null>(null);
+  /** Après « Envoyer ma demande », les champs obligatoires encore vides sont entourés de rouge. */
+  protected readonly champsVerifies = signal(false);
   /** Le prénom de la demande envoyée : la page dit merci. */
   protected readonly merci = signal<string | null>(null);
 
   protected readonly prenom = signal('');
   protected readonly nom = signal('');
   protected readonly niveauId = signal('');
+  /** Ce qui part au serveur : le nom choisi dans la liste, ou celui écrit après « Autre… ». */
   protected readonly etablissement = signal('');
+  /** Ce que la liste montre : un nom de la liste, « Autre… », ou rien encore. */
+  protected readonly choixDeLEtablissement = signal('');
+  protected readonly AUTRE = AUTRE_ETABLISSEMENT;
   protected readonly telephoneEleve = signal('');
   protected readonly emailEleve = signal('');
   protected readonly majeur = signal(false);
   protected readonly telephoneParent = signal('');
   protected readonly emailParent = signal('');
-  protected readonly amis = signal('');
   protected readonly siteWeb = signal('');
-  /** Le groupe préféré de chaque matière cochée. */
-  protected readonly choix = signal<Readonly<Record<string, string>>>({});
+  /** La matière souhaitée, le professeur souhaité dans cette matière, et le groupe qui en découle. */
+  protected readonly matiere = signal('');
+  protected readonly professeur = signal('');
+  protected readonly groupeId = signal('');
 
   protected readonly titre = computed(() => {
     const annee = this.formulaire()?.annee;
@@ -87,54 +98,77 @@ export class FormulairePublic implements OnInit {
     champ.set((evenement.target as HTMLInputElement).value);
   }
 
+  /** Un nom de la liste part tel quel ; « Autre… » ouvre un champ, vide, pour écrire le nom. */
+  protected choisirLEtablissement(evenement: Event): void {
+    const choix = (evenement.target as HTMLSelectElement).value;
+    this.choixDeLEtablissement.set(choix);
+    this.etablissement.set(choix === AUTRE_ETABLISSEMENT ? '' : choix);
+  }
+
   protected basculerMajeur(evenement: Event): void {
     this.majeur.set((evenement.target as HTMLInputElement).checked);
   }
 
-  /**
-   * Un autre niveau : les matières qui n'y sont plus proposées sont décochées ; une matière encore proposée garde son
-   * groupe s'il l'est aussi, sinon elle prend le premier groupe du nouveau niveau, celui que la liste affiche.
-   */
+  /** Les professeurs de la matière choisie, au niveau de l'élève, sans doublon, dans l'ordre du serveur. */
+  protected readonly professeurs = computed(() => {
+    const proposee = this.matieres().find((m) => m.matiere === this.matiere());
+    return [...new Set((proposee?.groupes ?? []).map((g) => g.professeur))];
+  });
+
+  /** Les groupes du professeur choisi dans cette matière : un seul le plus souvent, sinon on choisit l'horaire. */
+  protected readonly horaires = computed(() => {
+    const proposee = this.matieres().find((m) => m.matiere === this.matiere());
+    return (proposee?.groupes ?? []).filter((g) => g.professeur === this.professeur());
+  });
+
+  /** Un autre niveau : la matière et le professeur restent s'ils y sont encore proposés, sinon on les rechoisit. */
   protected choisirLeNiveau(evenement: Event): void {
     this.niveauId.set((evenement.target as HTMLSelectElement).value);
-    const proposees = new Map(this.matieres().map((m) => [m.matiere, m.groupes]));
-    this.choix.update((choix) =>
-      Object.fromEntries(
-        Object.entries(choix).flatMap(([matiere, groupe]) => {
-          const groupes = proposees.get(matiere);
-          if (!groupes) return [];
-          return [[matiere, groupes.some((g) => g.id === groupe) ? groupe : groupes[0].id]];
-        }),
-      ),
-    );
+    if (!this.matieres().some((m) => m.matiere === this.matiere())) this.matiere.set('');
+    if (!this.professeurs().includes(this.professeur())) this.professeur.set('');
+    this.garderLeGroupe();
   }
 
-  /** Cochée, une matière propose son premier groupe ; décochée, elle sort de la demande. */
-  protected cocher(matiere: MatiereProposee, evenement: Event): void {
-    const cochee = (evenement.target as HTMLInputElement).checked;
-    this.choix.update((choix) => {
-      const { [matiere.matiere]: _retiree, ...autres } = choix;
-      return cochee ? { ...autres, [matiere.matiere]: matiere.groupes[0].id } : autres;
-    });
+  protected choisirLaMatiere(evenement: Event): void {
+    this.matiere.set((evenement.target as HTMLSelectElement).value);
+    // Un seul professeur dans cette matière : il est choisi d'office.
+    const professeurs = this.professeurs();
+    this.professeur.set(professeurs.length === 1 ? professeurs[0] : professeurs.includes(this.professeur()) ? this.professeur() : '');
+    this.garderLeGroupe();
   }
 
-  protected choisirLeGroupe(matiere: string, evenement: Event): void {
-    const groupe = (evenement.target as HTMLSelectElement).value;
-    this.choix.update((choix) => ({ ...choix, [matiere]: groupe }));
+  protected choisirLeProfesseur(evenement: Event): void {
+    this.professeur.set((evenement.target as HTMLSelectElement).value);
+    this.garderLeGroupe();
   }
 
-  /** « Karim Ben Salah · Samedi 10h → 12h · Révision ». */
-  protected libelle(groupe: GroupeDuFormulaire): string {
+  protected choisirLeGroupe(evenement: Event): void {
+    this.groupeId.set((evenement.target as HTMLSelectElement).value);
+  }
+
+  /** Le groupe reste s'il est encore parmi les horaires du professeur ; sinon c'est le premier, celui que la liste montre. */
+  private garderLeGroupe(): void {
+    const horaires = this.horaires();
+    this.groupeId.set(horaires.some((g) => g.id === this.groupeId()) ? this.groupeId() : (horaires[0]?.id ?? ''));
+  }
+
+  /** « Samedi 10h → 12h · Révision ». */
+  protected horaire(groupe: GroupeDuFormulaire): string {
     const horaire = groupe.creneaux.map((c) => `${c.jour} ${heure(c.debut)} → ${heure(c.fin)}`).join(', ');
     const type = groupe.type === 'Revision' ? ' · Révision' : groupe.type === 'Formation' ? ' · Formation' : '';
-    return `${groupe.professeur} · ${horaire}${type}`;
+    return `${horaire}${type}`;
   }
 
   protected async envoyer(evenement: Event): Promise<void> {
     evenement.preventDefault();
     if (this.envoi()) return;
+    this.champsVerifies.set(true);
+    // Le serveur le dit aussi ; ici, la personne le sait sans attendre.
+    if (this.niveauId() !== '' && this.matieres().length > 0 && !this.groupeId()) {
+      this.erreur.set(this.matiere() === '' ? 'Choisissez la matière souhaitée' : 'Choisissez le professeur souhaité');
+      return;
+    }
     const ouNull = (valeur: string) => (valeur.trim() === '' ? null : valeur.trim());
-    const choix = this.choix();
     const demande = {
       prenom: ouNull(this.prenom()),
       nom: ouNull(this.nom()),
@@ -145,9 +179,7 @@ export class FormulairePublic implements OnInit {
       telephoneEleve: ouNull(this.telephoneEleve()),
       emailEleve: ouNull(this.emailEleve()),
       etablissement: ouNull(this.etablissement()),
-      // Dans l'ordre des matières de la page.
-      groupes: this.matieres().filter((m) => choix[m.matiere]).map((m) => choix[m.matiere]),
-      amis: ouNull(this.amis()),
+      groupes: this.groupeId() ? [this.groupeId()] : [],
       siteWeb: ouNull(this.siteWeb()),
     };
     this.envoi.set(true);

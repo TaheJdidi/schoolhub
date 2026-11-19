@@ -17,6 +17,7 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
     internal const string TropDEnvois = "Trop de demandes envoyées depuis cette connexion. Réessayez dans une heure.";
     private const string LienInconnu = "Ce lien d'inscription n'existe pas";
     private const string AucuneMatiere = "Choisissez au moins une matière";
+    private const string EtablissementObligatoire = "L'établissement scolaire est obligatoire";
     private const string GroupePlusPropose = "Ce groupe n'est plus proposé";
     private const string UnGroupeParMatiere = "Choisissez un seul groupe par matière";
     private const string AmisTropLongs = "Les amis font au plus 500 caractères";
@@ -35,7 +36,8 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
             centre.Nom,
             annee is null ? null : $"{annee.Debut.Year}-{annee.Fin.Year}",
             niveaux.Select(n => new NiveauDuFormulaire(n.Id, n.Nom, n.DOffice)).ToList(),
-            await GroupesProposesAsync(contexte));
+            await GroupesProposesAsync(contexte),
+            await contexte.Etablissements.OrderBy(e => e.Nom).Select(e => e.Nom).ToListAsync());
     }
 
     /// <summary>
@@ -56,6 +58,9 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
         var (fiche, refusDeLaFiche) = await eleves.VerifierLaFicheAsync(envoi.Fiche);
         if (refusDeLaFiche is not null)
             return Refus(refusDeLaFiche.Statut, refusDeLaFiche.Message!);
+        // Facultatif sur la fiche que le centre remplit, l'établissement est demandé à qui s'inscrit seul.
+        if (fiche!.Etablissement is null)
+            return Refus(StatusCodes.Status400BadRequest, EtablissementObligatoire);
 
         var choisis = (envoi.Groupes ?? []).Distinct().ToList();
         if (choisis.Count == 0)

@@ -69,7 +69,7 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
     /// <summary>Adem Miled, en 9ᵉ année de base, qui veut les Mathématiques et l'Informatique.</summary>
     private DemandeEnvoyee Adem => new(
-        "Adem", "Miled", Niveau("9ᵉ année de base"), false, "98 401 220", null, "22 345 678", "adem@exemple.tn", null,
+        "Adem", "Miled", Niveau("9ᵉ année de base"), false, "98 401 220", null, "22 345 678", "adem@exemple.tn", "Collège Ibn Khaldoun",
         [_maths, _informatique], "  Sami Chaabane ", null);
 
     // ----- Le formulaire -----
@@ -119,6 +119,7 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
     [Theory]
     [InlineData("sans prénom", "Le prénom est obligatoire")]
+    [InlineData("sans établissement", "L'établissement scolaire est obligatoire")]
     [InlineData("aucun groupe", "Choisissez au moins une matière")]
     [InlineData("groupe d'un autre niveau", "Ce groupe n'est plus proposé")]
     [InlineData("groupe inconnu", "Ce groupe n'est plus proposé")]
@@ -129,6 +130,7 @@ public sealed class FormulairePublicTests(PostgreSqlDeTest postgreSql) : IAsyncL
         var demande = cas switch
         {
             "sans prénom" => Adem with { Prenom = " " },
+            "sans établissement" => Adem with { Etablissement = "  " },
             "aucun groupe" => Adem with { Groupes = [] },
             "groupe d'un autre niveau" => Adem with { Groupes = [_arabe] },
             "groupe inconnu" => Adem with { Groupes = [Guid.NewGuid()] },

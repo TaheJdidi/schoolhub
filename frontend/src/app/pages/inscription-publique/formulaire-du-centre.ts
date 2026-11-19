@@ -19,4 +19,6 @@ export interface FormulaireDuCentre {
   annee: string | null;
   niveaux: Niveau[];
   groupes: GroupeDuFormulaire[];
+  /** Les établissements de la liste du centre, par nom ; vide, le formulaire montre un champ libre. */
+  etablissements: string[];
 }
