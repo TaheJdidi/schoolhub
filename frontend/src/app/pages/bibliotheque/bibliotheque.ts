@@ -11,6 +11,7 @@ import { EnregistrementDeLEleve, EleveTrouve } from '../eleves/eleve';
 import { FormulaireDeLEleve } from '../eleves/formulaire-de-l-eleve';
 import { dateDuJourLocale } from '../groupes/groupe';
 import { RecuDecrit } from '../caisse/recu';
+import { Icone } from '../../socle/icone';
 
 /** Une entrée dans la liste (GET /api/bibliotheque). */
 export interface EntreeDecrite {
@@ -53,7 +54,7 @@ export interface EntreeEnregistree {
 @Component({
   selector: 'sh-bibliotheque',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormulaireDeLEleve, ActionsDeListe],
+  imports: [RouterLink, FormulaireDeLEleve, ActionsDeListe, Icone],
   template: `
     <div class="pagehead">
       <div>
@@ -142,29 +143,50 @@ export interface EntreeEnregistree {
 
       @if (estAujourdhui()) {
         <section class="card carte nouvelle" aria-labelledby="t-nouvelle">
-          <h2 class="titre" id="t-nouvelle">Nouvelle entrée</h2>
+          <div class="entete-nouvelle">
+            <h2 class="titre" id="t-nouvelle">Nouvelle entrée</h2>
+            @if (journee()?.prix; as prix) {
+              <span class="prix"><b class="num">{{ montant(prix) }}</b> TND</span>
+            }
+          </div>
           @if (plein()) {
             <p class="note warn">La bibliothèque est pleine. Vous pouvez quand même noter l'entrée.</p>
           }
+          <!-- Qui entre : un élève du centre (on le cherche) ou une personne de l'extérieur (on remplit sa fiche). -->
+          <div class="qui" role="group" aria-label="Qui entre">
+            <button type="button" [class.choisi]="!exterieur()" [attr.aria-pressed]="!exterieur()" (click)="exterieur.set(false)">
+              <sh-icone nom="graduation-cap" />Du centre
+            </button>
+            <button type="button" [class.choisi]="exterieur()" [attr.aria-pressed]="exterieur()" (click)="exterieur.set(true)">
+              <sh-icone nom="users" />Extérieur
+            </button>
+          </div>
           @if (exterieur()) {
+            <p class="aide">Elle est enregistrée comme élève sans groupe. Le reçu se remet seulement si elle le demande.</p>
             <sh-formulaire-de-l-eleve brouillonDeLaCreation="bibliotheque-exterieur" [sansParent]="true" (enregistre)="entrerLExterieur($event)" (annule)="exterieur.set(false)" />
           } @else {
-            <label class="f">
-              Élève du centre
-              <input #recherche autocomplete="off" placeholder="Nom ou prénom" [value]="saisie()" (input)="chercher(recherche.value)" />
-            </label>
-            @for (eleve of trouves(); track eleve.id) {
-              <button type="button" class="trouve" [disabled]="envoi()" (click)="entrer(eleve.id)">
-                <span class="deux"><b>{{ eleve.prenom }} {{ eleve.nom }}</b><small>{{ eleve.niveau }}</small></span>
-                <span class="btn sm primary">{{ montant(journee()?.prix ?? 0) }} TND</span>
-              </button>
-            } @empty {
-              @if (saisie().trim().length >= 2) {
-                <p class="aide">Aucun élève trouvé. Utilisez « Personne de l'extérieur ».</p>
-              }
+            <div class="cherche">
+              <sh-icone nom="search" />
+              <input #recherche autocomplete="off" placeholder="Nom ou prénom de l'élève" aria-label="Chercher un élève du centre" [value]="saisie()" (input)="chercher(recherche.value)" />
+            </div>
+            @if (trouves().length) {
+              <div class="trouves">
+                @for (eleve of trouves(); track eleve.id) {
+                  <button type="button" class="trouve" [disabled]="envoi()" (click)="entrer(eleve.id)">
+                    <span class="initiales" aria-hidden="true">{{ eleve.prenom.charAt(0) }}{{ eleve.nom.charAt(0) }}</span>
+                    <span class="deux"><b>{{ eleve.prenom }} {{ eleve.nom }}</b><small>{{ eleve.niveau }}</small></span>
+                    <span class="btn sm primary">Entrer</span>
+                  </button>
+                }
+              </div>
+            } @else if (saisie().trim().length >= 2) {
+              <p class="vide-recherche">
+                Aucun élève trouvé.
+                <button type="button" class="lien" (click)="exterieur.set(true)">L'entrer comme personne de l'extérieur</button>
+              </p>
+            } @else {
+              <p class="aide">Tapez au moins 2 lettres, puis touchez l'élève pour noter son entrée et son reçu.</p>
             }
-            <button type="button" class="btn" (click)="exterieur.set(true)">Personne de l'extérieur</button>
-            <p class="aide">Une personne de l'extérieur est enregistrée comme élève sans groupe. Le reçu se remet seulement si elle le demande.</p>
           }
           @for (avertissement of avertissements(); track avertissement) {
             <p class="note warn" role="status">{{ avertissement }}</p>
@@ -189,7 +211,7 @@ export interface EntreeEnregistree {
     .chiffres div.plein { border-color: var(--warn); }
     .chiffres span, .chiffres small { color: var(--ink-2); font-size: 13px; }
     .chiffres b { font-family: var(--font-display); font-size: 26px; font-weight: 600; line-height: 1.2; }
-    .deux-colonnes { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+    .deux-colonnes { grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr); align-items: start; }
     @media (max-width: 900px) { .deux-colonnes { grid-template-columns: minmax(0, 1fr); } }
     /* La fiche d'une personne de l'extérieur tient dans la carte : ses champs passent les uns sous les autres. */
     .nouvelle sh-formulaire-de-l-eleve { display: block; min-width: 0; }
@@ -201,8 +223,25 @@ export interface EntreeEnregistree {
     tr.annulee td:first-child a { text-decoration: line-through; }
     .depart { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .lien { background: none; border: 0; padding: 0; color: var(--ink-2); text-decoration: underline; cursor: pointer; font-size: 12.5px; }
-    .nouvelle { display: grid; gap: 10px; }
-    .trouve { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; }
+    .nouvelle { display: grid; gap: 12px; }
+    .entete-nouvelle { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .entete-nouvelle .titre { margin: 0; }
+    .prix { padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12.5px; white-space: nowrap; }
+    /* Deux onglets côte à côte, sur un fond gris : celui qui est choisi est blanc. */
+    .qui { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: var(--sunk); }
+    .qui button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 8px; border: 0; border-radius: 7px;
+      background: none; color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; white-space: nowrap; }
+    .qui button:hover { color: var(--ink); }
+    .qui button.choisi { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 2px rgb(0 0 0 / 8%); }
+    .cherche { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); color: var(--ink-3); }
+    .cherche:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .cherche input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--ink); padding: 10px 0; }
+    .trouves { display: grid; gap: 6px; }
+    .trouve { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; font: inherit; color: var(--ink); }
+    .trouve:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .initiales { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+    .vide-recherche { margin: 0; padding: 12px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-2); font-size: 13px; text-align: center; }
+    .vide-recherche .lien { display: block; margin: 4px auto 0; color: var(--accent); font-size: 13px; }
     .deux { display: grid; flex: 1; min-width: 0; }
     .deux small { color: var(--ink-2); font-size: 12.5px; }
     @media print { .jour, .nouvelle, .depart { display: none; } }

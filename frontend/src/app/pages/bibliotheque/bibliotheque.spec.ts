@@ -113,7 +113,7 @@ describe('la bibliothèque', () => {
 
     expect(page.querySelector('.chiffres')?.textContent).toContain("Capacité atteinte : l'entrée reste possible");
     expect(page.querySelector('.nouvelle .note.warn')?.textContent).toContain('pleine');
-    expect(bouton("Personne de l'extérieur")).toBeDefined();
+    expect(bouton('Extérieur')).toBeDefined();
   });
 
   it("revoit la liste d'un jour passé, sans nouvelle entrée", async () => {
