@@ -12,7 +12,7 @@ using SchoolHub.Tests.Outils;
 namespace SchoolHub.Tests.Inscriptions;
 
 /// <summary>
-/// ELV-04 à ELV-07 et ELV-10 : ce que l'élève doit, le prix spécial, la dispense, ce qui est payé avant SchoolHub et le
+/// ELV-04 à ELV-07 et ELV-10 : ce que l'élève doit, le prix spécial, la dispense, ce qui est payé avant SchoolUp et le
 /// reste d'une Formation. Chaque test part d'un nouveau centre « Jasmins » (année scolaire du 15/09/2027 au 30/06/2028,
 /// assurance de 20 TND), avec Karim Ben Salah et Adem Miled ; on est le samedi 27/11/2027. Le groupe d'Étude du samedi a
 /// commencé le 18/09 : son Mois 3 va du 13/11 au 04/12, son Mois 4 commence le 11/12.
@@ -228,7 +228,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         Assert.Equal("PayeeAvantSchoolHub", (await reponse.Content.ReadFromJsonAsync<AssuranceDeLEleve>())!.Etat);
         Assert.Equal(["Mois 3 (3 séances)"], (await APayerAsync(_adem)).Lignes.Select(l => l.Libelle));
         var ligne = Assert.Single(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.PayeAvantSchoolHub);
-        Assert.Equal(("Amira Jlassi", "Adem Miled · Assurance 2027-2028", "À payer", "Payé avant SchoolHub, 20,000 TND"),
+        Assert.Equal(("Amira Jlassi", "Adem Miled · Assurance 2027-2028", "À payer", "Payé avant SchoolUp, 20,000 TND"),
             (ligne.Auteur, ligne.Detail, ligne.Avant, ligne.Apres));
         await VerifierLeRefusAsync(await _client.PostAsync(adresse, null), HttpStatusCode.Conflict, "L'assurance est déjà payée");
 
@@ -254,7 +254,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
         Assert.Empty(reglee.PayablesAvantSchoolHub);
         Assert.Empty((await APayerAsync(_adem)).Lignes);
         var ligne = Assert.Single(await _application.JournalAsync(_jasmins), l => l.Action == ActionDuJournal.PayeAvantSchoolHub);
-        Assert.Equal(("Adem Miled · Groupe Samedi 10h → 12h (Physique) · Totalité, séances 4 à 10", "À payer", "Payé avant SchoolHub, 70,000 TND"),
+        Assert.Equal(("Adem Miled · Groupe Samedi 10h → 12h (Physique) · Totalité, séances 4 à 10", "À payer", "Payé avant SchoolUp, 70,000 TND"),
             (ligne.Detail, ligne.Avant, ligne.Apres));
     }
 
@@ -266,9 +266,9 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
 
         Assert.Empty((await InscriptionAsync(etude)).PayablesAvantSchoolHub);
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{etude}/paye-avant-schoolhub", new CleSaisie("Mois 3")),
-            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolUp");
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{revision}/paye-avant-schoolhub", new CleSaisie("Totalité")),
-            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolUp");
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{etude}/paye-avant-schoolhub", new CleSaisie("Mois 99")),
             HttpStatusCode.NotFound, "Somme introuvable");
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{Guid.NewGuid()}/paye-avant-schoolhub", new CleSaisie("Mois 3")),
@@ -297,7 +297,7 @@ public sealed class CeQueLEleveDoitTests(PostgreSqlDeTest postgreSql) : IAsyncLi
 
         Assert.Empty((await InscriptionAsync(inscription)).PayablesAvantSchoolHub);
         await VerifierLeRefusAsync(await _client.PostAsJsonAsync($"/api/inscriptions/{inscription}/paye-avant-schoolhub", new CleSaisie("Séance 4")),
-            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolHub");
+            HttpStatusCode.Conflict, "Cette somme ne date pas d'avant SchoolUp");
     }
 
     [Fact]

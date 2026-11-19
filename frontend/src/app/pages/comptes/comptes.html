@@ -1,7 +1,7 @@
 <div class="pagehead">
   <div>
     <h1 class="h1">Comptes</h1>
-    <p class="sub">Les personnes qui se connectent à SchoolHub pour le {{ centre() }}.</p>
+    <p class="sub">Les personnes qui se connectent à SchoolUp pour le {{ centre() }}.</p>
   </div>
   @if (!formulaireOuvert()) {
     <button type="button" class="btn primary" (click)="ouvrirLeFormulaire()"><sh-icone nom="plus" />Inviter une personne</button>
@@ -37,7 +37,7 @@
         </label>
         <label class="f large">
           Email
-          <input type="email" formControlName="email" autocomplete="off" inputmode="email" placeholder="prenom@exemple.tn" />
+          <input shEmail type="email" formControlName="email" autocomplete="off" inputmode="email" placeholder="prenom@exemple.tn" />
         </label>
         <label class="f">
           Rôle
@@ -50,7 +50,7 @@
       <p class="role-explique">
         <sh-icone nom="user-cog" />
         @if (formulaire.controls.role.value === 'Proprietaire') {
-          <span><b>Propriétaire</b> : tout SchoolHub, avec les parts des professeurs, le tableau de bord, les ressources humaines, le journal, les comptes et les paramètres du centre.</span>
+          <span><b>Propriétaire</b> : tout SchoolUp, avec les parts des professeurs, le tableau de bord, les ressources humaines, le journal, les comptes et les paramètres du centre.</span>
         } @else {
           <span><b>Secrétaire</b> : le travail du quotidien (professeurs, élèves, caisse, bibliothèque, demandes et achats), sans les pages réservées au propriétaire.</span>
         }

@@ -108,7 +108,7 @@ public sealed class EcheancierTests
     [Fact]
     public void Un_groupe_deja_en_cours()
     {
-        // GRP-07 : une Révision saisie à la séance 4 sur 10 n'a dans SchoolHub que ses séances 4 à 10.
+        // GRP-07 : une Révision saisie à la séance 4 sur 10 n'a dans SchoolUp que ses séances 4 à 10.
         var revision = Samedis(7);
         Assert.Equal(
             [new SommeDue("Totalité, séances 4 à 10", 70m, 4, revision[0], "Totalité")],
@@ -299,7 +299,7 @@ public sealed class EcheancierTests
     [Fact]
     public void Le_reste_laisse_a_part_la_tranche_due_a_l_arrivee()
     {
-        // Une Formation saisie à la séance 4 (tranches aux séances 1, 5 et 9) : la tranche 1, d'avant SchoolHub, est due à la
+        // Une Formation saisie à la séance 4 (tranches aux séances 1, 5 et 9) : la tranche 1, d'avant SchoolUp, est due à la
         // première séance de l'élève, encore à venir. « Payer tout le reste » la veille ne regroupe que les tranches 2 et 3.
         var seances = Samedis(7);
         var formation = new CalendrierAPayer(TypeDeGroupe.Formation, 4, seances, [], 300m, 10,

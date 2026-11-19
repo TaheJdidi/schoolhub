@@ -25,7 +25,7 @@ public sealed class GestionDesComptesTests(PostgreSqlDeTest postgreSql) : IAsync
     private const string ChampsObligatoires = "Le prénom, le nom et le rôle sont obligatoires";
     private const string NomTropLong = "Le prénom et le nom font au plus 100 caractères";
     private const string EmailPasValable = "Cet email n'est pas valable";
-    private const string EmailDejaUtilise = "Cet email est déjà utilisé sur SchoolHub";
+    private const string EmailDejaUtilise = "Cet email est déjà utilisé sur SchoolUp";
     private const string InvitationPasPartie = "L'invitation n'est pas partie : réessayez dans un moment";
     private const string AccesReserve = "Accès réservé au propriétaire";
     private const string Introuvable = "Compte introuvable";

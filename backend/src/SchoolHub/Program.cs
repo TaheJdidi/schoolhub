@@ -100,7 +100,7 @@ app.UtiliserLaSession();
 app.UseRateLimiter();
 
 var api = app.MapGroup("/api");
-api.MapGet("/sante", () => "SchoolHub fonctionne.").AllowAnonymous();
+api.MapGet("/sante", () => "SchoolUp fonctionne.").AllowAnonymous();
 api.MapConnexion();
 api.MapInvitation();
 api.MapMotDePasseOublie();

@@ -59,7 +59,7 @@ public sealed class JournalTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
 
         var ligne = Assert.Single(await _application.JournalAsync(_jasmins));
         Assert.Null(ligne.AuteurId);
-        Assert.Equal("SchoolHub", ligne.Auteur);
+        Assert.Equal("SchoolUp", ligne.Auteur);
         Assert.Null(ligne.Avant);
         Assert.Null(ligne.Apres);
     }

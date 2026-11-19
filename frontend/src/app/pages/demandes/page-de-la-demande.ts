@@ -25,6 +25,7 @@ import {
   MOTIFS,
   professeurEtHoraire,
 } from './demande';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 const INCOMPLET = 'Remplissez les champs obligatoires';
 const AUCUN_GROUPE = 'Choisissez au moins un groupe';
@@ -42,7 +43,7 @@ const NOUVELLE_FICHE = '';
 @Component({
   selector: 'sh-page-de-la-demande',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BrouillonRepris],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, RouterLink, BrouillonRepris],
   templateUrl: './page-de-la-demande.html',
   styleUrls: ['../eleves/eleves.css', '../inscriptions/inscriptions.css'],
   styles: `

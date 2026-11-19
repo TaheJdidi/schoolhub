@@ -298,26 +298,26 @@ describe('la fiche d’un élève', () => {
     TestBed.resetTestingModule();
 
     await ouvrir(ADEM, [INSCRIPTION], { ...ASSURANCE, etat: 'PayeeAvantSchoolHub' });
-    expect(carte('assurance').textContent).toContain('payée avant SchoolHub');
-    expect(bouton('Déjà payée avant SchoolHub')).toBeUndefined();
+    expect(carte('assurance').textContent).toContain('payée avant SchoolUp');
+    expect(bouton('Déjà payée avant SchoolUp')).toBeUndefined();
     TestBed.resetTestingModule();
 
     await ouvrir(ADEM, [INSCRIPTION], { ...ASSURANCE, etat: 'Dispensee', raisonDeLaDispense: 'Orphelin' });
     expect(carte('assurance').textContent).toContain('dispensée (Orphelin)');
   });
 
-  it("note l'assurance payée avant SchoolHub, après confirmation", async () => {
+  it("note l'assurance payée avant SchoolUp, après confirmation", async () => {
     await ouvrir(ADEM, [INSCRIPTION], ASSURANCE, DU);
 
-    await cliquer('Déjà payée avant SchoolHub');
-    expect(carte('assurance').textContent).toContain("Noter l'assurance 2027-2028 comme payée avant SchoolHub ?");
+    await cliquer('Déjà payée avant SchoolUp');
+    expect(carte('assurance').textContent).toContain("Noter l'assurance 2027-2028 comme payée avant SchoolUp ?");
     await cliquer('Oui');
     const requete = http.expectOne({ method: 'POST', url: '/api/eleves/e1/assurance/payee-avant-schoolhub' });
     expect(bouton('Oui')?.disabled).toBe(true);
     requete.flush({ ...ASSURANCE, etat: 'PayeeAvantSchoolHub' });
     await rafraichir([INSCRIPTION], { ...ASSURANCE, etat: 'PayeeAvantSchoolHub' });
 
-    await vi.waitFor(() => expect(carte('assurance').querySelector('.etat')?.textContent).toContain('payée avant SchoolHub'));
+    await vi.waitFor(() => expect(carte('assurance').querySelector('.etat')?.textContent).toContain('payée avant SchoolUp'));
     // La carte « À payer » se relit après l'action.
     await encaissable();
     expect(carte('a-payer').textContent).toContain("Rien à payer aujourd'hui.");
@@ -347,7 +347,7 @@ describe('la fiche d’un élève', () => {
   it("montre le refus sous la carte de l'assurance", async () => {
     await ouvrir(ADEM, [INSCRIPTION], ASSURANCE, DU);
 
-    await cliquer('Déjà payée avant SchoolHub');
+    await cliquer('Déjà payée avant SchoolUp');
     await cliquer('Oui');
     http.expectOne('/api/eleves/e1/assurance/payee-avant-schoolhub').flush({ message: "L'assurance est déjà payée" }, { status: 409, statusText: 'Conflict' });
 
@@ -397,7 +397,7 @@ describe('la fiche d’un élève', () => {
     expect(bouton('Prix spécial')).toBeUndefined();
   });
 
-  it('note une somme payée avant SchoolHub, après confirmation', async () => {
+  it('note une somme payée avant SchoolUp, après confirmation', async () => {
     const revision: InscriptionDeLEleve = {
       ...INSCRIPTION,
       groupe: { ...INSCRIPTION.groupe, type: 'Revision', matiere: 'Physique' },
@@ -408,8 +408,8 @@ describe('la fiche d’un élève', () => {
     await ouvrir(ADEM, [revision]);
     expect(carte('inscription').textContent).toContain('Totalité, séances 4 à 10 · 70,000 TND');
 
-    await cliquer('Déjà payé avant SchoolHub');
-    expect(carte('inscription').textContent).toContain('Noter « Totalité, séances 4 à 10 » comme payé avant SchoolHub ?');
+    await cliquer('Déjà payé avant SchoolUp');
+    expect(carte('inscription').textContent).toContain('Noter « Totalité, séances 4 à 10 » comme payé avant SchoolUp ?');
     await cliquer('Oui');
     const requete = http.expectOne({ method: 'POST', url: '/api/inscriptions/i1/paye-avant-schoolhub' });
     expect(requete.request.body).toEqual({ cle: 'Totalité' });
@@ -417,8 +417,8 @@ describe('la fiche d’un élève', () => {
     requete.flush(reglee);
     await rafraichir([reglee], null);
 
-    await vi.waitFor(() => expect(carte('inscription').textContent).toContain('Totalité, séances 4 à 10 · 70,000 TND · payé avant SchoolHub'));
-    expect(bouton('Déjà payé avant SchoolHub')).toBeUndefined();
+    await vi.waitFor(() => expect(carte('inscription').textContent).toContain('Totalité, séances 4 à 10 · 70,000 TND · payé avant SchoolUp'));
+    expect(bouton('Déjà payé avant SchoolUp')).toBeUndefined();
   });
 
   it('paie tout le reste d’une Formation, après confirmation', async () => {
@@ -493,13 +493,13 @@ describe('la fiche d’un élève', () => {
     expect(carte('inscription').querySelector('a[href="/eleves/e1/changement/i1"]')?.textContent).toContain('Changer de groupe');
   });
 
-  it("garde « Déjà payé avant SchoolHub » sur une inscription arrêtée", async () => {
+  it("garde « Déjà payé avant SchoolUp » sur une inscription arrêtée", async () => {
     await ouvrir(ADEM, [
       { ...INSCRIPTION, arreteLe: '2027-12-04', payablesAvantSchoolHub: [{ cle: 'Totalité', libelle: 'Totalité, séances 4 à 10', montant: 70 }] },
     ]);
 
     expect(carte('inscription').textContent).toContain('Inscription arrêtée le 04/12/2027');
-    expect(bouton('Déjà payé avant SchoolHub')).toBeDefined();
+    expect(bouton('Déjà payé avant SchoolUp')).toBeDefined();
     expect(bouton("Arrêter l'inscription")).toBeUndefined();
   });
 });

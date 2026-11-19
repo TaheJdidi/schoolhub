@@ -33,11 +33,12 @@ const secondClic = (clic?: MouseEvent) => (clic?.detail ?? 0) > 1;
  * Une seule action à la fois : pendant un envoi, les boutons sont bloqués.
  */
 import { BadgeDuGroupeComponent } from '../caisse/paiement';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, BadgeDuGroupeComponent, BrouillonRepris, Icone],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, RouterLink, BadgeDuGroupeComponent, BrouillonRepris, Icone],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })

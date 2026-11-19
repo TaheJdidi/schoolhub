@@ -24,10 +24,10 @@ public sealed class Invitations(UserManager<Compte> comptes, IEnvoiEmail emails,
             '\n',
             $"Bonjour {compte.Prenom},",
             "",
-            $"Vous êtes invité(e) à rejoindre le {centre.Nom} sur SchoolHub.",
+            $"Vous êtes invité(e) à rejoindre le {centre.Nom} sur SchoolUp.",
             "Choisissez votre mot de passe en ouvrant ce lien, valable 7 jours :",
             lien);
 
-        await emails.EnvoyerAsync(compte.Email!, $"Rejoindre le {centre.Nom} sur SchoolHub", texte, annulation);
+        await emails.EnvoyerAsync(compte.Email!, $"Rejoindre le {centre.Nom} sur SchoolUp", texte, annulation);
     }
 }

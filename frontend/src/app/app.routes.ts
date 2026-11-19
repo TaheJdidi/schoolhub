@@ -19,7 +19,7 @@ import { Parametres } from './pages/parametres/parametres';
 import { EntreeDuMenu, MENU } from './socle/menu';
 import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
 
-const titre = (page: string) => `${page} · SchoolHub`;
+const titre = (page: string) => `${page} · SchoolUp`;
 
 /** La fiche d'un élève et la page d'inscription se chargent à la demande : elles ne pèsent pas sur le premier chargement. */
 const affiche = () => import('./pages/demandes/affiche').then((module) => module.Affiche);

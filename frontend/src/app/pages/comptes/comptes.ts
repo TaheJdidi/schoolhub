@@ -11,6 +11,7 @@ import { libelleDuRole } from '../../socle/personnes';
 import { Role } from '../../socle/session/moi';
 import { Session } from '../../socle/session/session';
 import { CompteDuCentre, ETATS } from './compte-du-centre';
+import { ChampEmail } from '../../socle/champs-de-contact';
 
 /**
  * CPT-04 et CPT-05 : le propriétaire invite une personne, renvoie une invitation, désactive ou réactive un compte.
@@ -20,7 +21,7 @@ import { CompteDuCentre, ETATS } from './compte-du-centre';
 @Component({
   selector: 'sh-comptes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BrouillonRepris, Icone],
+  imports: [ReactiveFormsModule, ChampEmail, BrouillonRepris, Icone],
   templateUrl: './comptes.html',
   styleUrl: './comptes.css',
 })

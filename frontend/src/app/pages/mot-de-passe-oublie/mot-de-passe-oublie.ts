@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { CartePublique } from '../../cadre/carte-publique';
 import { messageDErreur } from '../../socle/erreurs';
+import { ChampEmail } from '../../socle/champs-de-contact';
 
 /**
  * CPT-03 : demander un lien pour changer son mot de passe. Le serveur répond toujours le même message,
@@ -13,7 +14,7 @@ import { messageDErreur } from '../../socle/erreurs';
 @Component({
   selector: 'sh-mot-de-passe-oublie',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CartePublique],
+  imports: [ReactiveFormsModule, ChampEmail, RouterLink, CartePublique],
   templateUrl: './mot-de-passe-oublie.html',
   styles: '.formulaire { display: grid; gap: 14px; } .note { margin: 0; } .retour { justify-self: center; font-size: 13px; color: var(--accent); }',
 })

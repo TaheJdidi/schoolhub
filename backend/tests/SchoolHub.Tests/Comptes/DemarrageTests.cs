@@ -39,13 +39,13 @@ public sealed class DemarrageTests
 
         await usine.Services.GetRequiredService<IEnvoiEmail>().EnvoyerAsync(
             "amira@exemple.tn",
-            "Rejoindre le Centre Les Jasmins sur SchoolHub",
+            "Rejoindre le Centre Les Jasmins sur SchoolUp",
             "Bonjour Amira,\nhttp://localhost:5087/invitation?compte=1&jeton=2");
 
         var (niveau, message) = Assert.Single(console.Messages["SchoolHub.Socle.Emails.EmailDansLaConsole"]);
         Assert.Equal(LogLevel.Information, niveau);
         Assert.Contains("amira@exemple.tn", message);
-        Assert.Contains("Rejoindre le Centre Les Jasmins sur SchoolHub", message);
+        Assert.Contains("Rejoindre le Centre Les Jasmins sur SchoolUp", message);
         Assert.Contains("http://localhost:5087/invitation?compte=1&jeton=2", message);
     }
 

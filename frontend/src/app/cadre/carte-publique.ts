@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /**
  * La forme des pages sans connexion (connexion, invitation, mots de passe) :
- * le logo SchoolHub au-dessus d'une carte centrée, la même sur téléphone et sur ordinateur.
+ * le logo SchoolUp au-dessus d'une carte centrée, la même sur téléphone et sur ordinateur.
  */
 @Component({
   selector: 'sh-carte-publique',
@@ -10,7 +10,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   template: `
     <div class="page">
       <div class="colonne">
-        <p class="marque"><span class="logo" aria-hidden="true">SH</span><span>SchoolHub</span></p>
+        <p class="marque"><span class="logo" aria-hidden="true">SU</span><span>SchoolUp</span></p>
         <div class="card carte"><ng-content /></div>
       </div>
     </div>

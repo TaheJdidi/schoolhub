@@ -8,7 +8,7 @@ using SchoolHub.Tests.Outils;
 namespace SchoolHub.Tests.Comptes;
 
 /// <summary>
-/// Le compte tel qu'il est enregistré en base : un email unique dans tout SchoolHub,
+/// Le compte tel qu'il est enregistré en base : un email unique dans tout SchoolUp,
 /// et un rôle et un état lisibles en texte.
 /// </summary>
 [Collection(CollectionPostgreSql.Nom)]

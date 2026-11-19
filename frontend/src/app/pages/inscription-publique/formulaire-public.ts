@@ -6,6 +6,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { aSesPropresContacts } from '../eleves/eleve';
 import { heure } from '../groupes/groupe';
 import { FormulaireDuCentre, GroupeDuFormulaire } from './formulaire-du-centre';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 /** Une matière proposée pour le niveau choisi, avec ses groupes. */
 interface MatiereProposee {
@@ -21,6 +22,7 @@ interface MatiereProposee {
 @Component({
   selector: 'sh-formulaire-public',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ChampEmail, ChampTelephone],
   templateUrl: './formulaire-public.html',
   styleUrl: './formulaire-public.css',
 })

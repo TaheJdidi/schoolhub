@@ -11,7 +11,7 @@ namespace SchoolHub.Socle.Journal;
 public sealed class JournalDuCentre(SchoolHubDbContext contexte, TimeProvider temps)
 {
     /// <summary>L'auteur d'une action faite sans compte connecté : la commande de création d'un centre (CEN-01).</summary>
-    public const string AuteurSansCompte = "SchoolHub";
+    public const string AuteurSansCompte = "SchoolUp";
 
     /// <summary>
     /// La protection du journal dans PostgreSQL : toute modification, suppression ou vidage de la table est refusé,

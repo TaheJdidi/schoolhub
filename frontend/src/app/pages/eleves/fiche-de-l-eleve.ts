@@ -66,8 +66,8 @@ type Action =
 
 /**
  * ELV-02 à ELV-07, ELV-10 et ELV-11 : la fiche d'un élève. « À payer » d'abord ; ses contacts, ses inscriptions (prix
- * spécial du propriétaire, sommes payées avant SchoolHub, « Payer tout le reste ») et l'assurance de l'année (payée avant
- * SchoolHub, dispense du propriétaire),
+ * spécial du propriétaire, sommes payées avant SchoolUp, « Payer tout le reste ») et l'assurance de l'année (payée avant
+ * SchoolUp, dispense du propriétaire),
  * « Modifier » avec le même formulaire que la création, et « Supprimer la fiche » après confirmation, tant qu'il n'a
  * aucune inscription. L'avertissement « Doublon possible » d'une création arrive par l'état de la navigation. La page suit
  * l'adresse : la recherche de l'en-tête mène d'une fiche à une autre sans recréer la page.
@@ -263,11 +263,11 @@ export class PageDeLEleve implements OnInit {
     return action?.genre === 'reste' && action.inscription === inscription;
   }
 
-  /** « à payer », « payée avant SchoolHub », « dispensée (Orphelin) ». */
+  /** « à payer », « payée avant SchoolUp », « dispensée (Orphelin) ». */
   protected etatDeLAssurance(assurance: AssuranceDeLEleve): string {
     if (assurance.etat === 'Dispensee') return `dispensée (${assurance.raisonDeLaDispense})`;
     if (assurance.etat === 'Payee') return 'payée';
-    return assurance.etat === 'PayeeAvantSchoolHub' ? 'payée avant SchoolHub' : 'à payer';
+    return assurance.etat === 'PayeeAvantSchoolHub' ? 'payée avant SchoolUp' : 'à payer';
   }
 
   protected accorderUnPrixSpecial(inscription: string, montant: string, raison: string): void {

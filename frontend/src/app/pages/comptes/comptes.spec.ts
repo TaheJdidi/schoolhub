@@ -73,7 +73,7 @@ describe('la page « Comptes »', () => {
   }
 
   it('montre chaque compte avec son rôle et son état', () => {
-    expect(page.textContent).toContain('Les personnes qui se connectent à SchoolHub pour le Centre Les Jasmins.');
+    expect(page.textContent).toContain('Les personnes qui se connectent à SchoolUp pour le Centre Les Jasmins.');
     expect(ligne('Hedi').textContent).toContain('Hedi Ben Salah (vous)');
     expect(ligne('Hedi').textContent).toContain('hedi@exemple.tn');
     expect(ligne('Mehdi').textContent).toContain('Propriétaire');
@@ -174,12 +174,12 @@ describe('la page « Comptes »', () => {
     envoyer(page);
 
     http.expectOne((r) => r.method === 'POST' && r.url === '/api/comptes').flush(
-      { message: 'Cet email est déjà utilisé sur SchoolHub' },
+      { message: 'Cet email est déjà utilisé sur SchoolUp' },
       { status: 409, statusText: 'Conflict' },
     );
-    await attendre('Cet email est déjà utilisé sur SchoolHub');
+    await attendre('Cet email est déjà utilisé sur SchoolUp');
 
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('Cet email est déjà utilisé sur SchoolHub');
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain('Cet email est déjà utilisé sur SchoolUp');
     expect(page.querySelector('form')).not.toBeNull();
   });
 
@@ -198,7 +198,7 @@ describe('la page « Comptes »', () => {
     expect(bouton.disabled).toBe(true);
     // Une seule requête est partie : expectOne échouerait s'il y en avait deux.
     http.expectOne((r) => r.method === 'POST' && r.url === '/api/comptes').flush(
-      { message: 'Cet email est déjà utilisé sur SchoolHub' },
+      { message: 'Cet email est déjà utilisé sur SchoolUp' },
       { status: 409, statusText: 'Conflict' },
     );
   });

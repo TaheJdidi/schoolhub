@@ -56,7 +56,7 @@
                     <small>Report de {{ montant(inscription.report) }} TND depuis l'ancien groupe</small>
                   }
                   @for (reglee of inscription.reglees; track reglee.libelle) {
-                    <small>{{ reglee.libelle }} · {{ montant(reglee.montant) }} TND · payé avant SchoolHub</small>
+                    <small>{{ reglee.libelle }} · {{ montant(reglee.montant) }} TND · payé avant SchoolUp</small>
                   }
                   @if (inscription.arreteLe; as arreteLe) {
                     <small class="special">Inscription arrêtée le {{ date(arreteLe) }}</small>
@@ -74,7 +74,7 @@
                 <div class="sous-action">
                   <small>{{ payable.libelle }} · {{ montant(payable.montant) }} TND</small>
                   @if (payeAvantOuvertPour(inscription.id, payable.cle)) {
-                    <p class="question">Noter « {{ payable.libelle }} » comme payé avant SchoolHub ?</p>
+                    <p class="question">Noter « {{ payable.libelle }} » comme payé avant SchoolUp ?</p>
                     <div class="actions">
                       <button type="button" class="btn primary" [disabled]="agit()" (click)="payerAvantSchoolHub(inscription.id, payable.cle)">Oui</button>
                       <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Non</button>
@@ -82,7 +82,7 @@
                   } @else {
                     <div class="actions">
                       <button type="button" class="btn ghost" (click)="ouvrir({ genre: 'payeAvant', inscription: inscription.id, cle: payable.cle })">
-                        Déjà payé avant SchoolHub
+                        Déjà payé avant SchoolUp
                       </button>
                     </div>
                   }
@@ -219,7 +219,7 @@
               <small class="aide">{{ montant(assurance.montant) }} TND@if (assurance.dueLe; as dueLe) {, due le {{ date(dueLe) }}}</small>
               @if (assurance.etat === 'APayer') {
                 @if (action()?.genre === 'assurancePayee') {
-                  <p class="question">Noter l'assurance {{ assurance.annee }} comme payée avant SchoolHub ?</p>
+                  <p class="question">Noter l'assurance {{ assurance.annee }} comme payée avant SchoolUp ?</p>
                   <div class="actions">
                     <button type="button" class="btn primary" [disabled]="agit()" (click)="assurancePayeeAvantSchoolHub(fiche.id)">Oui</button>
                     <button type="button" class="btn" [disabled]="agit()" (click)="fermer()">Non</button>
@@ -237,7 +237,7 @@
                   </div>
                 } @else {
                   <div class="actions">
-                    <button type="button" class="btn ghost" (click)="ouvrir({ genre: 'assurancePayee' })">Déjà payée avant SchoolHub</button>
+                    <button type="button" class="btn ghost" (click)="ouvrir({ genre: 'assurancePayee' })">Déjà payée avant SchoolUp</button>
                     @if (proprietaire()) {
                       <button type="button" class="btn ghost" (click)="ouvrir({ genre: 'dispense' })">Dispenser</button>
                     }

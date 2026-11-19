@@ -9,12 +9,13 @@ import { messageDErreur } from '../../socle/erreurs';
 import { Moi } from '../../socle/session/moi';
 import { adresseDeRetour } from '../../socle/session/retour';
 import { Session } from '../../socle/session/session';
+import { ChampEmail } from '../../socle/champs-de-contact';
 
 /** CPT-01 : se connecter avec son email et son mot de passe. */
 @Component({
   selector: 'sh-connexion',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CartePublique, ChampMotDePasse],
+  imports: [ReactiveFormsModule, ChampEmail, RouterLink, CartePublique, ChampMotDePasse],
   templateUrl: './connexion.html',
   styleUrl: './connexion.css',
 })

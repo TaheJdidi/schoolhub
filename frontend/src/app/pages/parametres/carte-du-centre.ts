@@ -9,6 +9,7 @@ import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 /** Les réglages du centre, tels que l'API les décrit (GET et PUT /api/centre/parametres). Un réglage vide vaut `null`. */
 export interface Reglages {
@@ -38,7 +39,7 @@ interface EtatDeLAnnee {
 @Component({
   selector: 'sh-carte-du-centre',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BrouillonRepris, Icone],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, BrouillonRepris, Icone],
   templateUrl: './carte-du-centre.html',
   styleUrl: './parametres.css',
 })

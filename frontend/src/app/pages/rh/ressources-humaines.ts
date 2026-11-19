@@ -10,6 +10,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { dateDuJourLocale } from '../groupes/groupe';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 /** Un employé (GET /api/employes). */
 export interface Employe {
@@ -47,7 +48,7 @@ export interface SalairesDuMois {
 @Component({
   selector: 'sh-ressources-humaines',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ActionsDeListe, BrouillonRepris],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, ActionsDeListe, BrouillonRepris],
   template: `
     <div class="pagehead">
       <div>
@@ -68,8 +69,8 @@ export interface SalairesDuMois {
           <label class="f">Nom <input formControlName="nom" autocomplete="off" /></label>
           <label class="f">Poste <input formControlName="poste" autocomplete="off" placeholder="Agent de ménage" /></label>
           <label class="f">Salaire mensuel (TND) <input formControlName="salaire" inputmode="decimal" autocomplete="off" /></label>
-          <label class="f">Téléphone (facultatif) <input formControlName="telephone" inputmode="tel" autocomplete="off" /></label>
-          <label class="f">Email (facultatif) <input formControlName="email" type="email" autocomplete="off" /></label>
+          <label class="f">Téléphone (facultatif) <input shTelephone formControlName="telephone" inputmode="tel" autocomplete="off" /></label>
+          <label class="f">Email (facultatif) <input shEmail formControlName="email" type="email" autocomplete="off" /></label>
         </div>
         <label class="f">Horaires de la semaine (facultatif) <input formControlName="horaires" autocomplete="off" placeholder="Lundi à samedi, 8h → 16h" /></label>
         <div class="actions">

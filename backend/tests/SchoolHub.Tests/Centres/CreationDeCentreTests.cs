@@ -58,7 +58,7 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
         var invitation = Assert.Single(_application.Emails.Envoyes);
         Assert.Equal(email, invitation.Destinataire);
-        Assert.Equal("Rejoindre le Centre Les Jasmins sur SchoolHub", invitation.Sujet);
+        Assert.Equal("Rejoindre le Centre Les Jasmins sur SchoolUp", invitation.Sujet);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
         var (resultat, sortie) = await LancerAsync(Arguments(code, existant.Email!));
 
-        VerifierRefus(resultat, sortie, $"L'email {existant.Email} est déjà utilisé sur SchoolHub.");
+        VerifierRefus(resultat, sortie, $"L'email {existant.Email} est déjà utilisé sur SchoolUp.");
         Assert.Null(await CentreAsync(code));
         Assert.Empty(_application.Emails.Envoyes);
     }
@@ -118,7 +118,7 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
 
         var (resultat, sortie) = await LancerAsync(Arguments(code, autreCasse));
 
-        VerifierRefus(resultat, sortie, $"L'email {autreCasse} est déjà utilisé sur SchoolHub.");
+        VerifierRefus(resultat, sortie, $"L'email {autreCasse} est déjà utilisé sur SchoolUp.");
         Assert.Null(await CentreAsync(code));
         Assert.Empty(_application.Emails.Envoyes);
     }
@@ -293,7 +293,7 @@ public sealed class CreationDeCentreTests(PostgreSqlDeTest postgreSql) : IAsyncL
         var ligne = Assert.Single(await _application.JournalAsync(centre!));
         Assert.Equal(ActionDuJournal.CompteCree, ligne.Action);
         Assert.Null(ligne.AuteurId);
-        Assert.Equal("SchoolHub", ligne.Auteur);
+        Assert.Equal("SchoolUp", ligne.Auteur);
         Assert.Equal($"Hedi Ben Salah · Propriétaire · {email}", ligne.Detail);
     }
 

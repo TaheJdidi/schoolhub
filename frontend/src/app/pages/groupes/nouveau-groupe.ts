@@ -160,7 +160,7 @@ export class NouveauGroupe implements OnInit {
   protected readonly erreur = signal<string | null>(null);
   protected readonly type = signal<TypeDeGroupe>('Etude');
   protected readonly modeDesDates = signal<ModeDesDates>('creneaux');
-  /** GRP-07 : le groupe a commencé avant SchoolHub. */
+  /** GRP-07 : le groupe a commencé avant SchoolUp. */
   protected readonly dejaCommence = signal(false);
   /** La secrétaire a écrit le nom elle-même : il ne suit plus le premier créneau. */
   private nomChoisi = false;

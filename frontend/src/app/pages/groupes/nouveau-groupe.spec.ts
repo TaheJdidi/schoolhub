@@ -345,7 +345,7 @@ describe('la page « Nouveau groupe »', () => {
     await remplir();
 
     await cocherDejaCommence();
-    expect(libelles().some((l) => l?.startsWith('Première séance dans SchoolHub'))).toBe(true);
+    expect(libelles().some((l) => l?.startsWith('Première séance dans SchoolUp'))).toBe(true);
     envoyer(page);
     await attendre('Indiquez où en est le groupe');
 

@@ -108,7 +108,7 @@ export interface FicheDuGroupe {
   prixDuMois: number | null;
   mois: MoisDuGroupe[];
   termine: boolean;
-  /** Le numéro de la première séance dans SchoolHub : plus que 1 pour un groupe déjà en cours. */
+  /** Le numéro de la première séance dans SchoolUp : plus que 1 pour un groupe déjà en cours. */
   premiereSeance: number;
   prixTotal: number | null;
   nombreDeSeances: number | null;

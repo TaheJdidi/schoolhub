@@ -44,7 +44,7 @@ public sealed partial class CreationDeCentre(
 
         // Identity compare les emails sans tenir compte de la casse : « HEDI@… » et « hedi@… » sont le même email.
         if (await comptes.FindByEmailAsync(demande.EmailDuProprietaire) is not null)
-            return Refus($"L'email {demande.EmailDuProprietaire} est déjà utilisé sur SchoolHub.");
+            return Refus($"L'email {demande.EmailDuProprietaire} est déjà utilisé sur SchoolUp.");
 
         await using var transaction = await contexte.Database.BeginTransactionAsync(annulation);
 

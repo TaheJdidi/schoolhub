@@ -49,7 +49,7 @@ const LIGNES_DE_RATTRAPAGE = 3;
         <button type="button" class="btn primary" [disabled]="!feuille()" (click)="imprimer()">Imprimer</button>
       </div>
     </div>
-    <p class="note info sans-impression">La feuille ne montre ni téléphone ni paiement. Le professeur peut la remplir, puis la secrétaire recopie l'appel dans SchoolHub.</p>
+    <p class="note info sans-impression">La feuille ne montre ni téléphone ni paiement. Le professeur peut la remplir, puis la secrétaire recopie l'appel dans SchoolUp.</p>
     <main class="feuille">
       @if (feuille(); as feuille) {
         <header class="entete">

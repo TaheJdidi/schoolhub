@@ -35,7 +35,7 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
     private const string RaisonDeLaDispenseObligatoire = "Écrivez la raison de la dispense";
     private const string SommeIntrouvable = "Somme introuvable";
     private const string SommeDejaPayee = "Cette somme est déjà payée";
-    private const string SommeDApres = "Cette somme ne date pas d'avant SchoolHub";
+    private const string SommeDApres = "Cette somme ne date pas d'avant SchoolUp";
     private const string SeuleUneFormationEnTranches = "Seule une Formation payée en tranches regroupe son reste";
     private const string ResteDejaRegroupe = "Le reste est déjà regroupé";
     private const string AucuneTrancheAVenir = "Il ne reste aucune tranche à venir";
@@ -495,7 +495,7 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
             return RefusSurUneInscription(StatusCodes.Status409Conflict, SommeDApres);
 
         journal.Noter(auteur, ActionDuJournal.PayeAvantSchoolHub, Couper($"{await QuiEtOuAsync(inscription)} · {somme.Libelle}"),
-            "À payer", $"Payé avant SchoolHub, {SaisieDuGroupe.EcrireUnMontant(somme.Montant)} TND");
+            "À payer", $"Payé avant SchoolUp, {SaisieDuGroupe.EcrireUnMontant(somme.Montant)} TND");
         contexte.Reglements.Add(Reglement.DUneSomme(inscription.Id, somme.Cle, somme.Montant, OrigineDuReglement.AvantSchoolHub, temps.GetUtcNow(), auteur.Id,
             somme.ReportDeduit));
         await contexte.SaveChangesAsync();
@@ -518,7 +518,7 @@ public sealed partial class InscriptionsDuCentre(SchoolHubDbContext contexte, Ti
             return new IssueSurUneAssurance(null, StatusCodes.Status409Conflict, AssuranceDejaPayee);
 
         journal.Noter(auteur, ActionDuJournal.PayeAvantSchoolHub, Couper($"{eleve.Prenom} {eleve.Nom} · Assurance {enCours.Decrite.Annee}"),
-            "À payer", $"Payé avant SchoolHub, {SaisieDuGroupe.EcrireUnMontant(enCours.Assurance.Montant)} TND");
+            "À payer", $"Payé avant SchoolUp, {SaisieDuGroupe.EcrireUnMontant(enCours.Assurance.Montant)} TND");
         contexte.Reglements.Add(Reglement.DeLAssurance(enCours.Assurance.Id, enCours.Assurance.Montant, OrigineDuReglement.AvantSchoolHub,
             temps.GetUtcNow(), auteur.Id));
         await contexte.SaveChangesAsync();

@@ -23,7 +23,7 @@ export interface InscriptionDeLEleve {
   raisonDuPrixSpecial: string | null;
   /** Les sommes déjà réglées : « Tranche 1 », 100, « AvantSchoolHub ». */
   reglees: { libelle: string; montant: number; origine: string }[];
-  /** ELV-07 : les sommes d'avant SchoolHub qu'on peut noter payées. */
+  /** ELV-07 : les sommes d'avant SchoolUp qu'on peut noter payées. */
   payablesAvantSchoolHub: { cle: string; libelle: string; montant: number }[];
   /** ELV-10 : une Formation en tranches qui a encore une tranche à venir. */
   peutRegrouperLeReste: boolean;

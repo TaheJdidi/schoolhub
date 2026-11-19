@@ -46,10 +46,10 @@ public sealed class InvitationTests(PostgreSqlDeTest postgreSql) : IAsyncLifetim
         var (compte, jeton) = _application.Emails.LireLeLien(email);
         Assert.Equal(amira.Id.ToString(), compte);
         Assert.Equal(amira.Email, email.Destinataire);
-        Assert.Equal("Rejoindre le Centre Les Jasmins sur SchoolHub", email.Sujet);
+        Assert.Equal("Rejoindre le Centre Les Jasmins sur SchoolUp", email.Sujet);
         Assert.Equal(
             "Bonjour Amira,\n\n"
-            + "Vous êtes invité(e) à rejoindre le Centre Les Jasmins sur SchoolHub.\n"
+            + "Vous êtes invité(e) à rejoindre le Centre Les Jasmins sur SchoolUp.\n"
             + "Choisissez votre mot de passe en ouvrant ce lien, valable 7 jours :\n"
             + $"http://localhost:4200/invitation?compte={amira.Id}&jeton={Uri.EscapeDataString(jeton)}",
             email.Texte);

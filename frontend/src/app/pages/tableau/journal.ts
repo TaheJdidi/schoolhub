@@ -21,7 +21,7 @@ export const ACTIONS: Record<string, string> = {
   PrixSpecialAccorde: 'Prix spécial accordé',
   PrixSpecialRetire: 'Prix spécial retiré',
   AssuranceDispensee: 'Assurance dispensée',
-  PayeAvantSchoolHub: 'Payé avant SchoolHub',
+  PayeAvantSchoolHub: 'Payé avant SchoolUp',
   InscriptionArretee: 'Inscription arrêtée',
   ChangementDeGroupe: 'Changement de groupe',
   PresenceCorrigee: 'Présence corrigée',

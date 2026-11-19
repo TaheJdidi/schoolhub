@@ -12,6 +12,7 @@ import { datesDuGroupe, EnregistrementDeLInscription, modesDuGroupe, premiereSea
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { nomComplet, Professeur, trier } from '../professeurs/professeur';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
+import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 
 const INCOMPLET = 'Remplissez les champs obligatoires';
 const GROUPE_EN_CHARGEMENT = 'Le groupe se charge encore, un instant';
@@ -33,7 +34,7 @@ export type EleveEnregistre = EnregistrementDeLEleve & {
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, BrouillonRepris],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, BrouillonRepris],
   templateUrl: './formulaire-de-l-eleve.html',
   styleUrl: './eleves.css',
 })

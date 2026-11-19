@@ -61,9 +61,12 @@ const RESULTATS_AU_PLUS = 8;
   `,
   styles: `
     :host { display: block; position: relative; min-width: 0; }
-    .recherche { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--surface); }
-    .recherche:focus-within { border-color: var(--accent); }
-    input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--ink); padding: 8px 0; }
+    /* Le champ prend les couleurs de l'en-tête qui l'accueille (--champ-…), la liste des résultats garde celles de la page. */
+    .recherche { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--champ-bord, var(--line-2)); border-radius: var(--r);
+      background: var(--champ-fond, var(--surface)); color: var(--champ-encre-2, var(--ink-2)); }
+    .recherche:focus-within { border-color: var(--champ-bord-actif, var(--accent)); }
+    input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--champ-encre, var(--ink)); padding: 8px 0; }
+    input::placeholder { color: var(--champ-encre-2, var(--ink-3)); }
     .resultats { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; display: grid; max-height: 60vh; overflow-y: auto;
       border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
     .resultat { display: grid; padding: 9px 12px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }

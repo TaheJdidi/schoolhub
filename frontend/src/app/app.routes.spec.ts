@@ -59,7 +59,7 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Accès réservé au propriétaire');
     expect(adresseActuelle()).toBe('/journal');
-    expect(titre()).toBe('Accès réservé · SchoolHub');
+    expect(titre()).toBe('Accès réservé · SchoolUp');
   });
 
   it('le propriétaire qui ouvre /journal en premier voit sa page', async () => {
@@ -76,7 +76,7 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Inviter une personne');
     expect(texte()).not.toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Comptes · SchoolHub');
+    expect(titre()).toBe('Comptes · SchoolUp');
   });
 
   it('le propriétaire voit « Paramètres du centre » sur /parametres', async () => {
@@ -90,7 +90,7 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Les informations et les prix de votre centre.');
     expect(texte()).not.toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Paramètres du centre · SchoolHub');
+    expect(titre()).toBe('Paramètres du centre · SchoolUp');
   });
 
   it('une secrétaire voit la page « Professeurs » sur /professeurs', async () => {
@@ -101,7 +101,7 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Ajouter un professeur');
     expect(texte()).not.toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Professeurs · SchoolHub');
+    expect(titre()).toBe('Professeurs · SchoolUp');
   });
 
   it('une secrétaire crée un groupe sur /professeurs/groupes/nouveau, avec « Professeurs » allumé', async () => {
@@ -113,7 +113,7 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Nouveau groupe');
     expect(texte()).toContain('Créer le groupe');
-    expect(titre()).toBe('Nouveau groupe · SchoolHub');
+    expect(titre()).toBe('Nouveau groupe · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -124,7 +124,7 @@ describe("les adresses de l'application", () => {
     http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
 
-    expect(titre()).toBe('Groupe · SchoolHub');
+    expect(titre()).toBe('Groupe · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -134,7 +134,7 @@ describe("les adresses de l'application", () => {
     http.expectOne('/api/eleves').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Ajouter un élève'));
     expect(texte()).not.toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Élèves · SchoolHub');
+    expect(titre()).toBe('Élèves · SchoolUp');
 
     await harness.navigateByUrl('/eleves/e1');
     for (const adresse of ['/api/eleves/e1', '/api/eleves/e1/assurance', '/api/eleves/e1/a-payer']) {
@@ -142,7 +142,7 @@ describe("les adresses de l'application", () => {
     }
     http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
-    expect(titre()).toBe('Élève · SchoolHub');
+    expect(titre()).toBe('Élève · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -153,7 +153,7 @@ describe("les adresses de l'application", () => {
     http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
 
-    expect(titre()).toBe('Inscription · SchoolHub');
+    expect(titre()).toBe('Inscription · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -164,7 +164,7 @@ describe("les adresses de l'application", () => {
     http.expectOne((r) => r.url === '/api/inscriptions').flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
 
-    expect(titre()).toBe('Inscription · SchoolHub');
+    expect(titre()).toBe('Inscription · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -176,7 +176,7 @@ describe("les adresses de l'application", () => {
     http.expectOne((r) => r.url === '/api/inscriptions/groupes-possibles').flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
 
-    expect(titre()).toBe('Changement de groupe · SchoolHub');
+    expect(titre()).toBe('Changement de groupe · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/eleves"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -187,7 +187,7 @@ describe("les adresses de l'application", () => {
     http.expectOne('/api/groupes').flush([]);
     http.expectOne('/api/professeurs').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Nouvel élève'));
-    expect(titre()).toBe('Nouvel élève · SchoolHub');
+    expect(titre()).toBe('Nouvel élève · SchoolUp');
   });
 
   it('une secrétaire lit « Accès réservé au propriétaire » sur /parametres', async () => {
@@ -208,7 +208,7 @@ describe("les adresses de l'application", () => {
     expect(adresseActuelle()).toBe('/aujourdhui');
     expect((harness.fixture.nativeElement as HTMLElement).querySelector('main h1')?.textContent).toContain("Aujourd'hui");
     expect(texte()).toContain('Séances du jour');
-    expect(titre()).toBe("Aujourd'hui · SchoolHub");
+    expect(titre()).toBe("Aujourd'hui · SchoolUp");
   });
 
   it('une page pas encore faite le dit', async () => {
@@ -216,32 +216,32 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Guichet');
     expect(texte()).toContain('Cette page arrive bientôt');
-    expect(titre()).toBe('Guichet · SchoolHub');
+    expect(titre()).toBe('Guichet · SchoolUp');
   });
 
   it('une secrétaire voit les reçus du jour sur /caisse, un reçu sur /caisse/recus/r1, et encaisse sur /eleves/e1/encaissement', async () => {
     await ouvrir('/caisse', AMIRA);
     http.expectOne((r) => r.url === '/api/recus').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Reçus du jour'));
-    expect(titre()).toBe('Caisse · SchoolHub');
+    expect(titre()).toBe('Caisse · SchoolUp');
 
     await harness.navigateByUrl('/caisse/recus/r1');
     (await vi.waitFor(() => http.expectOne('/api/recus/r1'))).flush({ message: 'Reçu introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce reçu n'existe pas."));
-    expect(titre()).toBe('Reçu · SchoolHub');
+    expect(titre()).toBe('Reçu · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/caisse"]')?.getAttribute('aria-current')).toBe('page');
 
     await harness.navigateByUrl('/eleves/e1/encaissement');
     (await vi.waitFor(() => http.expectOne('/api/eleves/e1/encaissable'))).flush({ message: 'Élève introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cet élève n'existe pas."));
-    expect(titre()).toBe('Paiement · SchoolHub');
+    expect(titre()).toBe('Paiement · SchoolUp');
 
     // CAI-04 : l'encaissement groupé, depuis un groupe.
     await harness.navigateByUrl('/professeurs/groupes/g1/encaissement');
     (await vi.waitFor(() => http.expectOne('/api/groupes/g1/encaissement'))).flush({ message: 'Groupe introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Ce groupe n'existe pas."));
-    expect(titre()).toBe('Paiement du groupe · SchoolHub');
+    expect(titre()).toBe('Paiement du groupe · SchoolUp');
   });
 
   it("une personne déjà connectée qui ouvre la connexion passe à « Aujourd'hui »", async () => {
@@ -256,12 +256,12 @@ describe("les adresses de l'application", () => {
     http.expectOne('/api/demandes').flush([]);
     await vi.waitFor(() => expect(texte()).toContain('Le lien public du centre'));
     expect(texte()).not.toContain('Cette page arrive bientôt');
-    expect(titre()).toBe("Demandes d'inscription · SchoolHub");
+    expect(titre()).toBe("Demandes d'inscription · SchoolUp");
 
     await harness.navigateByUrl('/demandes/affiche');
     (await vi.waitFor(() => http.expectOne('/api/demandes/lien'))).flush({ lien: 'http://localhost:4200/inscription/les-jasmins' });
     await vi.waitFor(() => expect(texte()).toContain('Scannez le code'));
-    expect(titre()).toBe('Affiche · SchoolHub');
+    expect(titre()).toBe('Affiche · SchoolUp');
   });
 
   it("une secrétaire ouvre une demande sur /demandes/d1, avec « Demandes d'inscription » allumé", async () => {
@@ -270,7 +270,7 @@ describe("les adresses de l'application", () => {
     http.expectOne('/api/niveaux').flush([]);
     await vi.waitFor(() => expect(texte()).toContain("Cette demande n'existe pas."));
 
-    expect(titre()).toBe("Demande d'inscription · SchoolHub");
+    expect(titre()).toBe("Demande d'inscription · SchoolUp");
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/demandes"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -280,7 +280,7 @@ describe("les adresses de l'application", () => {
     (await vi.waitFor(() => http.expectOne('/api/seances/s1/appel'))).flush({ message: 'Séance introuvable' }, { status: 404, statusText: 'Not Found' });
     await vi.waitFor(() => expect(texte()).toContain("Cette séance n'existe pas."));
 
-    expect(titre()).toBe('Appel · SchoolHub');
+    expect(titre()).toBe('Appel · SchoolUp');
     const menu = harness.fixture.nativeElement as HTMLElement;
     expect(menu.querySelector('a.nav[href="/professeurs"]')?.getAttribute('aria-current')).toBe('page');
   });
@@ -291,7 +291,7 @@ describe("les adresses de l'application", () => {
     await vi.waitFor(() => expect(texte()).toContain('Groupe introuvable'));
 
     expect(adresseActuelle()).toBe('/professeurs/groupes/g1/feuille-d-appel?du=2027-11-13&au=2027-12-04');
-    expect(titre()).toBe("Feuille d'appel · SchoolHub");
+    expect(titre()).toBe("Feuille d'appel · SchoolUp");
     // Comme le prototype : avec le menu, qui ne s'imprime pas.
     expect((harness.fixture.nativeElement as HTMLElement).querySelector('.rail')).not.toBeNull();
   });
@@ -349,7 +349,7 @@ describe("les adresses de l'application", () => {
     await vi.waitFor(() => expect(texte()).toContain("Ce lien d'inscription n'existe pas."));
 
     http.expectNone('/api/moi');
-    expect(titre()).toBe("Demande d'inscription · SchoolHub");
+    expect(titre()).toBe("Demande d'inscription · SchoolUp");
   });
 
   it("sans session, la connexion s'affiche sans parler de session expirée", async () => {
@@ -361,13 +361,13 @@ describe("les adresses de l'application", () => {
 
     expect(texte()).toContain('Se connecter');
     expect(texte()).not.toContain('expiré');
-    expect(titre()).toBe('Connexion · SchoolHub');
+    expect(titre()).toBe('Connexion · SchoolUp');
   });
 
   it("une adresse inconnue dit que la page n'existe pas", async () => {
     await ouvrir('/nimporte', AMIRA);
 
     expect(texte()).toContain("Cette page n'existe pas");
-    expect(titre()).toBe('Page introuvable · SchoolHub');
+    expect(titre()).toBe('Page introuvable · SchoolUp');
   });
 });

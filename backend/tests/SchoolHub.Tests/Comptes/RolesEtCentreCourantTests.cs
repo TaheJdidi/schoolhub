@@ -71,7 +71,7 @@ public sealed class RolesEtCentreCourantTests(PostgreSqlDeTest postgreSql) : IAs
         var reponse = await _application.Client().GetAsync("/api/sante");
 
         Assert.Equal(HttpStatusCode.OK, reponse.StatusCode);
-        Assert.Equal("SchoolHub fonctionne.", await reponse.Content.ReadAsStringAsync());
+        Assert.Equal("SchoolUp fonctionne.", await reponse.Content.ReadAsStringAsync());
     }
 
     [Fact]

@@ -17,7 +17,7 @@ using SchoolHub.Socle.Journal;
 namespace SchoolHub.Tests.Outils;
 
 /// <summary>
-/// L'application SchoolHub lancée en mémoire pour les tests, avec de vraies requêtes HTTP,
+/// L'application SchoolUp lancée en mémoire pour les tests, avec de vraies requêtes HTTP,
 /// sur sa propre base dans le PostgreSQL jetable. Elle a une horloge de test, un faux expéditeur
 /// d'emails, et le contexte de test (<see cref="ContexteDeTest"/>) pour que les tests d'isolation
 /// aient leurs notes. <paramref name="reglages"/> change les services en dernier, par exemple

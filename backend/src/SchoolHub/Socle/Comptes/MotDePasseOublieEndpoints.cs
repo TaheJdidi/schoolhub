@@ -52,14 +52,14 @@ public static class MotDePasseOublieEndpoints
             '\n',
             $"Bonjour {compte.Prenom},",
             "",
-            "Pour changer votre mot de passe SchoolHub, ouvrez ce lien, valable 1 heure :",
+            "Pour changer votre mot de passe SchoolUp, ouvrez ce lien, valable 1 heure :",
             lien,
             "",
             "Si vous n'avez rien demandé, ignorez cet email.");
 
         try
         {
-            await emails.EnvoyerAsync(compte.Email!, "Changer votre mot de passe SchoolHub", texte);
+            await emails.EnvoyerAsync(compte.Email!, "Changer votre mot de passe SchoolUp", texte);
         }
         catch (Exception erreur)
         {

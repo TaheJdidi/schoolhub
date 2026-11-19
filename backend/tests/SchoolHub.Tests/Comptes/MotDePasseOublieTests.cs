@@ -69,10 +69,10 @@ public sealed class MotDePasseOublieTests(PostgreSqlDeTest postgreSql) : IAsyncL
         var (compte, jeton) = _application.Emails.LireLeLien(email);
         Assert.Equal(amira.Id.ToString(), compte);
         Assert.Equal(amira.Email, email.Destinataire);
-        Assert.Equal("Changer votre mot de passe SchoolHub", email.Sujet);
+        Assert.Equal("Changer votre mot de passe SchoolUp", email.Sujet);
         Assert.Equal(
             "Bonjour Amira,\n\n"
-            + "Pour changer votre mot de passe SchoolHub, ouvrez ce lien, valable 1 heure :\n"
+            + "Pour changer votre mot de passe SchoolUp, ouvrez ce lien, valable 1 heure :\n"
             + $"http://localhost:4200/nouveau-mot-de-passe?compte={amira.Id}&jeton={Uri.EscapeDataString(jeton)}\n\n"
             + "Si vous n'avez rien demandé, ignorez cet email.",
             email.Texte);
