@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, input, output, signal } fro
 import { firstValueFrom } from 'rxjs';
 import { telechargerUnFichier } from './actions-de-liste';
 import { messageDErreur } from './erreurs';
+import { Icone } from './icone';
 
 /** LST-03 et LST-04 : la réponse d'un import. */
 export interface ResultatDImport {
@@ -21,18 +22,39 @@ export interface ResultatDImport {
 @Component({
   selector: 'sh-import-de-liste',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icone],
   template: `
-    <section class="card carte import" [attr.aria-label]="'Importer des ' + quoi()">
-      <h2 class="titre">Importer des {{ quoi() }}</h2>
-      <p class="aide">
-        Remplissez le fichier modèle, une ligne par {{ unite() }}, puis envoyez-le. Rien n'est importé tant qu'une ligne a une erreur.
-      </p>
-      <div class="etapes">
-        <button type="button" class="btn" [disabled]="envoi()" (click)="telechargerLeModele()">Télécharger le modèle</button>
-        <input #fichier type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Fichier rempli" />
-        <button type="button" class="btn primary" [disabled]="envoi()" (click)="importer(fichier)">Importer</button>
-        <button type="button" class="btn" (click)="ferme.emit()">Fermer</button>
+    <section class="card import" [attr.aria-label]="'Importer des ' + quoi()">
+      <div class="entete">
+        <span class="pictogramme"><sh-icone nom="user-plus" /></span>
+        <div class="textes">
+          <h2 class="titre">Importer des {{ quoi() }}</h2>
+          <p class="aide">Ajoutez-en plusieurs d'un coup depuis le fichier modèle, une ligne par {{ unite() }}.</p>
+        </div>
+        <button type="button" class="fermer" aria-label="Fermer" (click)="ferme.emit()"><sh-icone nom="x" /></button>
       </div>
+
+      <!-- On glisse le fichier dans la zone, ou on clique dessus pour le choisir. -->
+      <label
+        class="depot"
+        [class.survol]="survol()"
+        [class.choisi]="fichierChoisi()"
+        (dragover)="$event.preventDefault(); survol.set(true)"
+        (dragleave)="survol.set(false)"
+        (drop)="deposer($event)"
+      >
+        <input #fichier type="file" class="cache" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Fichier rempli" (change)="choisir(fichier)" />
+        <span class="rond"><sh-icone nom="file-spreadsheet" /></span>
+        @if (fichierChoisi(); as choisi) {
+          <b>{{ choisi.name }}</b>
+          <small>Prêt à importer · cliquez pour changer de fichier</small>
+        } @else {
+          <b>Glissez votre fichier ici</b>
+          <small>ou cliquez pour le choisir · .xlsx</small>
+        }
+      </label>
+      <p class="regle">Rien n'est importé tant qu'une ligne a une erreur : vous verrez les lignes à corriger.</p>
+
       @if (resultat(); as resultat) {
         @if (resultat.importe) {
           <p class="note ok" role="status">{{ bilan(resultat) }}</p>
@@ -64,13 +86,39 @@ export interface ResultatDImport {
       @if (erreur(); as erreur) {
         <p class="note bad" role="alert">{{ erreur }}</p>
       }
+
+      <div class="pied">
+        <button type="button" class="lien-modele" [disabled]="envoi()" (click)="telechargerLeModele()"><sh-icone nom="download" />Modèle Excel</button>
+        <button type="button" class="btn" (click)="ferme.emit()">Annuler</button>
+        <button type="button" class="btn primary" [disabled]="envoi()" (click)="importer(fichier)"><sh-icone nom="upload" />Importer</button>
+      </div>
     </section>
   `,
   styles: `
-    .import { display: grid; gap: 10px; }
+    .import { display: grid; gap: 12px; padding: 0; overflow: hidden; }
+    .entete { display: flex; align-items: center; gap: 14px; padding: 16px 18px 0; }
+    .pictogramme { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--accent-soft); color: var(--accent); }
+    .pictogramme svg.lucide, .rond svg.lucide { width: 22px; height: 22px; }
+    .textes { flex: 1; min-width: 0; }
     .titre { margin: 0; }
-    .aide { margin: 0; color: var(--ink-2); font-size: 13px; }
-    .etapes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .aide { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; }
+    .fermer { width: 32px; height: 32px; display: grid; place-items: center; flex: none; border: 0; border-radius: 8px; background: none; color: var(--ink-2); cursor: pointer; }
+    .fermer:hover { background: var(--sunk); color: var(--ink); }
+    .depot { margin: 0 18px; display: grid; justify-items: center; gap: 4px; padding: 22px 16px; text-align: center; cursor: pointer;
+      border: 1.5px dashed var(--accent); border-radius: 14px; background: var(--accent-soft); color: var(--accent-ink); transition: background .15s, border-color .15s; }
+    .depot:hover, .depot.survol { border-style: solid; filter: brightness(0.98); }
+    .depot:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .depot.choisi { border-style: solid; border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+    .depot.choisi small, .depot.choisi .rond { color: var(--ok); }
+    .depot b { font-weight: 600; font-size: 14px; word-break: break-all; }
+    .depot small { color: var(--accent); font-size: 12.5px; }
+    .rond { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 4px; background: var(--surface); color: var(--accent); }
+    .cache { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .regle { margin: 0 18px; color: var(--ink-3); font-size: 12.5px; }
+    .import > .note { margin: 0 18px; }
+    .pied { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--sunk); }
+    .lien-modele { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; padding: 4px 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 500; cursor: pointer; }
+    .lien-modele:hover { text-decoration: underline; }
     ul { margin: 6px 0 0; padding-left: 18px; }
   `,
 })
@@ -89,6 +137,24 @@ export class ImportDeListe {
   protected readonly resultat = signal<ResultatDImport | null>(null);
   protected readonly envoi = signal(false);
   protected readonly erreur = signal<string | null>(null);
+  /** Le fichier choisi en cliquant ou glissé dans la zone ; son nom s'affiche à la place de l'invitation. */
+  protected readonly fichierChoisi = signal<File | null>(null);
+  protected readonly survol = signal(false);
+
+  protected choisir(champ: HTMLInputElement): void {
+    this.fichierChoisi.set(champ.files?.[0] ?? null);
+    this.erreur.set(null);
+  }
+
+  protected deposer(evenement: DragEvent): void {
+    evenement.preventDefault();
+    this.survol.set(false);
+    const fichier = evenement.dataTransfer?.files?.[0];
+    if (fichier) {
+      this.fichierChoisi.set(fichier);
+      this.erreur.set(null);
+    }
+  }
 
   protected async telechargerLeModele(): Promise<void> {
     this.erreur.set(null);
@@ -100,7 +166,7 @@ export class ImportDeListe {
   }
 
   protected async importer(champ: HTMLInputElement): Promise<void> {
-    const fichier = champ.files?.[0];
+    const fichier = this.fichierChoisi() ?? champ.files?.[0];
     if (!fichier) {
       this.erreur.set('Choisissez le fichier rempli');
       return;

@@ -52,4 +52,18 @@ describe('importer une liste', () => {
     expect(fixture.componentInstance.importe()?.importes).toBe(120);
     http.verify();
   });
+
+  it('prend le fichier glissé dans la zone, montre son nom et l’envoie', async () => {
+    const { http, element, importer } = ouvrir();
+    const glisse = new File(['xlsx'], 'eleves-9e-annee.xlsx');
+    const depot = new Event('drop', { bubbles: true, cancelable: true }) as Event & { dataTransfer: unknown };
+    depot.dataTransfer = { files: [glisse] };
+    element.querySelector('.depot')!.dispatchEvent(depot);
+
+    await vi.waitFor(() => expect(element.querySelector('.depot')?.textContent).toContain('eleves-9e-annee.xlsx'));
+    importer();
+    const requete = http.expectOne({ method: 'POST', url: '/api/imports/eleves' });
+    expect(((requete.request.body as FormData).get('fichier') as File).name).toBe('eleves-9e-annee.xlsx');
+    requete.flush({ importe: true, importes: 1, inscrits: 0, erreurs: [], doublons: [] });
+  });
 });
