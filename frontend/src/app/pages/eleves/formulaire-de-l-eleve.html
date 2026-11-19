@@ -27,9 +27,25 @@
         </select>
       </label>
     }
-    <label class="f">
+    <label class="f" [class.etablissement-autre]="choixDeLEtablissement() === AUTRE">
       <span>Établissement scolaire <span class="opt">(facultatif)</span></span>
-      <input formControlName="etablissement" autocomplete="off" />
+      @if (etablissements().length > 0) {
+        <!-- La liste du centre (Paramètres) ; « Autre… » ouvre un champ pour écrire un nom absent de la liste. -->
+        <span class="controles">
+          <select class="inp" aria-label="Établissement scolaire" (change)="choisirLEtablissement($any($event.target).value)">
+            <option value="" [selected]="choixDeLEtablissement() === ''">Choisissez l'établissement</option>
+            @for (nom of etablissements(); track nom) {
+              <option [value]="nom" [selected]="nom === choixDeLEtablissement()">{{ nom }}</option>
+            }
+            <option [value]="AUTRE" [selected]="choixDeLEtablissement() === AUTRE">Autre…</option>
+          </select>
+          @if (choixDeLEtablissement() === AUTRE) {
+            <input formControlName="etablissement" autocomplete="off" aria-label="Nom de l'établissement" placeholder="Écrivez le nom de l'établissement" />
+          }
+        </span>
+      } @else {
+        <input formControlName="etablissement" autocomplete="off" />
+      }
     </label>
     <label class="f">
       <span>

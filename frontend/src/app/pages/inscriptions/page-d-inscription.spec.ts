@@ -347,6 +347,7 @@ describe("la page d'inscription", () => {
       ...Array.from({ length: 8 }, (_, i) => ({ id: `n${i + 1}`, nom: `${i + 1}ᵉ année de base`, dOffice: true })),
       { id: 'n9', nom: '9ᵉ année de base', dOffice: true },
     ]);
+    http.expectOne('/api/etablissements').flush([]);
     await vi.waitFor(() => expect(page.querySelector('[formcontrolname="prenom"]')).not.toBeNull());
     await vi.waitFor(() => expect((page.querySelector('form button[type="submit"]') as HTMLButtonElement).disabled).toBe(false));
     // Le niveau vient du groupe : il ne se choisit pas.

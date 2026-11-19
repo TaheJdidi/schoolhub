@@ -9,6 +9,7 @@ import { requis, reverifier } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { FicheDuGroupe, ResumeDuGroupe } from '../groupes/groupe';
 import { datesDuGroupe, EnregistrementDeLInscription, modesDuGroupe, premiereSeanceProposee } from '../inscriptions/inscription';
+import { Etablissement } from '../parametres/carte-des-etablissements';
 import { Niveau } from '../parametres/carte-des-niveaux';
 import { nomComplet, Professeur, trier } from '../professeurs/professeur';
 import { aSesPropresContacts, EnregistrementDeLEleve, FicheDeLEleve } from './eleve';
@@ -31,6 +32,9 @@ export type EleveEnregistre = EnregistrementDeLEleve & {
  * peut aussi choisir le professeur, puis l'un de ses groupes, le mode et la première séance : « Enregistrer » crée la
  * fiche, puis inscrit l'élève dans ce groupe.
  */
+/** La valeur de « Autre… » dans la liste des établissements, qu'aucun vrai nom n'a. */
+const AUTRE_ETABLISSEMENT = '__autre__';
+
 @Component({
   selector: 'sh-formulaire-de-l-eleve',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -111,6 +115,32 @@ export class FormulaireDeLEleve implements OnInit {
 
   protected readonly professeurChoisi = toSignal(this.formulaire.controls.professeurId.valueChanges, { initialValue: '' });
 
+  /** Les établissements de la liste du centre, par nom ; vide, l'établissement s'écrit dans un simple champ. */
+  protected readonly etablissements = signal<string[]>([]);
+  protected readonly AUTRE = AUTRE_ETABLISSEMENT;
+  private readonly etablissementEcrit = toSignal(this.formulaire.controls.etablissement.valueChanges, { initialValue: '' });
+  /** « Autre… » choisi, même avant d'écrire le nom. */
+  private readonly autreChoisi = signal(false);
+  /**
+   * Ce que la liste montre : le nom de la fiche s'il est dans la liste, « Autre… » pour un nom absent de la liste (une
+   * fiche plus ancienne, un nom écrit à la main), rien pour une fiche sans établissement.
+   */
+  protected readonly choixDeLEtablissement = computed(() => {
+    const nom = this.etablissementEcrit().trim();
+    if (this.autreChoisi()) return AUTRE_ETABLISSEMENT;
+    if (nom === '') return '';
+    return this.etablissements().includes(nom) ? nom : AUTRE_ETABLISSEMENT;
+  });
+
+  protected choisirLEtablissement(choix: string): void {
+    const controle = this.formulaire.controls.etablissement;
+    this.autreChoisi.set(choix === AUTRE_ETABLISSEMENT);
+    if (choix !== AUTRE_ETABLISSEMENT) controle.setValue(choix);
+    // « Autre… » après un nom de la liste : le champ s'ouvre vide ; un nom déjà écrit à la main y reste.
+    else if (this.etablissements().includes(controle.value.trim())) controle.setValue('');
+    controle.markAsDirty();
+  }
+
 
   /** Laissée pour une autre page, la fiche reprend où elle en était en revenant (une par élève modifié). */
   protected readonly brouillon = garderLeBrouillon(() => {
@@ -140,12 +170,14 @@ export class FormulaireDeLEleve implements OnInit {
 
     try {
       const avecGroupe = this.proposerUnGroupe();
-      const [niveaux, groupes, professeurs] = await Promise.all([
+      const [niveaux, etablissements, groupes, professeurs] = await Promise.all([
         firstValueFrom(this.http.get<Niveau[]>('/api/niveaux')),
+        firstValueFrom(this.http.get<Etablissement[]>('/api/etablissements')),
         avecGroupe ? firstValueFrom(this.http.get<ResumeDuGroupe[]>('/api/groupes')) : Promise.resolve([]),
         avecGroupe ? firstValueFrom(this.http.get<Professeur[]>('/api/professeurs')) : Promise.resolve([]),
       ]);
       this.niveaux.set(niveaux);
+      this.etablissements.set(etablissements.map((e) => e.nom));
       this.groupes.set(groupes);
       this.tousLesProfesseurs.set(professeurs);
       // Un professeur parti, ou un groupe fermé, entre-temps : il ne se propose plus.
@@ -199,6 +231,7 @@ export class FormulaireDeLEleve implements OnInit {
 
   /** La fiche à modifier, telle qu'elle est enregistrée ; rien pour une nouvelle fiche. */
   protected remplir(): void {
+    this.autreChoisi.set(false);
     const eleve = this.eleve();
     if (eleve) {
       this.formulaire.setValue({

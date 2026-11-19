@@ -54,6 +54,9 @@ const REVISION = {
 const PROFESSEURS = [professeur('l', 'Leila', 'Trabelsi'), professeur('k', 'Karim', 'Ben Salah'), professeur('s', 'Sami', 'Gharbi'), professeur('n', 'Nadia', 'Ayari', true)];
 
 describe('la création d’un élève', () => {
+  /** La liste des établissements du centre : vide d'habitude, l'établissement s'écrit alors dans un champ. */
+  let ETABLISSEMENTS: { id: string; nom: string }[] = [];
+  beforeEach(() => (ETABLISSEMENTS = []));
   let http: HttpTestingController;
   let page: HTMLElement;
   let harness: RouterTestingHarness;
@@ -75,6 +78,7 @@ describe('la création d’un élève', () => {
     const requete = await vi.waitFor(() => http.expectOne('/api/niveaux'));
     if (niveaux === 'erreur') requete.flush({ message: 'Erreur du serveur' }, { status: 500, statusText: 'Erreur' });
     else requete.flush(niveaux);
+    http.expectOne('/api/etablissements').flush(ETABLISSEMENTS);
     http.expectOne('/api/groupes').flush(GROUPES);
     http.expectOne('/api/professeurs').flush(PROFESSEURS);
     await vi.waitFor(() => expect(page.querySelector('option[value="n9"], .note.bad')).not.toBeNull());
@@ -140,6 +144,36 @@ describe('la création d’un élève', () => {
     });
     requete.flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/eleves/e1'));
+  });
+
+  it("fait choisir l'établissement dans la liste du centre, ou « Autre… » pour l'écrire", async () => {
+    ETABLISSEMENTS = [{ id: 'e1', nom: 'Collège Ibn Khaldoun' }, { id: 'e2', nom: 'Lycée Pilote Ariana' }];
+    await ouvrir();
+    await remplir();
+    const liste = page.querySelector('select[aria-label="Établissement scolaire"]') as HTMLSelectElement;
+    expect([...liste.options].map((o) => o.textContent?.trim())).toEqual([
+      "Choisissez l'établissement",
+      'Collège Ibn Khaldoun',
+      'Lycée Pilote Ariana',
+      'Autre…',
+    ]);
+
+    liste.value = 'Collège Ibn Khaldoun';
+    liste.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    envoyer(page);
+    let requete = http.expectOne({ method: 'POST', url: '/api/eleves' });
+    expect(requete.request.body.etablissement).toBe('Collège Ibn Khaldoun');
+    requete.flush({ message: 'Erreur du serveur' }, { status: 500, statusText: 'Erreur' });
+
+    liste.value = '__autre__';
+    liste.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    saisir(page, `[aria-label="Nom de l'établissement"]`, 'École El Menzah 5');
+    envoyer(page);
+    requete = await vi.waitFor(() => http.expectOne({ method: 'POST', url: '/api/eleves' }));
+    expect(requete.request.body.etablissement).toBe('École El Menzah 5');
+    requete.flush({ eleve: { id: 'e1' }, avertissement: null }, { status: 201, statusText: 'Created' });
   });
 
   async function choisir(nom: string, valeur: string): Promise<void> {
