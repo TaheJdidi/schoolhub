@@ -9,6 +9,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { lireLeLienDeLEmail } from '../../socle/lien-de-l-email';
 import { Moi } from '../../socle/session/moi';
 import { Session } from '../../socle/session/session';
+import { requis } from '../../socle/champs-requis';
 
 /** Ce que le serveur dit d'un lien d'invitation valable : à qui il est destiné. */
 interface Accueil {
@@ -35,7 +36,7 @@ export class Invitation {
   protected readonly accueil = signal<Accueil | null>(null);
   protected readonly message = signal<string | null>(null);
   protected readonly envoi = signal(false);
-  protected readonly motDePasse = new FormControl('', { nonNullable: true });
+  protected readonly motDePasse = new FormControl('', { nonNullable: true, validators: requis() });
   protected readonly formulaire = new FormGroup({ motDePasse: this.motDePasse });
 
   constructor() {

@@ -10,6 +10,7 @@ import { Moi } from '../../socle/session/moi';
 import { adresseDeRetour } from '../../socle/session/retour';
 import { Session } from '../../socle/session/session';
 import { ChampEmail } from '../../socle/champs-de-contact';
+import { requis } from '../../socle/champs-requis';
 
 /** CPT-01 : se connecter avec son email et son mot de passe. */
 @Component({
@@ -30,8 +31,8 @@ export class Connexion {
   readonly expiree = input<string>();
 
   protected readonly formulaire = new FormGroup({
-    email: new FormControl('', { nonNullable: true }),
-    motDePasse: new FormControl('', { nonNullable: true }),
+    email: new FormControl('', { nonNullable: true, validators: requis() }),
+    motDePasse: new FormControl('', { nonNullable: true, validators: requis() }),
   });
   protected readonly envoi = signal(false);
   protected readonly message = signal<string | null>(null);

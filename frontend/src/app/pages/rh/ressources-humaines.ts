@@ -1,8 +1,8 @@
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
@@ -11,6 +11,7 @@ import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { dateDuJourLocale } from '../groupes/groupe';
 import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
+import { requis } from '../../socle/champs-requis';
 
 /** Un employé (GET /api/employes). */
 export interface Employe {
@@ -183,6 +184,15 @@ export interface SalairesDuMois {
   `,
 })
 export class RessourcesHumaines implements OnInit {
+  /** Le formulaire tel qu'Angular le suit : le vider par lui oublie aussi l'envoi, et les champs vides ne restent pas en rouge. */
+  private readonly directiveDuFormulaire = viewChild(FormGroupDirective);
+
+  /** Vide le formulaire ; s'il est à l'écran, Angular oublie aussi qu'il a été envoyé. */
+  private viderLeFormulaire(valeur?: Parameters<typeof this.formulaire.reset>[0]): void {
+    const directive = this.directiveDuFormulaire();
+    if (directive) directive.resetForm(valeur);
+    else this.formulaire.reset(valeur);
+  }
   private readonly http = inject(HttpClient);
 
   protected readonly montant = ecrireUnMontant;
@@ -201,10 +211,10 @@ export class RessourcesHumaines implements OnInit {
   protected readonly visibles = computed(() => this.employes().filter((e) => !!e.partiLe === this.partis()));
 
   protected readonly formulaire = new FormGroup({
-    prenom: new FormControl('', { nonNullable: true }),
-    nom: new FormControl('', { nonNullable: true }),
-    poste: new FormControl('', { nonNullable: true }),
-    salaire: new FormControl('', { nonNullable: true }),
+    prenom: new FormControl('', { nonNullable: true, validators: requis() }),
+    nom: new FormControl('', { nonNullable: true, validators: requis() }),
+    poste: new FormControl('', { nonNullable: true, validators: requis() }),
+    salaire: new FormControl('', { nonNullable: true, validators: requis() }),
     telephone: new FormControl('', { nonNullable: true }),
     email: new FormControl('', { nonNullable: true }),
     horaires: new FormControl('', { nonNullable: true }),
@@ -233,13 +243,13 @@ export class RessourcesHumaines implements OnInit {
   }
 
   protected nouveau(): void {
-    this.formulaire.reset();
+    this.viderLeFormulaire();
     this.enModification.set(null);
     this.formulaireOuvert.set(true);
   }
 
   protected modifier(employe: Employe): void {
-    this.formulaire.reset({
+    this.viderLeFormulaire({
       prenom: employe.prenom,
       nom: employe.nom,
       poste: employe.poste,

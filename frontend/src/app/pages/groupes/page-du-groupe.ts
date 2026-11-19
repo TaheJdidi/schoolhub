@@ -17,6 +17,7 @@ import { PageDeLAppel } from '../seances/page-de-l-appel';
 import { EncaissementDuGroupe } from '../caisse/recu';
 import { BadgeDuGroupeComponent, BoutonDeRappel, enRetard, PastilleDeCouleur } from '../caisse/paiement';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
+import { requis } from '../../socle/champs-requis';
 
 const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
 
@@ -85,12 +86,12 @@ export class PageDuGroupe implements OnInit {
   protected readonly formulaire = new FormGroup({
     nom: new FormControl('', { nonNullable: true }),
     capacite: new FormControl('', { nonNullable: true }),
-    prix: new FormControl('', { nonNullable: true }),
+    prix: new FormControl('', { nonNullable: true, validators: requis() }),
   });
 
   protected readonly fermeture = new FormGroup({
-    dateDeFermeture: new FormControl('', { nonNullable: true }),
-    motif: new FormControl('', { nonNullable: true }),
+    dateDeFermeture: new FormControl('', { nonNullable: true, validators: requis() }),
+    motif: new FormControl('', { nonNullable: true, validators: requis() }),
   });
 
   /** Une modification ou une fermeture commencée, puis laissée pour une autre page, se retrouve en revenant. */

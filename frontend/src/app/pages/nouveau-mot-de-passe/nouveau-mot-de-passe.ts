@@ -9,6 +9,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { lireLeLienDeLEmail } from '../../socle/lien-de-l-email';
 import { Moi } from '../../socle/session/moi';
 import { Session } from '../../socle/session/session';
+import { requis } from '../../socle/champs-requis';
 
 /**
  * CPT-03 : choisir un nouveau mot de passe depuis le lien de l'email, puis être connecté.
@@ -30,7 +31,7 @@ export class NouveauMotDePasse {
   protected readonly expire = signal(false);
   protected readonly message = signal<string | null>(null);
   protected readonly envoi = signal(false);
-  protected readonly motDePasse = new FormControl('', { nonNullable: true });
+  protected readonly motDePasse = new FormControl('', { nonNullable: true, validators: requis() });
   protected readonly formulaire = new FormGroup({ motDePasse: this.motDePasse });
 
   protected async choisir(): Promise<void> {

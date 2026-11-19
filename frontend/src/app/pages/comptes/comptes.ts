@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { Icone } from '../../socle/icone';
@@ -26,6 +26,15 @@ import { ChampEmail } from '../../socle/champs-de-contact';
   styleUrl: './comptes.css',
 })
 export class Comptes implements OnInit {
+  /** Le formulaire tel qu'Angular le suit : le vider par lui oublie aussi l'envoi, et les champs vides ne restent pas en rouge. */
+  private readonly directiveDuFormulaire = viewChild(FormGroupDirective);
+
+  /** Vide le formulaire ; s'il est à l'écran, Angular oublie aussi qu'il a été envoyé. */
+  private viderLeFormulaire(valeur?: Parameters<typeof this.formulaire.reset>[0]): void {
+    const directive = this.directiveDuFormulaire();
+    if (directive) directive.resetForm(valeur);
+    else this.formulaire.reset(valeur);
+  }
   private readonly http = inject(HttpClient);
   private readonly session = inject(Session);
 
@@ -81,7 +90,7 @@ export class Comptes implements OnInit {
   protected fermerLeFormulaire(): void {
     this.brouillon.oublier();
     this.formulaireOuvert.set(false);
-    this.formulaire.reset();
+    this.viderLeFormulaire();
     this.erreur.set(null);
   }
 

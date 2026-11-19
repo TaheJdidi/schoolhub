@@ -10,6 +10,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
+import { requis } from '../../socle/champs-requis';
 
 /** Les réglages du centre, tels que l'API les décrit (GET et PUT /api/centre/parametres). Un réglage vide vaut `null`. */
 export interface Reglages {
@@ -47,7 +48,7 @@ export class CarteDuCentre implements OnInit {
   private readonly http = inject(HttpClient);
 
   protected readonly formulaire = new FormGroup({
-    nom: new FormControl('', { nonNullable: true }),
+    nom: new FormControl('', { nonNullable: true, validators: requis() }),
     telephone: new FormControl('', { nonNullable: true }),
     email: new FormControl('', { nonNullable: true }),
     debut: new FormControl('', { nonNullable: true }),

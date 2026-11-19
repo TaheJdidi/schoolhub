@@ -1,8 +1,8 @@
 import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
 import { garderLeBrouillon } from '../../socle/brouillons';
@@ -11,6 +11,7 @@ import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { dateDuJourLocale } from '../groupes/groupe';
+import { requis } from '../../socle/champs-requis';
 
 /** Un achat (GET /api/achats). */
 export interface AchatDecrit {
@@ -270,6 +271,15 @@ const CATEGORIES = { Materiel: 'Matériel', Service: 'Service' } as const;
   `,
 })
 export class Achats implements OnInit {
+  /** Le formulaire tel qu'Angular le suit : le vider par lui oublie aussi l'envoi, et les champs vides ne restent pas en rouge. */
+  private readonly directiveDuFormulaire = viewChild(FormGroupDirective);
+
+  /** Vide le formulaire ; s'il est à l'écran, Angular oublie aussi qu'il a été envoyé. */
+  private viderLeFormulaire(valeur?: Parameters<typeof this.formulaire.reset>[0]): void {
+    const directive = this.directiveDuFormulaire();
+    if (directive) directive.resetForm(valeur);
+    else this.formulaire.reset(valeur);
+  }
   private readonly http = inject(HttpClient);
   private readonly aujourdhui = dateDuJourLocale();
 
@@ -297,10 +307,10 @@ export class Achats implements OnInit {
   private facture: File | null = null;
 
   protected readonly formulaire = new FormGroup({
-    jour: new FormControl(this.aujourdhui, { nonNullable: true }),
-    libelle: new FormControl('', { nonNullable: true }),
+    jour: new FormControl(this.aujourdhui, { nonNullable: true, validators: requis() }),
+    libelle: new FormControl('', { nonNullable: true, validators: requis() }),
     categorie: new FormControl<'Materiel' | 'Service'>('Materiel', { nonNullable: true }),
-    montant: new FormControl('', { nonNullable: true }),
+    montant: new FormControl('', { nonNullable: true, validators: requis() }),
     fournisseur: new FormControl('', { nonNullable: true }),
     payeDepuisLaCaisse: new FormControl(false, { nonNullable: true }),
   });
@@ -339,7 +349,7 @@ export class Achats implements OnInit {
   }
 
   protected nouveau(): void {
-    this.formulaire.reset({ jour: this.aujourdhui, libelle: '', categorie: 'Materiel', montant: '', fournisseur: '', payeDepuisLaCaisse: false });
+    this.viderLeFormulaire({ jour: this.aujourdhui, libelle: '', categorie: 'Materiel', montant: '', fournisseur: '', payeDepuisLaCaisse: false });
     this.enModification.set(null);
     this.facture = null;
     this.ouvert.set(true);
@@ -357,7 +367,7 @@ export class Achats implements OnInit {
   }
 
   protected modifier(achat: AchatDecrit): void {
-    this.formulaire.reset({
+    this.viderLeFormulaire({
       jour: achat.jour,
       libelle: achat.libelle,
       categorie: achat.categorie,

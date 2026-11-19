@@ -1,8 +1,8 @@
 import { formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BrouillonRepris } from '../../socle/brouillon-repris';
@@ -43,6 +43,15 @@ import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
   styleUrl: './professeurs.css',
 })
 export class Professeurs implements OnInit {
+  /** Le formulaire tel qu'Angular le suit : le vider par lui oublie aussi l'envoi, et les champs vides ne restent pas en rouge. */
+  private readonly directiveDuFormulaire = viewChild(FormGroupDirective);
+
+  /** Vide le formulaire ; s'il est à l'écran, Angular oublie aussi qu'il a été envoyé. */
+  private viderLeFormulaire(valeur?: Parameters<typeof this.formulaire.reset>[0]): void {
+    const directive = this.directiveDuFormulaire();
+    if (directive) directive.resetForm(valeur);
+    else this.formulaire.reset(valeur);
+  }
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
@@ -204,7 +213,7 @@ export class Professeurs implements OnInit {
 
   protected ouvrirLAjout(): void {
     this.revenirALaFiche();
-    this.formulaire.reset();
+    this.viderLeFormulaire();
     this.autreMatiere.set(false);
     this.modifieId = null;
     this.mode.set('ajout');

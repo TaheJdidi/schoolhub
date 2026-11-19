@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { CartePublique } from '../../cadre/carte-publique';
 import { messageDErreur } from '../../socle/erreurs';
 import { ChampEmail } from '../../socle/champs-de-contact';
+import { requis } from '../../socle/champs-requis';
 
 /**
  * CPT-03 : demander un lien pour changer son mot de passe. Le serveur répond toujours le même message,
@@ -21,7 +22,7 @@ import { ChampEmail } from '../../socle/champs-de-contact';
 export class MotDePasseOublie {
   private readonly http = inject(HttpClient);
 
-  protected readonly email = new FormControl('', { nonNullable: true });
+  protected readonly email = new FormControl('', { nonNullable: true, validators: requis() });
   protected readonly formulaire = new FormGroup({ email: this.email });
   protected readonly envoi = signal(false);
   protected readonly message = signal<string | null>(null);

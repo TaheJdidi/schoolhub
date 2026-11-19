@@ -82,8 +82,9 @@ form.card{max-width:920px}
 .erreur-du-champ{position:absolute;left:0;right:0;top:calc(100% + 3px);color:var(--bad);font-size:12.5px;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .champs:has(.erreur-du-champ){row-gap:28px}
 .f:has(> .erreur-du-champ):not(.champs .f){margin-bottom:18px}
-/* Après « Enregistrer », un champ obligatoire vide (ou une heure illisible) est entouré de rouge jusqu'à ce qu'il soit rempli. */
-:is(form.ng-submitted,form.champs-verifies) :is(input,select,textarea):is(.ng-invalid,.manquant){border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+/* Après « Enregistrer » (ou « Envoyer »), un champ obligatoire vide (ou une heure illisible) est entouré de rouge jusqu'à ce qu'il soit rempli.
+   Les formulaires Angular le disent par `requis` (.ng-invalid) ; le formulaire public par l'attribut `required`. */
+:is(form.ng-submitted,form.champs-verifies) :is(input,select,textarea):is(.ng-invalid,.manquant,:required:invalid){border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
 
 @media (max-width: 760px){
   .h1{font-size:20px}

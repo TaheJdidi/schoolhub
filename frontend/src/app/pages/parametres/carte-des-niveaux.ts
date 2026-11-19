@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { Icone } from '../../socle/icone';
+import { requis } from '../../socle/champs-requis';
 
 /** Un niveau, tel que l'API le décrit (GET /api/niveaux). Un niveau d'office ne se modifie pas. */
 export interface Niveau {
@@ -28,13 +29,22 @@ const NOM_VIDE = 'Saisissez le nom du niveau';
   styleUrl: './parametres.css',
 })
 export class CarteDesNiveaux implements OnInit {
+  /** Le formulaire tel qu'Angular le suit : le vider par lui oublie aussi l'envoi, et les champs vides ne restent pas en rouge. */
+  private readonly directiveDuFormulaire = viewChild(FormGroupDirective);
+
+  /** Vide le formulaire ; s'il est à l'écran, Angular oublie aussi qu'il a été envoyé. */
+  private viderLeFormulaire(valeur?: Parameters<typeof this.ajout.reset>[0]): void {
+    const directive = this.directiveDuFormulaire();
+    if (directive) directive.resetForm(valeur);
+    else this.ajout.reset(valeur);
+  }
   private readonly http = inject(HttpClient);
 
   private readonly niveaux = signal<Niveau[]>([]);
   protected readonly ajoutes = computed(() => this.niveaux().filter((n) => !n.dOffice));
   protected readonly dOffice = computed(() => this.niveaux().filter((n) => n.dOffice));
 
-  protected readonly ajout = new FormGroup({ nouveau: new FormControl('', { nonNullable: true }) });
+  protected readonly ajout = new FormGroup({ nouveau: new FormControl('', { nonNullable: true, validators: requis() }) });
   protected readonly nouveauNom = new FormControl('', { nonNullable: true });
   /** Le nom d'un niveau commencé, puis laissé pour une autre page, se retrouve en revenant. */
   private readonly brouillon = garderLeBrouillon('niveau', this.ajout);
@@ -62,7 +72,7 @@ export class CarteDesNiveaux implements OnInit {
     return this.agir(async () => {
       await firstValueFrom(this.http.post<Niveau>(ADRESSE, { nom }));
       this.brouillon.oublier();
-      this.ajout.reset();
+      this.viderLeFormulaire();
       await this.charger();
       return 'Niveau ajouté';
     });
