@@ -38,7 +38,8 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
     /// <summary>
     /// ELV-01 : les élèves du centre, par nom puis prénom, avec le nom de leur niveau. Avec une recherche (100 résultats
     /// au plus) : une saisie faite de chiffres cherche dans les deux téléphones (« 22 345 », « +216 98-401-220 ») ; sinon chaque mot, sans
-    /// accents ni majuscules, doit se trouver dans le prénom ou le nom (« miled adem », « hedi »).
+    /// accents ni majuscules, doit se trouver dans le prénom ou le nom (« miled adem », « hedi »). Chaque élève vient avec
+    /// son établissement, pour le filtre de la liste.
     /// </summary>
     public async Task<List<EleveTrouve>> ListerAsync(string? recherche)
     {
@@ -62,7 +63,7 @@ public sealed class ElevesDuCentre(SchoolHubDbContext contexte)
         var eleves = await requete.OrderBy(e => e.Nom).ThenBy(e => e.Prenom).ThenBy(e => e.Id)
             .Take(string.IsNullOrWhiteSpace(recherche) ? int.MaxValue : ResultatsAuPlus)
             .ToListAsync();
-        return eleves.Select(e => new EleveTrouve(e.Id, e.Prenom, e.Nom, niveaux[e.NiveauId])).ToList();
+        return eleves.Select(e => new EleveTrouve(e.Id, e.Prenom, e.Nom, niveaux[e.NiveauId], Etablissement: e.Etablissement)).ToList();
     }
 
     public async Task<IssueSurUnEleve> AjouterAsync(FicheSaisieDeLEleve saisie)

@@ -6,6 +6,7 @@ using SchoolHub.Modules.Caisse;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Modules.Inscriptions;
+using SchoolHub.Modules.Listes;
 using SchoolHub.Modules.Professeurs;
 using SchoolHub.Modules.Rh;
 using SchoolHub.Socle.Centres;
@@ -71,6 +72,24 @@ public sealed class ExportsTests(PostgreSqlDeTest postgreSql) : IAsyncLifetime
         Assert.Equal(2, (await FeuilleAsync(_amira, "/api/exports/eleves?niveau=9ᵉ année de base")).LastRowUsed()!.RowNumber());
         Assert.Equal("Rania", Ligne(await FeuilleAsync(_amira, "/api/exports/eleves?recherche=trabelsi"), 2)[0]);
         Assert.Equal("Rania", Ligne(await FeuilleAsync(_amira, $"/api/exports/eleves?ids={_rania}"), 2)[0]);
+    }
+
+    [Fact]
+    public async Task La_liste_et_l_export_des_eleves_par_etablissement()
+    {
+        var neuvieme = (await _amira.GetFromJsonAsync<List<NiveauDuCentre>>("/api/niveaux"))!.Single(n => n.Nom == "9ᵉ année de base").Id;
+        Assert.Equal(HttpStatusCode.Created, (await _amira.PostAsJsonAsync("/api/eleves", new FicheSaisieDeLEleve(
+            "Yasmine", "Kefi", neuvieme, false, "98 111 222", null, "22 111 222", "yasmine@exemple.tn", "Collège Ibn Khaldoun"))).StatusCode);
+
+        var liste = (await _amira.GetFromJsonAsync<List<EleveTrouve>>("/api/eleves"))!;
+        Assert.Equal("Collège Ibn Khaldoun", liste.Single(e => e.Prenom == "Yasmine").Etablissement);
+        Assert.Null(liste.Single(e => e.Prenom == "Adem").Etablissement);
+
+        var college = await FeuilleAsync(_amira, "/api/exports/eleves?etablissement=Collège Ibn Khaldoun");
+        Assert.Equal(2, college.LastRowUsed()!.RowNumber());
+        Assert.Equal("Yasmine", Ligne(college, 2)[0]);
+        // « Non renseigné » : ceux dont l'établissement n'est pas écrit.
+        Assert.Equal(3, (await FeuilleAsync(_amira, $"/api/exports/eleves?etablissement={ExportsDesListes.SansEtablissement}")).LastRowUsed()!.RowNumber());
     }
 
     [Fact]

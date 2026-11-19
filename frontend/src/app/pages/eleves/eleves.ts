@@ -36,6 +36,9 @@ const MODES: Record<string, { valeur: string; libelle: string }[]> = {
  */
 import { PastilleDeCouleur } from '../caisse/paiement';
 
+/** La valeur du filtre « Non renseigné », la même que celle de l'export (ExportsDesListes.SansEtablissement). */
+const SANS_ETABLISSEMENT = '__sans__';
+
 @Component({
   selector: 'sh-eleves',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,8 +74,20 @@ import { PastilleDeCouleur } from '../caisse/paiement';
             }
           </select>
         </label>
+        <label class="f">
+          Établissement
+          <select class="inp" [disabled]="aucunEleve()" (change)="etablissement.set($any($event.target).value)">
+            <option value="">Tous</option>
+            @for (e of etablissements(); track e) {
+              <option [value]="e">{{ e }}</option>
+            }
+            @if (sansEtablissement()) {
+              <option [value]="SANS_ETABLISSEMENT">Non renseigné</option>
+            }
+          </select>
+        </label>
         <sh-actions-de-liste [titre]="titreDeLaListe()" [nombre]="visibles().length" exporter="/api/exports/eleves"
-          [filtres]="{ recherche: filtre(), niveau: niveau() }" />
+          [filtres]="{ recherche: filtre(), niveau: niveau(), etablissement: etablissement() }" />
       </div>
       <div class="liste">
         @if (visibles().length > 0) {
@@ -85,13 +100,13 @@ import { PastilleDeCouleur } from '../caisse/paiement';
             <input type="checkbox" [checked]="selection().has(eleve.id)" (change)="basculer(eleve.id)" [attr.aria-label]="'Sélectionner ' + eleve.prenom + ' ' + eleve.nom" />
             <a class="ligne-eleve" [routerLink]="['/eleves', eleve.id]">
               <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-              <small>{{ eleve.niveau }} <sh-pastille-de-couleur [couleur]="eleve.couleur" /></small>
+              <small>{{ eleve.niveau }}@if (eleve.etablissement) { · {{ eleve.etablissement }}} <sh-pastille-de-couleur [couleur]="eleve.couleur" /></small>
             </a>
           </div>
         } @empty {
           @if (erreur(); as erreur) {
             <p class="note bad" role="alert">{{ erreur }}</p>
-          } @else if (filtre()) {
+          } @else if (filtre() || niveau() || etablissement()) {
             <p class="vide">Aucun élève trouvé.</p>
           } @else if (charge()) {
             <p class="vide">Aucun élève pour l'instant. Ajoutez le premier.</p>
@@ -174,6 +189,9 @@ export class Eleves implements OnInit {
   private derniere = 0;
 
   protected readonly niveau = signal('');
+  /** L'établissement choisi dans le filtre ; « Non renseigné » garde les élèves dont l'établissement n'est pas écrit. */
+  protected readonly etablissement = signal('');
+  protected readonly SANS_ETABLISSEMENT = SANS_ETABLISSEMENT;
 
   // ----- LST-05 : la sélection multiple -----
   protected readonly vide: ReadonlySet<string> = new Set();
@@ -193,8 +211,24 @@ export class Eleves implements OnInit {
   protected readonly niveaux = computed(() => [...new Set(this.tous().map((e) => e.niveau))].sort((a, b) => a.localeCompare(b, 'fr')));
   /** Aucun élève dans le centre : rien à filtrer, ni à imprimer ou exporter. */
   protected readonly aucunEleve = computed(() => this.tous().length === 0);
-  protected readonly visibles = computed(() => (this.trouves() ?? this.tous()).filter((e) => !this.niveau() || e.niveau === this.niveau()));
-  protected readonly titreDeLaListe = computed(() => (this.niveau() ? `Élèves de ${this.niveau()}` : 'Élèves'));
+  /** Les établissements écrits sur les fiches des élèves, par ordre alphabétique. */
+  protected readonly etablissements = computed(() =>
+    [...new Set(this.tous().flatMap((e) => (e.etablissement ? [e.etablissement] : [])))].sort((a, b) => a.localeCompare(b, 'fr')),
+  );
+  /** Des élèves sans établissement écrit : le filtre propose « Non renseigné ». */
+  protected readonly sansEtablissement = computed(() => this.tous().some((e) => !e.etablissement));
+  protected readonly visibles = computed(() =>
+    (this.trouves() ?? this.tous()).filter(
+      (e) =>
+        (!this.niveau() || e.niveau === this.niveau()) &&
+        (!this.etablissement() ||
+          (this.etablissement() === SANS_ETABLISSEMENT ? !e.etablissement : e.etablissement === this.etablissement())),
+    ),
+  );
+  protected readonly titreDeLaListe = computed(() => {
+    const parties = [this.niveau() ? `de ${this.niveau()}` : '', this.etablissement() && this.etablissement() !== SANS_ETABLISSEMENT ? `· ${this.etablissement()}` : ''];
+    return ['Élèves', ...parties.filter((p) => p)].join(' ');
+  });
   protected readonly sousTitre = computed(() => (this.charge() ? nombreDEleves(this.tous().length) : ''));
 
   constructor() {

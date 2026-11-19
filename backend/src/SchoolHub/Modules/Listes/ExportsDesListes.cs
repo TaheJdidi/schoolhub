@@ -27,18 +27,22 @@ public sealed class ExportsDesListes(
     /// <summary>Un fichier prêt : son nom (« eleves-2027-11-27.xlsx ») et son contenu.</summary>
     public sealed record Fichier(string Nom, byte[] Contenu);
 
+    /// <summary>Le filtre « Non renseigné » de la liste des élèves : ceux dont l'établissement n'est pas écrit.</summary>
+    public const string SansEtablissement = "__sans__";
+
     private string Nom(string liste) => $"{liste}-{DateDeTunis.Aujourdhui(temps):yyyy-MM-dd}.xlsx";
 
     /// <summary>
-    /// Les élèves : ceux de la recherche (comme la liste), d'un niveau, ou seulement ceux sélectionnés (LST-05), par nom
-    /// puis prénom.
+    /// Les élèves : ceux de la recherche (comme la liste), d'un niveau, d'un établissement (<see cref="SansEtablissement"/> :
+    /// ceux dont l'établissement n'est pas écrit), ou seulement ceux sélectionnés (LST-05), par nom puis prénom.
     /// </summary>
-    public async Task<Fichier> ElevesAsync(string? recherche, string? niveau, IReadOnlyCollection<Guid>? ids)
+    public async Task<Fichier> ElevesAsync(string? recherche, string? niveau, IReadOnlyCollection<Guid>? ids, string? etablissement = null)
     {
         var trouves = (await eleves.ListerAsync(recherche)).Select(e => e.Id).ToHashSet();
         var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
         var liste = (await contexte.Eleves.ToListAsync())
             .Where(e => trouves.Contains(e.Id) && (string.IsNullOrWhiteSpace(niveau) || niveaux[e.NiveauId] == niveau)
+                && (string.IsNullOrWhiteSpace(etablissement) || (etablissement == SansEtablissement ? e.Etablissement is null : e.Etablissement == etablissement))
                 && (ids is null || ids.Count == 0 || ids.Contains(e.Id)))
             .OrderBy(e => e.Nom).ThenBy(e => e.Prenom);
         return new(Nom("eleves"), Classeur.Creer("Élèves",

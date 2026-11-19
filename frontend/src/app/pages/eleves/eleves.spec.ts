@@ -52,6 +52,23 @@ describe('la page « Élèves »', () => {
     expect(page.querySelector('a.btn.primary')?.getAttribute('href')).toBe('/eleves/nouveau');
   });
 
+  it('filtre la liste par établissement, avec « Non renseigné »', async () => {
+    const YASMINE: EleveTrouve = { id: 'e3', prenom: 'Yasmine', nom: 'Kefi', niveau: '9ᵉ année de base', etablissement: 'Lycée Pilote Ariana' };
+    const RANIA: EleveTrouve = { id: 'e4', prenom: 'Rania', nom: 'Haddad', niveau: '7ᵉ année de base', etablissement: 'Collège Ibn Khaldoun' };
+    await ouvrir([AMEL, RANIA, YASMINE]);
+    const etablissement = [...page.querySelectorAll('.filtres-eleves label')].find((l) => l.textContent?.includes('Établissement'))!.querySelector('select')!;
+    expect([...etablissement.options].map((o) => o.textContent?.trim())).toEqual(['Tous', 'Collège Ibn Khaldoun', 'Lycée Pilote Ariana', 'Non renseigné']);
+    expect(lignes()[1].textContent).toContain('7ᵉ année de base · Collège Ibn Khaldoun');
+
+    etablissement.value = 'Lycée Pilote Ariana';
+    etablissement.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(lignes().map((l) => l.querySelector('b')?.textContent)).toEqual(['Yasmine Kefi']));
+
+    etablissement.value = etablissement.options[3].value;
+    etablissement.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(lignes().map((l) => l.querySelector('b')?.textContent)).toEqual(['Amel Chaabane']));
+  });
+
   it("dit quand il n'y a aucun élève", async () => {
     await ouvrir([]);
 

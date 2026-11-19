@@ -11,8 +11,8 @@ public static class ListesEndpoints
     public static IEndpointRouteBuilder MapListes(this IEndpointRouteBuilder api)
     {
         var exports = api.MapGroup("/exports");
-        exports.MapGet("/eleves", async (string? recherche, string? niveau, string? ids, ExportsDesListes service) =>
-            Fichier(await service.ElevesAsync(recherche, niveau, LireLesIds(ids))));
+        exports.MapGet("/eleves", async (string? recherche, string? niveau, string? etablissement, string? ids, ExportsDesListes service) =>
+            Fichier(await service.ElevesAsync(recherche, niveau, LireLesIds(ids), etablissement)));
         exports.MapGet("/professeurs", async (bool? partis, ExportsDesListes service) => Fichier(await service.ProfesseursAsync(partis == true)));
         exports.MapGet("/groupes/{id:guid}", async Task<Results<FileContentHttpResult, JsonHttpResult<Avis>>> (Guid id, ExportsDesListes service) =>
             await service.GroupeAsync(id) is { } fichier ? Fichier(fichier) : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, "Groupe introuvable"));

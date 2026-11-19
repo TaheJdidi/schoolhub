@@ -28,6 +28,8 @@ export interface EleveTrouve {
   niveau: string;
   /** CAI-01 : sa couleur, la pire de ses inscriptions. */
   couleur?: string | null;
+  /** L'établissement écrit sur sa fiche, pour le filtre de la liste ; `null` s'il n'est pas écrit. */
+  etablissement?: string | null;
 }
 
 /** Le rang du premier niveau d'office où l'élève a son propre téléphone et son email. */

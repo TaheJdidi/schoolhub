@@ -111,4 +111,4 @@ public sealed record FicheDeLEleve(
 public sealed record EnregistrementDeLEleve(FicheDeLEleve Eleve, string? Avertissement);
 
 /// <summary>Un élève dans la liste ou la recherche : son nom et le nom de son niveau.</summary>
-public sealed record EleveTrouve(Guid Id, string Prenom, string Nom, string Niveau, string? Couleur = null);
+public sealed record EleveTrouve(Guid Id, string Prenom, string Nom, string Niveau, string? Couleur = null, string? Etablissement = null);

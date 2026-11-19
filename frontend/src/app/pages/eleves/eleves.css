@@ -93,7 +93,7 @@
 .sous-action { display: grid; gap: 6px; padding-top: 4px; }
 .inscription .actions { justify-content: flex-start; margin-top: 6px; }
 .aide, .etat { margin: 0; color: var(--ink-2); }
-.filtres-eleves { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.filtres-eleves { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 @media (max-width: 700px) { .filtres-eleves { grid-template-columns: minmax(0, 1fr); } }
 .tout { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; padding: 6px 4px; }
 .rangee { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; border-top: 1px solid var(--line); }
@@ -103,3 +103,8 @@
 .entete-selection { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .actions-selection { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto; gap: 10px; align-items: end; }
 @media print { .rangee.non-selectionne, .tout, .filtres-eleves { display: none; } }
+/* L'établissement : la liste seule ; avec « Autre… », la liste et le nom écrit côte à côte, sur toute la ligne. */
+.controles { display: grid; gap: 8px; }
+.etablissement-autre { grid-column: 1 / -1; max-width: none; }
+.etablissement-autre .controles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) { .etablissement-autre .controles { grid-template-columns: minmax(0, 1fr); } }
