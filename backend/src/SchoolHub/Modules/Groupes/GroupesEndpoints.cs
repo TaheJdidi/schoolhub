@@ -131,7 +131,10 @@ public sealed record ResumeDuGroupe(
     int Eleves,
     bool Termine,
     bool Ferme,
-    SchoolHub.Modules.Inscriptions.BadgeDuGroupe? Badge = null);
+    SchoolHub.Modules.Inscriptions.BadgeDuGroupe? Badge = null,
+    int? MoisEnCours = null,
+    int? SeancesPassees = null,
+    int? NombreDeSeances = null);
 
 /// <summary>Un créneau tel que l'API le décrit, avec ses heures « HH:mm », quelle que soit la langue du serveur.</summary>
 public sealed record CreneauDuGroupe(string Jour, string Debut, string Fin)
@@ -154,7 +157,7 @@ public sealed record SeanceDuGroupe(Guid Id, DateOnly Date, string Debut, string
 
 /// <summary>
 /// SEA-02 : une séance qui ne compte pas : annulée (avec son motif, et la date de son remplacement s'il y en a un) ou
-/// supplémentaire. <see cref="Nature"/> vaut « Prevue », « Remplacement » ou « Supplementaire ».
+/// supplémentaire. <see cref="Nature"/> vaut « Prevue », « Remplacement », « Supplementaire » ou « Ajoutee ».
 /// </summary>
 public sealed record SeanceHorsCompte(
     Guid Id,

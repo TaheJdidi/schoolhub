@@ -88,7 +88,7 @@ const LIGNES_DE_RATTRAPAGE = 3;
               </tr>
             }
             <tr class="titre-rattrapage">
-              <td [attr.colspan]="4 + feuille.seances.length">Élèves en rattrapage</td>
+              <td [attr.colspan]="4 + feuille.seances.length">Venus d'un autre groupe</td>
             </tr>
             @for (ligne of lignesVides; track ligne) {
               <tr class="vide">

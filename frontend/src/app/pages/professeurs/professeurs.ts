@@ -10,6 +10,7 @@ import { garderLeBrouillon } from '../../socle/brouillons';
 import { requis } from '../../socle/champs-requis';
 import { messageDErreur } from '../../socle/erreurs';
 import { eleves, heure, Jour, JOURS, parCreneau, ResumeDuGroupe, TYPES } from '../groupes/groupe';
+import { ActionSurLeGroupe, FenetreDuGroupe } from '../groupes/fenetre-du-groupe';
 import { FRANCAIS } from '../../socle/francais';
 import { AUTRE_MATIERE, listeDesMatieres, normaliser } from '../groupes/matieres';
 import { Icone } from '../../socle/icone';
@@ -38,7 +39,7 @@ import { ChampEmail, ChampTelephone } from '../../socle/champs-de-contact';
 @Component({
   selector: 'sh-professeurs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, RouterLink, BadgeDuGroupeComponent, BrouillonRepris, Icone],
+  imports: [ReactiveFormsModule, ChampEmail, ChampTelephone, RouterLink, BadgeDuGroupeComponent, BrouillonRepris, Icone, FenetreDuGroupe],
   templateUrl: './professeurs.html',
   styleUrl: './professeurs.css',
 })
@@ -188,6 +189,47 @@ export class Professeurs implements OnInit {
     aujourdhui.setHours(0, 0, 0, 0);
     const quand = +meilleure.date === +aujourdhui ? "aujourd'hui" : formatDate(meilleure.date, 'EEE dd/MM', FRANCAIS);
     return `${quand} à ${heure(meilleure.debut)}`;
+  }
+
+  /** Le chiffre du milieu de la carte : « Mois 3 · en cours » pour une Étude, « 2/3 · séances » sinon. */
+  protected avancement(groupe: ResumeDuGroupe): { valeur: string; libelle: string } {
+    if (groupe.type === 'Etude') {
+      return groupe.moisEnCours ? { valeur: `Mois ${groupe.moisEnCours}`, libelle: 'en cours' } : { valeur: '—', libelle: 'à venir' };
+    }
+    return { valeur: `${groupe.seancesPassees ?? 0}/${groupe.nombreDeSeances ?? 0}`, libelle: 'séances' };
+  }
+
+  /** « Mathématiques · 9ᵉ année de base », sur une seule ligne de la carte. */
+  protected matiereEtNiveau(groupe: ResumeDuGroupe): string {
+    return groupe.niveau ? `${groupe.matiere} · ${groupe.niveau}` : groupe.matiere;
+  }
+
+  /** « 28/11 », ou « aujourd'hui » : la date seule de la prochaine séance, pour la carte. */
+  protected prochaineDate(groupe: ResumeDuGroupe): string | null {
+    const prochaine = this.prochaineSeance(groupe);
+    if (!prochaine) return null;
+    return prochaine.startsWith("aujourd'hui") ? "aujourd'hui" : prochaine.split(' ')[1];
+  }
+
+  // ----- GRP-04 et GRP-08 : « Modifier » et « Fermer » depuis la carte, sans entrer dans le groupe -----
+
+  protected readonly fenetre = signal<{ groupeId: string; action: ActionSurLeGroupe } | null>(null);
+
+  protected ouvrirLaFenetre(groupeId: string, action: ActionSurLeGroupe): void {
+    this.succes.set(null);
+    this.erreur.set(null);
+    this.fenetre.set({ groupeId, action });
+  }
+
+  protected fermerLaFenetre(): void {
+    this.fenetre.set(null);
+  }
+
+  /** Après l'enregistrement ou la fermeture : la carte se met à jour (un groupe fermé passe dans « Anciens groupes »). */
+  protected async apresLaFenetre(message: string): Promise<void> {
+    this.fenetre.set(null);
+    this.succes.set(message);
+    await Promise.all([this.chargerLesGroupes(), this.chargerLesProfesseurs()]);
   }
 
   protected filtrer(filtre: Filtre): void {

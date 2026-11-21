@@ -68,6 +68,8 @@ describe('le bouton de rappel de paiement', () => {
     });
     await vi.waitFor(() => expect(page.querySelector('.texte')?.textContent).toContain('il reste à payer pour Adem Miled'));
     expect(page.querySelector('.destinataire')?.textContent).toContain('Au parent · 98 401 220');
+    // Comme dans l'appel, le rappel s'ouvre dans une fenêtre.
+    expect(page.querySelector('[role="dialog"]')).not.toBeNull();
 
     const lien = page.querySelector('.destinataire a') as HTMLAnchorElement;
     lien.addEventListener('click', (evenement) => evenement.preventDefault());
@@ -86,5 +88,56 @@ describe('le bouton de rappel de paiement', () => {
     http.expectOne('/api/eleves/e1/rappel').flush({ message: "Cet élève n'a rien à payer aujourd'hui" }, { status: 409, statusText: 'Conflict' });
 
     await vi.waitFor(() => expect(page.querySelector('[role="alert"]')?.textContent).toContain("Cet élève n'a rien à payer aujourd'hui"));
+  });
+});
+
+describe('la cloche de rappel, dans l’appel', () => {
+  let http: HttpTestingController;
+  let page: HTMLElement;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(BoutonDeRappel);
+    fixture.componentRef.setInput('eleveId', 'e1');
+    fixture.componentRef.setInput('compact', true);
+    fixture.componentRef.setInput('pour', 'Adem Miled');
+    page = fixture.nativeElement as HTMLElement;
+    await fixture.whenStable();
+  });
+
+  afterEach(() => http.verify());
+
+  it('ouvre une fenêtre avec le détail, le total et WhatsApp, puis se referme', async () => {
+    (page.querySelector('[aria-label="Envoyer un rappel à Adem Miled"]') as HTMLButtonElement).click();
+    http.expectOne('/api/eleves/e1/rappel').flush({
+      couleur: 'Rouge',
+      texte: 'Bonjour, il reste à payer pour Adem Miled : …',
+      messages: [
+        { destinataire: 'Parent', telephone: '98 401 220', lien: 'https://wa.me/21698401220?text=a' },
+        { destinataire: 'Adem', telephone: '22 345 678', lien: 'https://wa.me/21622345678?text=a' },
+      ],
+      dernierRappelLe: null,
+      lignes: [{ libelle: 'Mois 3 de mathématiques', montant: 40 }, { libelle: 'Assurance 2027-2028', montant: 20 }],
+      total: 60,
+    });
+
+    const fenetre = await vi.waitFor(() => {
+      const trouvee = page.querySelector('[role="dialog"]') as HTMLElement;
+      expect(trouvee).not.toBeNull();
+      return trouvee;
+    });
+    expect(fenetre.querySelector('h2')?.textContent).toContain('Rappel de paiement');
+    expect(fenetre.textContent).toContain('Adem Miled');
+    expect([...fenetre.querySelectorAll('.lignes li')].map((li) => [...li.children].map((c) => c.textContent?.trim()))).toEqual([
+      ['Mois 3 de mathématiques', '40,000'],
+      ['Assurance 2027-2028', '20,000'],
+    ]);
+    expect(fenetre.querySelector('.total')?.textContent).toContain('60,000 TND');
+    expect([...fenetre.querySelectorAll('.destinataire span')].map((s) => s.textContent)).toEqual(['Au parent · 98 401 220', 'À Adem · 22 345 678']);
+    expect(fenetre.textContent).toContain('Aucun rappel envoyé pour l’instant.');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await vi.waitFor(() => expect(page.querySelector('[role="dialog"]')).toBeNull());
   });
 });

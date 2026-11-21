@@ -88,7 +88,7 @@ export interface AppelDeLaSeance {
 }
 
 /** D'où vient une séance. */
-export type NatureDeLaSeance = 'Prevue' | 'Remplacement' | 'Supplementaire';
+export type NatureDeLaSeance = 'Prevue' | 'Remplacement' | 'Supplementaire' | 'Ajoutee';
 
 /** Un élève concerné par un changement du calendrier, et un message par destinataire. */
 export interface MessagesDUnEleve {

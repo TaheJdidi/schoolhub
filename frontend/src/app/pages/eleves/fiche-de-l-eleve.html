@@ -12,7 +12,7 @@
         }
         <!-- CAI-08 : un élève orange ou rouge reçoit un rappel de paiement. -->
         @if (enRetard(aPayer.couleur)) {
-          <sh-bouton-de-rappel [eleveId]="fiche.id" [dernierRappelLe]="aPayer.dernierRappelLe" />
+          <sh-bouton-de-rappel [eleveId]="fiche.id" [dernierRappelLe]="aPayer.dernierRappelLe" [pour]="fiche.prenom + ' ' + fiche.nom" />
         } @else if (aPayer.dernierRappelLe) {
           <small class="aide">{{ rappelEnvoyeLe(aPayer.dernierRappelLe) }}</small>
         }

@@ -43,6 +43,11 @@ export interface ResumeDuGroupe {
   ferme: boolean;
   /** CAI-02 : « Groupe payé », les rappels à envoyer ou les élèves à payer. */
   badge?: { etat: 'Paye' | 'Rappels' | 'APayer'; nombre: number } | null;
+  /** Une Étude : son Mois en cours ; `null` avant son premier Mois. */
+  moisEnCours?: number | null;
+  /** Une Révision ou une Formation : les séances déjà passées, sur `nombreDeSeances`. */
+  seancesPassees?: number | null;
+  nombreDeSeances?: number | null;
 }
 
 export interface SeanceDuGroupe {
@@ -54,7 +59,7 @@ export interface SeanceDuGroupe {
   /** SEA-02 : l'appel de la séance est enregistré. */
   appelFait?: boolean;
   /** SEA-04 : « Remplacement » pour une séance qui en remplace une annulée. */
-  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire';
+  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire' | 'Ajoutee';
 }
 
 /** Un Mois de 4 séances : il a commencé quand sa séance 1 a eu lieu. */
@@ -75,7 +80,7 @@ export interface SeanceNumerotee {
   prix: number | null;
   /** SEA-02 : l'appel de la séance est enregistré. */
   appelFait?: boolean;
-  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire';
+  nature?: 'Prevue' | 'Remplacement' | 'Supplementaire' | 'Ajoutee';
 }
 
 /** SEA-02 : l'état d'une séance, d'après sa date et son appel. */
@@ -129,7 +134,7 @@ export interface SeanceHorsCompte {
   date: string;
   debut: string;
   fin: string;
-  nature: 'Prevue' | 'Remplacement' | 'Supplementaire';
+  nature: 'Prevue' | 'Remplacement' | 'Supplementaire' | 'Ajoutee';
   annulee: boolean;
   motif: string | null;
   remplaceeLe: string | null;

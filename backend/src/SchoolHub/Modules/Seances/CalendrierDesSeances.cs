@@ -132,7 +132,11 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
         return await ReponseAsync(groupe, texte, AuJour(nouvelle.Date));
     }
 
-    /// <summary>SEA-05 : ajoute une séance offerte : elle a son appel, ne compte pas dans le Mois, et rien de plus n'est dû.</summary>
+    /// <summary>
+    /// SEA-05 : ajoute une séance. Dans une Étude, elle compte dans le Mois : le Mois garde 4 séances, et les suivantes
+    /// passent au Mois d'après. Dans une Révision ou une Formation, elle est offerte : elle a son appel, et rien de plus
+    /// n'est dû.
+    /// </summary>
     public async Task<IssueDuCalendrier> AjouterAsync(Guid groupeId, NouvelleSeanceSaisie saisie)
     {
         await using var transaction = await contexte.Database.BeginTransactionAsync();
@@ -143,13 +147,18 @@ public sealed class CalendrierDesSeances(SchoolHubDbContext contexte, JournalDuC
         if (refusDeLaNouvelle is not null)
             return refusDeLaNouvelle;
 
-        contexte.Seances.Add(new Seance(groupe.Id, nouvelle!.Date, nouvelle.Debut, nouvelle.Fin, NatureDeLaSeance.Supplementaire));
+        var etude = groupe.Type == TypeDeGroupe.Etude;
+        contexte.Seances.Add(new Seance(groupe.Id, nouvelle!.Date, nouvelle.Debut, nouvelle.Fin,
+            etude ? NatureDeLaSeance.Ajoutee : NatureDeLaSeance.Supplementaire));
         await contexte.SaveChangesAsync();
         await transaction.CommitAsync();
 
         var contexteDuGroupe = await ContexteAsync(groupe);
-        var texte = $"Bonjour, une séance supplémentaire de {contexteDuGroupe.MatiereEnMinuscule} est ajoutée le {Jour(nouvelle.Date)}, "
-            + $"de {Heure(nouvelle.Debut)} à {Heure(nouvelle.Fin)}. Elle est offerte. {contexteDuGroupe.Centre}.";
+        var texte = etude
+            ? $"Bonjour, une séance de {contexteDuGroupe.MatiereEnMinuscule} est ajoutée le {Jour(nouvelle.Date)}, "
+                + $"de {Heure(nouvelle.Debut)} à {Heure(nouvelle.Fin)}. {contexteDuGroupe.Centre}."
+            : $"Bonjour, une séance supplémentaire de {contexteDuGroupe.MatiereEnMinuscule} est ajoutée le {Jour(nouvelle.Date)}, "
+                + $"de {Heure(nouvelle.Debut)} à {Heure(nouvelle.Fin)}. Elle est offerte. {contexteDuGroupe.Centre}.";
         return await ReponseAsync(groupe, texte, AuJour(nouvelle.Date));
     }
 

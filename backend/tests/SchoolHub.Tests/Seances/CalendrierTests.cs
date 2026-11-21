@@ -177,22 +177,55 @@ public sealed class CalendrierTests(PostgreSqlDeTest postgreSql) : IAsyncLifetim
             new NouvelleSeanceSaisie(Le(8, 12), "17:00", "19:00")), HttpStatusCode.Conflict, "Seule une séance annulée se remplace");
     }
 
-    // ----- Ajouter une séance supplémentaire (SEA-05) -----
+    // ----- Ajouter une séance (SEA-05) -----
 
     [Fact]
-    public async Task Une_seance_supplementaire_ne_compte_pas()
+    public async Task Une_seance_ajoutee_a_une_etude_compte_dans_le_mois()
     {
         var changement = await ActionAsync($"/api/groupes/{_maths}/seances", new NouvelleSeanceSaisie(Le(2, 12), "17:00", "19:00"));
 
+        // Le Mois garde 4 séances : le 04/12 passe en séance 1 du Mois 4.
         var fiche = await FicheAsync(_maths);
-        Assert.Equal([Le(13, 11), Le(20, 11), Le(27, 11), Le(4, 12)], fiche.Mois.Single(m => m.Numero == 3).Seances.Select(s => s.Date));
+        var mois3 = fiche.Mois.Single(m => m.Numero == 3).Seances;
+        Assert.Equal([Le(13, 11), Le(20, 11), Le(27, 11), Le(2, 12)], mois3.Select(s => s.Date));
+        Assert.Equal("Ajoutee", mois3[3].Nature);
+        Assert.Equal(Le(4, 12), fiche.Mois.Single(m => m.Numero == 4).Seances[0].Date);
+        Assert.Empty(fiche.HorsCompte!);
+        // Lina, arrivée le 27/11, doit toujours 2 séances du Mois 3.
+        Assert.Equal(20m, await TotalAPayerAsync(_lina));
+        Assert.Equal("Bonjour, une séance de mathématiques est ajoutée le jeudi 02/12/2027, de 17h à 19h. Centre Les Jasmins.", changement.Texte);
+        // Elle a son appel, comme les autres.
+        Assert.Equal(2, (await _secretaire.GetFromJsonAsync<AppelDeLaSeance>($"/api/seances/{mois3[3].Id}/appel"))!.Eleves.Count);
+    }
+
+    [Fact]
+    public async Task Une_seance_supplementaire_d_une_revision_est_offerte()
+    {
+        var revision = await GroupeAsync(new CreationDUnGroupe(_karim, "Physique", Niveau9, [Samedi10h], null, Le(20, 11), null, "",
+            Type: "Revision", PrixTotal: 60m, NombreDeSeances: 3));
+
+        var changement = await ActionAsync($"/api/groupes/{revision}/seances", new NouvelleSeanceSaisie(Le(2, 12), "17:00", "19:00"));
+
+        var fiche = await FicheAsync(revision);
+        Assert.Equal([Le(20, 11), Le(27, 11), Le(4, 12)], fiche.Seances.Select(s => s.Date));
         var supplementaire = Assert.Single(fiche.HorsCompte!);
         Assert.Equal((Le(2, 12), "Supplementaire", false), (supplementaire.Date, supplementaire.Nature, supplementaire.Annulee));
-        Assert.Equal(20m, await TotalAPayerAsync(_lina));
-        Assert.Equal("Bonjour, une séance supplémentaire de mathématiques est ajoutée le jeudi 02/12/2027, de 17h à 19h. Elle est offerte. Centre Les Jasmins.",
+        Assert.Equal("Bonjour, une séance supplémentaire de physique est ajoutée le jeudi 02/12/2027, de 17h à 19h. Elle est offerte. Centre Les Jasmins.",
             changement.Texte);
-        // Elle a son appel, comme les autres.
-        Assert.Equal(2, (await _secretaire.GetFromJsonAsync<AppelDeLaSeance>($"/api/seances/{supplementaire.Id}/appel"))!.Eleves.Count);
+    }
+
+    [Fact]
+    public async Task La_carte_du_groupe_montre_son_avancement()
+    {
+        var revision = await GroupeAsync(new CreationDUnGroupe(_karim, "Physique", Niveau9, [Samedi10h], null, Le(20, 11), null, "",
+            Type: "Revision", PrixTotal: 60m, NombreDeSeances: 3));
+
+        var groupes = (await _secretaire.GetFromJsonAsync<List<ResumeDuGroupe>>("/api/groupes"))!;
+
+        var etude = groupes.Single(g => g.Id == _maths);
+        Assert.Equal((3, (int?)null, (int?)null), (etude.MoisEnCours, etude.SeancesPassees, etude.NombreDeSeances));
+        var laRevision = groupes.Single(g => g.Id == revision);
+        Assert.Equal(((int?)null, 2, 3), (laRevision.MoisEnCours, laRevision.SeancesPassees, laRevision.NombreDeSeances));
     }
 
     // ----- Changer l'horaire (SEA-06) -----

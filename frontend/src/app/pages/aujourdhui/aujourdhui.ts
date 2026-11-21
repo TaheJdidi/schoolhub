@@ -191,7 +191,7 @@ const minutes = (texte: string) => {
               </span>
               <span class="du">
                 <b class="num">{{ montant(eleve.total) }} TND</b>
-                <sh-bouton-de-rappel [eleveId]="eleve.id" [dernierRappelLe]="eleve.dernierRappelLe" />
+                <sh-bouton-de-rappel [eleveId]="eleve.id" [dernierRappelLe]="eleve.dernierRappelLe" [pour]="eleve.prenom + ' ' + eleve.nom" />
               </span>
             </div>
           } @empty {

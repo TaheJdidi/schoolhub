@@ -64,5 +64,34 @@
 .haut-du-cadre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .pied-du-cadre { margin-top: 4px; }
 .etiquettes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* La carte d'un groupe ouvert (style F). Toujours la même structure, quelles que soient les données : la ligne du type
+   et du badge, le titre sur une ligne, la matière sur une ligne, trois chiffres, puis les deux boutons en bas. */
+.carte-f { position: relative; display: flex; flex-direction: column; gap: 8px; height: 100%; box-sizing: border-box;
+  border-left: 4px solid var(--accent); border-radius: 0 12px 12px 0; }
+.carte-f[data-type="Revision"] { border-left-color: #7A5AC8; }
+.carte-f[data-type="Formation"] { border-left-color: var(--ok); }
+/* Au survol, seul l'ombrage change : le liseré, le fond et les chiffres restent les mêmes. */
+.cadre.carte-f:hover { background: var(--surface); border-top-color: var(--line-2); border-right-color: var(--line-2); border-bottom-color: var(--line-2);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 0.08); }
+.ligne-du-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
+.ligne-du-type sh-badge-du-groupe { position: relative; flex: none; }
+/* Le titre a toujours la place de deux lignes : un nom court ou long ne décale ni les chiffres ni les boutons. */
+.lien-du-cadre { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  min-height: calc(2 * 1.25 * 16px); color: inherit; text-decoration: none; }
+.lien-du-cadre b { font-size: 16px; line-height: 1.25; }
+/* Toute la carte ouvre le groupe ; le badge et les boutons restent au-dessus. */
+.lien-du-cadre::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.lien-du-cadre:focus-visible { outline: none; }
+.lien-du-cadre:focus-visible::after { box-shadow: 0 0 0 2px var(--accent); }
+.ligne-de-la-matiere { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: -4px; }
+.chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 4px; text-align: center; }
+.chiffre { display: grid; grid-template-rows: auto auto; gap: 1px; padding: 7px 4px; border-radius: 8px; background: var(--sunk); }
+.chiffre b, .chiffre small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chiffre b { font-family: inherit; font-size: 14px; font-weight: 600; }
+.chiffre small { font-size: 11.5px; }
+.actions-du-cadre { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; padding-top: 4px; }
+.actions-du-cadre .btn { padding: 6px 8px; font-size: 13px; }
+.actions-du-cadre .btn :is(svg) { width: 15px; height: 15px; }
+
 .anciens summary { cursor: pointer; color: var(--ink-2); font-weight: 500; }
 .anciens .cadres { margin-top: 10px; }

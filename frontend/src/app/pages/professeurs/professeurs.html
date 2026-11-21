@@ -177,17 +177,24 @@
             </div>
             <div class="cadres">
               @for (groupe of groupesAffiches(); track groupe.id) {
-                <a class="cadre" [routerLink]="['/professeurs/groupes', groupe.id]">
-                  <span class="haut-du-cadre">
+                <!-- Le titre ouvre le groupe (toute la carte est cliquable) ; « Modifier » et « Fermer » restent sur la page. -->
+                <article class="cadre carte-f" [attr.data-type]="groupe.type">
+                  <div class="ligne-du-type">
                     <span class="tag">{{ types[groupe.type] }}</span>
                     <sh-badge-du-groupe [badge]="groupe.badge" />
-                  </span>
-                  <b>{{ groupe.nom }}</b>
-                  <small>{{ groupe.matiere }}@if (groupe.niveau) { · {{ groupe.niveau }}} · {{ eleves(groupe) }}</small>
-                  @if (prochaineSeance(groupe); as prochaine) {
-                    <small class="pied-du-cadre">◷ Prochaine séance : {{ prochaine }}</small>
-                  }
-                </a>
+                  </div>
+                  <a class="lien-du-cadre" [routerLink]="['/professeurs/groupes', groupe.id]" [attr.title]="groupe.nom"><b>{{ groupe.nom }}</b></a>
+                  <small class="ligne-de-la-matiere" [attr.title]="matiereEtNiveau(groupe)">{{ matiereEtNiveau(groupe) }}</small>
+                  <div class="chiffres">
+                    <div class="chiffre"><b>{{ groupe.eleves }}@if (groupe.capacite !== null) {/{{ groupe.capacite }}}</b><small>{{ groupe.eleves > 1 ? 'élèves' : 'élève' }}</small></div>
+                    <div class="chiffre"><b>{{ avancement(groupe).valeur }}</b><small>{{ avancement(groupe).libelle }}</small></div>
+                    <div class="chiffre"><b>{{ prochaineDate(groupe) ?? '—' }}</b><small>prochaine</small></div>
+                  </div>
+                  <div class="actions-du-cadre">
+                    <button type="button" class="btn" (click)="ouvrirLaFenetre(groupe.id, 'modifier')"><sh-icone nom="pencil" /> Modifier</button>
+                    <button type="button" class="btn" (click)="ouvrirLaFenetre(groupe.id, 'fermer')"><sh-icone nom="lock" /> Fermer</button>
+                  </div>
+                </article>
               } @empty {
                 <p class="groupes">Pas de groupe le {{ jour()?.toLowerCase() }} pour {{ nomComplet(professeur) }}.</p>
               }
@@ -210,6 +217,10 @@
           }
         </div>
       </section>
+    }
+
+    @if (fenetre(); as fenetre) {
+      <sh-fenetre-du-groupe [groupeId]="fenetre.groupeId" [action]="fenetre.action" (fait)="apresLaFenetre($event)" (abandon)="fermerLaFenetre()" />
     }
 
     @if (succes(); as succes) {

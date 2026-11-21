@@ -362,6 +362,7 @@ describe('la page « Professeurs »', () => {
     eleves: 0,
     termine: false,
     ferme: false,
+    moisEnCours: 3,
   };
   const DIMANCHE: ResumeDuGroupe = {
     ...SAMEDI,
@@ -375,7 +376,9 @@ describe('la page « Professeurs »', () => {
   const groupesDuProfesseur = () => page.querySelector('.groupes-du-professeur') as HTMLElement;
   // « Nouveau groupe » est dans l'en-tête de la fiche, en premier, juste sous le nom.
   const enteteDeLaFiche = () => page.querySelector('.entete-fiche') as HTMLElement;
-  const cadres = () => [...page.querySelectorAll('.cadre')] as HTMLAnchorElement[];
+  const cadres = () => [...page.querySelectorAll('.cadre')] as HTMLElement[];
+  /** L'adresse du groupe : le lien du titre d'une carte ouverte, ou la carte d'un ancien groupe. */
+  const lien = (cadre: HTMLElement) => cadre.querySelector('a')?.getAttribute('href') ?? cadre.getAttribute('href');
 
   it('montre les groupes du professeur dans des cadres', async () => {
     await ouvrir([KARIM, LEILA], [DIMANCHE, DE_LEILA, SAMEDI]);
@@ -383,16 +386,40 @@ describe('la page « Professeurs »', () => {
     expect(cadres()).toHaveLength(2);
     expect(cadres()[0].textContent).toContain('Étude');
     expect(cadres()[0].textContent).toContain('Groupe Samedi 10h → 12h');
-    expect(cadres()[0].textContent).toContain('Mathématiques · 9ᵉ année de base');
-    expect(cadres()[0].textContent).toContain('0 élève sur 16');
-    expect(cadres()[0].getAttribute('href')).toBe('/professeurs/groupes/g1');
+    expect(cadres()[0].querySelector('.tag')?.textContent?.trim()).toBe('Étude');
+    expect(cadres()[0].querySelector('.ligne-de-la-matiere')?.textContent?.trim()).toBe('Mathématiques · 9ᵉ année de base');
+    // Les trois chiffres : les élèves sur la capacité, le Mois en cours, la prochaine séance.
+    expect([...cadres()[0].querySelectorAll('.chiffre b')].map((b) => b.textContent?.trim())).toEqual(['0/16', 'Mois 3', expect.any(String)]);
+    expect(lien(cadres()[0])).toBe('/professeurs/groupes/g1');
     expect(cadres()[1].textContent).toContain('Groupe Dimanche 8h → 10h');
-    // Sans niveau : la matière, puis les élèves.
+    // Sans niveau ni capacité.
     expect(cadres()[1].textContent).not.toContain('année');
-    expect(cadres()[1].textContent?.trim()).toContain('Mathématiques · 0 élève');
+    expect(cadres()[1].querySelector('.chiffre b')?.textContent?.trim()).toBe('0');
 
     await choisir('Leila Khelifi');
     expect(cadres().map((c) => c.textContent)).toEqual([expect.stringContaining('Physique du lundi')]);
+  });
+
+  it('modifie ou ferme un groupe depuis sa carte, sans entrer dans le groupe', async () => {
+    await ouvrir([KARIM], [SAMEDI]);
+
+    await cliquer(cadres()[0], 'Fermer');
+    http.expectOne('/api/groupes/g1').flush({ ...SAMEDI, professeur: { id: 'k', prenom: 'Karim', nom: 'Ben Salah' }, niveau: null,
+      dateDeDebut: '2027-09-18', prixDuMois: 40, mois: [], premiereSeance: 1, prixTotal: null, nombreDeSeances: null, seances: [], tranches: [],
+      fermeLe: null, motifDeFermeture: null });
+    expect(page.querySelector('[role="dialog"] h2')?.textContent).toContain('Fermer le groupe');
+    await vi.waitFor(() => expect(page.querySelector('[formcontrolname="motif"]')).not.toBeNull());
+    (page.querySelector('[formcontrolname="motif"]') as HTMLInputElement).value = "Trop peu d'élèves";
+    page.querySelector('[formcontrolname="motif"]')!.dispatchEvent(new Event('input'));
+    (page.querySelector('[role="dialog"] form') as HTMLFormElement).requestSubmit();
+    http.expectOne({ method: 'POST', url: '/api/groupes/g1/fermeture' }).flush({});
+
+    // La carte passe dans « Anciens groupes » : les groupes et les professeurs se rechargent.
+    (await vi.waitFor(() => http.expectOne('/api/groupes'))).flush([{ ...SAMEDI, ferme: true }]);
+    http.expectOne(ADRESSE).flush([KARIM]);
+    await attendre('Groupe fermé');
+    expect(page.querySelector('[role="dialog"]')).toBeNull();
+    await vi.waitFor(() => expect(page.querySelector('.carte-f')).toBeNull());
   });
 
   it('filtre les groupes par jour', async () => {
@@ -400,7 +427,7 @@ describe('la page « Professeurs »', () => {
 
     await cliquer(groupesDuProfesseur(), 'Sam');
     expect(bouton(groupesDuProfesseur(), 'Sam').getAttribute('aria-pressed')).toBe('true');
-    expect(cadres().map((c) => c.getAttribute('href'))).toEqual(['/professeurs/groupes/g1']);
+    expect(cadres().map(lien)).toEqual(['/professeurs/groupes/g1']);
 
     expect(bouton(groupesDuProfesseur(), 'Lun').classList).toContain('off');
     await cliquer(groupesDuProfesseur(), 'Lun');
@@ -463,7 +490,7 @@ describe('la page « Professeurs »', () => {
   it('range les groupes terminés dans « Anciens groupes »', async () => {
     await ouvrir([KARIM], [SAMEDI, REVISION_FINIE]);
 
-    expect(cadresOuverts().map((c) => c.getAttribute('href'))).toEqual(['/professeurs/groupes/g1']);
+    expect(cadresOuverts().map(lien)).toEqual(['/professeurs/groupes/g1']);
     const anciens = page.querySelector('.groupes-du-professeur details') as HTMLDetailsElement;
     expect(anciens.open).toBe(false);
     expect(anciens.querySelector('summary')?.textContent?.trim()).toBe('Anciens groupes (1)');

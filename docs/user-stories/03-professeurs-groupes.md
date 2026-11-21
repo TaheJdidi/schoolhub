@@ -23,7 +23,8 @@ En tant que secrétaire, je veux voir tous les groupes d'un professeur d'un coup
 **Critères d'acceptation**
 
 - La liste des professeurs montre chacun avec son nombre de groupes ouverts.
-- Un clic sur Karim Ben Salah affiche chacun de ses groupes ouverts dans un cadre : nom (« Groupe Samedi 10h → 12h »), matière, niveau, type, nombre d'élèves sur la capacité, et badge de paiement (CAI-02).
+- Un clic sur Karim Ben Salah affiche chacun de ses groupes ouverts dans une carte : nom (« Groupe Samedi 10h → 12h »), type, matière, niveau et badge de paiement (CAI-02), puis trois chiffres : les élèves sur la capacité (« 1/15 »), le Mois en cours (« Mois 3 ») ou les séances passées (« 2/3 »), et la date de la prochaine séance. Un liseré coloré dit le type.
+- Chaque carte a « Modifier » (GRP-04) et « Fermer » (GRP-08) : une fenêtre s'ouvre sur la page, sans entrer dans le groupe. Un toucher ailleurs sur la carte ouvre le groupe.
 - Le filtre « Samedi » n'affiche que les groupes qui ont une séance le samedi.
 - Ses groupes fermés et terminés sont rangés à part, dans « Anciens groupes ».
 
@@ -56,7 +57,7 @@ En tant que secrétaire, je veux créer un groupe d'Étude avec son horaire et s
 - Le groupe se modifie ensuite : nom, capacité, prix. Un nouveau prix vaut pour les Mois qui n'ont pas encore commencé : le prix passe de 40 à 45 TND le 01/02, le Mois 5 commencé le 15/01 reste à 40 TND, et le Mois 6 passe à 45 TND.
 - Les professeurs, faits avant les groupes ([conception](../superpowers/specs/2026-11-04-professeurs-design.md#4-ce-que-grp-04-devra-ajouter-ici)), attendent cette story pour : compter les groupes ouverts de chacun ; refuser « Marquer parti » à un professeur qui a un groupe ouvert (« Fermez d'abord ses groupes ») ; refuser de supprimer un professeur qui a eu un groupe ; refuser un professeur parti dans un nouveau groupe.
 
-Maquette : fiche groupe (« Le groupe »).
+Maquette : Professeurs → carte du groupe → Modifier.
 
 ### GRP-05 · Créer un groupe de Révision
 

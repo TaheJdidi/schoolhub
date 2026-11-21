@@ -33,7 +33,12 @@ public sealed class RappelsDePaiement(SchoolHubDbContext contexte, InscriptionsD
             situation.Couleur.ToString(),
             texte,
             DestinatairesDeLEleve.De(eleve).Select(d => new MessageWhatsApp(d.Nom, TelephoneTunisien.Grouper(d.Chiffres), WhatsApp.Lien(d.Chiffres, texte))).ToList(),
-            eleve.DernierRappelLe), StatusCodes.Status200OK, null);
+            eleve.DernierRappelLe)
+        {
+            // La fenêtre du rappel montre le détail ligne par ligne, et le total.
+            Lignes = situation.Dues.Select(d => new LigneDuRappel(Majuscule(Decrire(d)), d.Montant)).ToList(),
+            Total = situation.Dues.Sum(d => d.Montant),
+        }, StatusCodes.Status200OK, null);
     }
 
     /// <summary>Le rappel a été ouvert dans WhatsApp : sa date s'affiche, pour ne pas l'envoyer deux fois.</summary>
@@ -63,15 +68,21 @@ public sealed class RappelsDePaiement(SchoolHubDbContext contexte, InscriptionsD
     }
 
     /// <summary>
-    /// « Bonjour, il reste à payer pour Adem Miled : Mois 3 de mathématiques, 40,000 TND. Centre Les Jasmins. » Plusieurs
-    /// sommes se suivent, séparées par « ; », puis le total.
+    /// Le message du rappel, une somme par ligne, le total en gras (WhatsApp) :
+    /// « Bonjour,\n\nCentre Les Jasmins vous rappelle qu'il reste à payer pour Adem Miled :\n\n• Mois 3 de
+    /// mathématiques : 40,000 TND\n• Assurance 2027-2028 : 20,000 TND\n\n*Total : 60,000 TND*\n\nMerci de passer régler au
+    /// centre. Bonne journée. » Une seule somme n'a pas de ligne « Total ».
     /// </summary>
     internal static string Texte(Eleve eleve, IReadOnlyList<SommeDueAujourdhui> dues, string centre)
     {
-        var sommes = string.Join(" ; ", dues.Select(d => $"{Decrire(d)}, {SaisieDuGroupe.EcrireUnMontant(d.Montant)} TND"));
-        var total = dues.Count > 1 ? $" Total : {SaisieDuGroupe.EcrireUnMontant(dues.Sum(d => d.Montant))} TND." : "";
-        return $"Bonjour, il reste à payer pour {eleve.Prenom} {eleve.Nom} : {sommes}.{total} {centre}.";
+        var lignes = string.Join("\n", dues.Select(d => $"• {Majuscule(Decrire(d))} : {SaisieDuGroupe.EcrireUnMontant(d.Montant)} TND"));
+        var total = dues.Count > 1 ? $"\n\n*Total : {SaisieDuGroupe.EcrireUnMontant(dues.Sum(d => d.Montant))} TND*" : "";
+        return $"Bonjour,\n\n{centre} vous rappelle qu'il reste à payer pour {eleve.Prenom} {eleve.Nom} :\n\n{lignes}{total}"
+            + "\n\nMerci de passer régler au centre. Bonne journée.";
     }
+
+    /// <summary>« assurance 2027-2028 » devient « Assurance 2027-2028 », en tête d'une ligne.</summary>
+    private static string Majuscule(string texte) => texte.Length == 0 ? texte : char.ToUpperInvariant(texte[0]) + texte[1..];
 
     /// <summary>« Mois 3 de mathématiques », « Séance 2 d'informatique », « assurance 2027-2028 ».</summary>
     private static string Decrire(SommeDueAujourdhui due)
@@ -84,7 +95,16 @@ public sealed class RappelsDePaiement(SchoolHubDbContext contexte, InscriptionsD
 }
 
 /// <summary>CAI-08 : la couleur de l'élève, le texte du rappel, un message par destinataire, et la date du dernier rappel.</summary>
-public sealed record RappelDePaiement(string Couleur, string Texte, List<MessageWhatsApp> Messages, DateTimeOffset? DernierRappelLe);
+public sealed record RappelDePaiement(string Couleur, string Texte, List<MessageWhatsApp> Messages, DateTimeOffset? DernierRappelLe)
+{
+    /// <summary>Ce que l'élève doit, une ligne par somme : « Mois 3 de mathématiques », 40,000.</summary>
+    public List<LigneDuRappel> Lignes { get; init; } = [];
+
+    public decimal Total { get; init; }
+}
+
+/// <summary>Une somme due du rappel, pour la fenêtre : son libellé et son montant.</summary>
+public sealed record LigneDuRappel(string Libelle, decimal Montant);
 
 /// <summary>Ce que la lecture ou la notation d'un rappel a donné : le rappel et le statut HTTP, ou un refus.</summary>
 public sealed record IssueDuRappel(RappelDePaiement? Rappel, int Statut, string? Message);

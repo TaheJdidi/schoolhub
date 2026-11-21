@@ -56,7 +56,7 @@ En tant que secrétaire, je veux voir sur une seule page tout ce qui concerne un
 - En haut, « À payer » : tout ce qu'il doit à ce jour, inscription par inscription, avec sa couleur (CAI-01).
 - Ses inscriptions : groupe, professeur, mode de tarification, prix ou prix spécial.
 - L'assurance de l'année : payée, à payer, dispensée, déjà payée avant SchoolHub, ou sans objet (aucune Étude).
-- Ses présences par groupe, depuis le début : P présent, A absent, ? appel à faire, et ses rattrapages.
+- Ses présences par groupe, depuis le début : P présent, A absent, ? appel à faire, et les séances faites avec un autre groupe.
 - Ses reçus : numéro, date, montant, et la mention « annulé » s'il y a lieu.
 - Ses contacts, et la date du dernier rappel de paiement (CAI-08).
 - Un élève sans inscription montre « Aucune inscription : cet élève vient seulement à la bibliothèque », avec ses entrées.

@@ -102,7 +102,7 @@ describe("la feuille d'appel", () => {
     const lignes = [...page.querySelectorAll('tbody tr')];
     expect(lignes[0].textContent).toContain('Ayari');
     expect(lignes[1].textContent).toContain('Miled');
-    expect(lignes[2].textContent).toContain('Élèves en rattrapage');
+    expect(lignes[2].textContent).toContain("Venus d'un autre groupe");
     expect(page.querySelectorAll('tbody tr.vide')).toHaveLength(3);
     expect(page.querySelector('.pied')?.textContent).toContain("Écrivez A dans la case d'un élève absent. Les autres sont présents.");
   });

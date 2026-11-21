@@ -13,8 +13,14 @@ public enum NatureDeLaSeance
     /// <summary>SEA-04 : ajoutée pour remplacer une séance annulée ; elle compte à sa place dans le Mois.</summary>
     Remplacement,
 
-    /// <summary>SEA-05 : offerte, en plus ; elle a son appel mais ne compte pas dans le Mois.</summary>
+    /// <summary>SEA-05 : offerte, en plus, dans une Révision ou une Formation ; elle a son appel mais ne compte pas.</summary>
     Supplementaire,
+
+    /// <summary>
+    /// SEA-05 : ajoutée à une Étude ; elle compte dans le Mois comme une séance prévue, et les séances suivantes passent au
+    /// Mois d'après. Le changement d'horaire (SEA-06) la garde.
+    /// </summary>
+    Ajoutee,
 }
 
 /// <summary>

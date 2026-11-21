@@ -102,6 +102,38 @@ public sealed class RattrapageEtFeuilleTests(PostgreSqlDeTest postgreSql) : IAsy
     }
 
     [Fact]
+    public async Task Plusieurs_eleves_du_meme_groupe_d_un_coup()
+    {
+        var sarra = await InscrireAsync("Sarra", "Khelifi", "97 222 333", "50 222 333", _mardi, Le(23, 11));
+        var seance = await SeanceAsync(_samedi, Le(27, 11));
+        var duMardi = await SeanceAsync(_mardi, Le(30, 11));
+
+        var appel = await RattraperAsync(seance, new RattrapageSaisi(null, duMardi, [_lina.Inscription, sarra.Inscription]));
+
+        Assert.Equal(["Lina", "Sarra"], appel.Rattrapages!.Select(e => e.Prenom).Order());
+        Assert.All(appel.Rattrapages!, e => Assert.Equal(Le(30, 11), e.SeanceRattrapee));
+        var origine = (await _secretaire.GetFromJsonAsync<AppelDeLaSeance>($"/api/seances/{duMardi}/appel"))!;
+        Assert.All(origine.Eleves, e => Assert.Equal(Le(27, 11), e.RattrapeeLe));
+    }
+
+    [Fact]
+    public async Task Plusieurs_eleves_tous_ou_aucun()
+    {
+        var sarra = await InscrireAsync("Sarra", "Khelifi", "97 222 333", "50 222 333", _mardi, Le(23, 11));
+        var seance = await SeanceAsync(_samedi, Le(27, 11));
+        var duMardi = await SeanceAsync(_mardi, Le(30, 11));
+        // Sarra remplace déjà sa séance du 30/11 un autre samedi.
+        await RattraperAsync(await SeanceAsync(_samedi, Le(4, 12)), new RattrapageSaisi(sarra.Inscription, duMardi));
+
+        var reponse = await _secretaire.PostAsJsonAsync($"/api/seances/{seance}/rattrapages",
+            new RattrapageSaisi(null, duMardi, [_lina.Inscription, sarra.Inscription]));
+
+        await VerifierLeRefusAsync(reponse, HttpStatusCode.Conflict, "Sarra Khelifi : Cette séance de son groupe est déjà remplacée");
+        var appel = (await _secretaire.GetFromJsonAsync<AppelDeLaSeance>($"/api/seances/{seance}/appel"))!;
+        Assert.Empty(appel.Rattrapages ?? []);
+    }
+
+    [Fact]
     public async Task L_appel_d_un_eleve_en_rattrapage()
     {
         var seance = await SeanceAsync(_samedi, Le(27, 11));
@@ -117,12 +149,12 @@ public sealed class RattrapageEtFeuilleTests(PostgreSqlDeTest postgreSql) : IAsy
 
     [Theory]
     [InlineData("même groupe", HttpStatusCode.BadRequest, "Cet élève est déjà dans ce groupe")]
-    [InlineData("autre niveau", HttpStatusCode.BadRequest, "Le rattrapage se fait dans un groupe du même professeur, de la même matière et du même niveau")]
-    [InlineData("séance d'un autre groupe", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
-    [InlineData("séance d'avant son arrivée", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
-    [InlineData("séance à plus de 8 semaines", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il rattrape")]
+    [InlineData("autre niveau", HttpStatusCode.BadRequest, "Il doit venir d'un groupe du même professeur, de la même matière et du même niveau")]
+    [InlineData("séance d'un autre groupe", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il remplace")]
+    [InlineData("séance d'avant son arrivée", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il remplace")]
+    [InlineData("séance à plus de 8 semaines", HttpStatusCode.BadRequest, "Choisissez la séance de son groupe qu'il remplace")]
     [InlineData("inscription inconnue", HttpStatusCode.NotFound, "Inscription introuvable")]
-    [InlineData("deux fois la même séance", HttpStatusCode.Conflict, "Cette séance est déjà rattrapée")]
+    [InlineData("deux fois la même séance", HttpStatusCode.Conflict, "Cette séance de son groupe est déjà remplacée")]
     public async Task Un_rattrapage_refuse(string cas, HttpStatusCode statut, string message)
     {
         var seance = await SeanceAsync(_samedi, Le(27, 11));

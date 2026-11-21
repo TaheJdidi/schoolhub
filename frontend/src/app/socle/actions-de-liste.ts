@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { messageDErreur } from './erreurs';
 import { FRANCAIS } from './francais';
 import { Session } from './session/session';
+import { Icone } from './icone';
 
 /** Les filtres d'un export : seuls ceux qui ont une valeur partent. */
 export type FiltresDExport = Record<string, string | number | boolean | null | undefined>;
@@ -33,15 +34,25 @@ export async function telechargerUnFichier(http: HttpClient, adresse: string, fi
 @Component({
   selector: 'sh-actions-de-liste',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Icone],
   template: `
     <div class="actions-de-liste sans-impression">
-      <button type="button" class="btn sm" [disabled]="nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="imprimer()">
-        Imprimer
-      </button>
-      @if (exporter()) {
-        <button type="button" class="btn sm" [disabled]="envoi() || nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="telecharger()">
-          Exporter (Excel)
+      @if (compact()) {
+        <button type="button" class="icone-seule" aria-label="Imprimer" [attr.title]="nombre() === 0 ? 'La liste est vide' : 'Imprimer'"
+                [disabled]="nombre() === 0" (click)="imprimer()"><sh-icone nom="printer" /></button>
+        @if (exporter()) {
+          <button type="button" class="icone-seule" aria-label="Exporter (Excel)" [attr.title]="nombre() === 0 ? 'La liste est vide' : 'Exporter (Excel)'"
+                  [disabled]="envoi() || nombre() === 0" (click)="telecharger()"><sh-icone nom="file-spreadsheet" /></button>
+        }
+      } @else {
+        <button type="button" class="btn sm" [disabled]="nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="imprimer()">
+          Imprimer
         </button>
+        @if (exporter()) {
+          <button type="button" class="btn sm" [disabled]="envoi() || nombre() === 0" [attr.title]="nombre() === 0 ? 'La liste est vide' : null" (click)="telecharger()">
+            Exporter (Excel)
+          </button>
+        }
       }
     </div>
     @if (erreur(); as erreur) {
@@ -56,6 +67,11 @@ export async function telechargerUnFichier(http: HttpClient, adresse: string, fi
   styles: `
     :host { display: contents; }
     .actions-de-liste { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+    .icone-seule { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0;
+      border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+    .icone-seule:hover:not(:disabled) { background: var(--sunk); color: var(--ink); }
+    .icone-seule:disabled { opacity: 0.5; cursor: not-allowed; }
+    .icone-seule svg { width: 17px; height: 17px; }
     .entete-d-impression { justify-content: space-between; gap: 12px; padding-bottom: 6mm; border-bottom: 1px solid #999; margin-bottom: 4mm; font-size: 12pt; }
   `,
 })
@@ -70,6 +86,8 @@ export class ActionsDeListe {
   /** L'adresse de l'export (`/api/exports/eleves`) ; sans elle, seulement « Imprimer ». */
   readonly exporter = input<string | null>(null);
   readonly filtres = input<FiltresDExport>({});
+  /** Deux icônes, sans texte (l'en-tête de l'appel) ; le nom s'affiche au survol. */
+  readonly compact = input(false);
 
   protected readonly aujourdhui = formatDate(new Date(), 'dd/MM/yyyy', FRANCAIS);
   protected readonly envoi = signal(false);

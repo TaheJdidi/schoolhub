@@ -144,8 +144,11 @@ public sealed record AppelDeLaSeance(
     DateTimeOffset? AppelFaitLe = null,
     string? AppelFaitPar = null);
 
-/// <summary>SEA-12 : l'élève (son inscription dans son groupe) et la séance de son groupe qu'il rattrape.</summary>
-public sealed record RattrapageSaisi(Guid? InscriptionId, Guid? SeanceRattrapeeId);
+/// <summary>
+/// SEA-12 : l'élève (son inscription dans son groupe) et la séance de son groupe qu'il remplace. Plusieurs élèves d'un
+/// même groupe arrivent ensemble dans <see cref="InscriptionIds"/>, avec la même séance remplacée.
+/// </summary>
+public sealed record RattrapageSaisi(Guid? InscriptionId, Guid? SeanceRattrapeeId, List<Guid>? InscriptionIds = null);
 
 public sealed record GroupeDuRattrapage(Guid Id, string Nom);
 

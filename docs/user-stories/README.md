@@ -57,7 +57,7 @@ Le journal s'écrit dès la première story qui touche à l'argent ou à la pré
 | GRP | 01 professeur · 02 groupes d'un professeur · 03 professeur parti · 04 groupe d'Étude · 05 groupe de Révision · 06 groupe de Formation · 07 groupe déjà en cours · 08 fermer un groupe |
 | ELV | 01 chercher un élève · 02 fiche élève · 03 inscrire · 04 voir la fiche · 05 prix spécial · 06 dispense d'assurance · 07 déjà payé avant SchoolHub · 08 arrêter une inscription · 09 changement de groupe · 10 Formation payée en totalité · 11 supprimer une fiche |
 | DEM | 01 formulaire public · 02 lien et QR code · 03 liste des demandes · 04 enregistrer une demande · 05 refuser une demande |
-| SEA | 01 accueil « Aujourd'hui » · 02 séances d'un groupe · 03 annuler · 04 déplacer · 05 séance supplémentaire · 06 changer l'horaire · 07 faire l'appel · 08 feuille d'appel · 09 recopier une feuille · 10 corriger une présence · 11 prévenir les absents et leurs parents · 12 rattrapage |
+| SEA | 01 accueil « Aujourd'hui » · 02 séances d'un groupe · 03 annuler · 04 déplacer · 05 ajouter une séance · 06 changer l'horaire · 07 faire l'appel · 08 feuille d'appel · 09 recopier une feuille · 10 corriger une présence · 11 prévenir les absents et leurs parents · 12 venus d'un autre groupe |
 | CAI | 01 ce que l'élève doit et sa couleur · 02 badge « groupe payé » · 03 encaisser un élève · 04 encaissement groupé · 05 remettre le reçu · 06 retrouver un reçu · 07 annuler un reçu · 08 rappel de paiement · 09 clôturer sa caisse · 10 contrôler les clôtures |
 | BIB | 01 entrée à la journée · 02 liste du jour · 03 jour passé |
 | PRT | 01 parts à payer · 02 part payée · 03 avance · 04 part du centre d'un professeur |

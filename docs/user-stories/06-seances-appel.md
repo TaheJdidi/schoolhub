@@ -58,17 +58,19 @@ En tant que secrétaire, je veux déplacer une séance à une autre date, en une
 
 Maquette : fiche groupe → Déplacer cette séance.
 
-### SEA-05 · Ajouter une séance supplémentaire
+### SEA-05 · Ajouter une séance
 
-En tant que secrétaire, je veux ajouter une séance offerte, par exemple avant un examen, afin qu'elle ait son appel sans rien changer aux paiements.
+En tant que secrétaire, je veux ajouter une séance en plus de l'horaire, afin qu'elle ait son appel et trouve sa place dans le calendrier.
 
 **Critères d'acceptation**
 
-- La secrétaire choisit la date et l'heure. La séance supplémentaire ne compte pas dans le Mois, et rien de plus n'est dû.
+- La secrétaire choisit la date et l'heure. La séance apparaît dans la bande des séances, à sa date.
+- Dans une Étude, elle compte dans le Mois : le Mois garde 4 séances, et les suivantes passent au Mois d'après. Le Mois 3 des 14/11, 21/11, 28/11 et 05/12 reçoit une séance le dimanche 22/11 : il devient 14/11, 21/11, 22/11 et 28/11, et le 05/12 ouvre le Mois 4.
+- Dans une Révision ou une Formation, la séance supplémentaire est offerte, par exemple avant un examen : elle ne compte pas, et rien de plus n'est dû.
 - Elle a son appel, comme les autres séances.
 - La plateforme prépare un message WhatsApp pour les [destinataires](00-exigences-communes.md#messages) de chaque élève du groupe.
 
-Maquette : fiche groupe → Ajouter une séance supplémentaire.
+Maquette : fiche groupe → Ajouter une séance.
 
 ### SEA-06 · Changer l'horaire d'un groupe à partir d'une date
 
@@ -91,7 +93,7 @@ En tant que secrétaire, je veux faire l'appel en ne touchant que les absents, a
 
 - À partir du jour de la séance, l'appel s'ouvre avec tous les élèves présents. Un toucher marque un élève absent ; un autre le remet présent.
 - « Enregistrer l'appel » fait passer la séance à « appel fait ».
-- Les élèves en rattrapage apparaissent à part, avec « Paie dans son groupe d'origine ».
+- Les élèves venus d'un autre groupe apparaissent à part, avec « Paie dans son groupe d'origine ».
 - Un absent en Étude doit quand même son Mois. Un absent d'une Révision payée à la séance ne doit pas cette séance.
 - L'appel se fait aussi bien sur téléphone que sur ordinateur.
 
@@ -105,7 +107,7 @@ En tant que secrétaire, je veux imprimer une feuille d'appel, afin que le profe
 
 - La période se choisit : la séance du jour, un Mois (par exemple le Mois 2) ou des dates.
 - La feuille A4 porte le nom du groupe, le professeur et l'année scolaire, puis, pour chaque élève, son nom, son prénom, une case par séance et une case de signature.
-- Des lignes vides servent aux élèves en rattrapage.
+- Des lignes vides servent aux élèves venus d'un autre groupe.
 - Elle ne montre ni téléphone ni paiement.
 - La consigne est écrite : « Écrivez A dans la case d'un élève absent. Les autres sont présents. »
 
@@ -147,15 +149,16 @@ En tant que secrétaire, je veux prévenir les absents juste après l'appel et, 
 
 Maquette : fiche groupe → Prévenir les parents des absents.
 
-### SEA-12 · Inscrire un élève en rattrapage
+### SEA-12 · Venus d'un autre groupe
 
-En tant que secrétaire, je veux qu'un élève rattrape une séance dans un autre groupe du même professeur, afin qu'il ne perde pas son cours.
+En tant que secrétaire, je veux ajouter en quelques touchers les élèves d'un autre groupe du même professeur venus à cette séance à la place de la leur, afin qu'ils ne perdent pas leur cours.
 
 **Critères d'acceptation**
 
-- Depuis une séance, « Ajouter un élève en rattrapage » ne propose que les élèves des autres groupes du même professeur, de la même matière et du même niveau.
-- La secrétaire choisit la séance précise de son groupe que l'élève rattrape, déjà manquée ou à venir.
-- Dans le groupe d'accueil, l'élève apparaît à part à l'appel, et n'entre ni dans le badge « groupe payé » ni dans les couleurs.
-- Le paiement reste dans son groupe d'origine ; la séance rattrapée y montre « rattrapée le 18/01 ».
+- Depuis une séance, « Venus d'un autre groupe » ne propose que les autres groupes du même professeur, de la même matière et du même niveau. S'il n'y en a qu'un, il est déjà choisi.
+- La secrétaire touche le groupe, puis coche les élèves venus ; « Ajouter 5 élèves » les ajoute tous d'un coup, ou aucun si l'un ne peut pas venir.
+- Ils remplacent la prochaine séance de leur groupe, à partir du jour de cette séance ; « changer » permet d'en choisir une autre, déjà passée ou à venir.
+- Dans le groupe d'accueil, ils apparaissent à part à l'appel, et n'entrent ni dans le badge « groupe payé » ni dans les couleurs.
+- Le paiement reste dans leur groupe d'origine ; la séance remplacée y montre l'étiquette « Venu le 21/11 avec un autre groupe ». La secrétaire y fait l'appel comme pour les autres élèves.
 
-Maquette : fiche groupe → Ajouter un élève en rattrapage.
+Maquette : fiche groupe → + Venus d'un autre groupe.

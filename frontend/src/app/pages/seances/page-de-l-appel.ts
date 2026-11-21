@@ -10,11 +10,14 @@ import { FRANCAIS } from '../../socle/francais';
 import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe, resteAPayer } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
-import { MessageWhatsApp } from '../inscriptions/inscription';
+import { InscriptionDeLEleve, MessageWhatsApp, modeCourt } from '../inscriptions/inscription';
+import { ActionsDeListe } from '../../socle/actions-de-liste';
+import { Icone } from '../../socle/icone';
+import { BoutonDeRappel, enRetard } from '../caisse/paiement';
 import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
 import { MessagesDuChangement } from './messages-du-changement';
 
-/** Un absent à prévenir : un élève du groupe ou en rattrapage (SEA-11, SEA-12). */
+/** Un absent à prévenir : un élève du groupe ou venu d'un autre groupe (SEA-11, SEA-12). */
 type Prevenable = EleveALAppel | EleveEnRattrapage;
 
 /** Ce que la secrétaire fait de la séance (SEA-03, SEA-04). */
@@ -37,8 +40,8 @@ function memes(a: string[], b: string[]): boolean {
 @Component({
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, NgTemplateOutlet, MessagesDuChangement, BrouillonRepris],
-  host: { '[class.integre]': 'integre()' },
+  imports: [RouterLink, NgTemplateOutlet, MessagesDuChangement, BrouillonRepris, ActionsDeListe, BoutonDeRappel, Icone],
+  host: { '[class.integre]': 'integre()', '(document:keydown.escape)': 'fermerAuClavier()' },
   template: `
     @if (introuvable()) {
       <div class="pagehead">
@@ -93,13 +96,28 @@ function memes(a: string[], b: string[]): boolean {
                   <p class="aide">Marquez chaque élève : P présent, A absent.</p>
                 }
               </div>
-              @if (appel.appelFait) {
-                <span class="pill ok">✓ Appel fait</span>
-              } @else if (appel.ouvert) {
-                <span class="pill warn">Appel à faire</span>
-              } @else {
-                <span class="pill muted">À venir</span>
-              }
+              <span class="etat-et-outils">
+                @if (appel.appelFait) {
+                  <span class="pill ok">✓ Appel fait</span>
+                } @else if (appel.ouvert) {
+                  <span class="pill warn">Appel à faire</span>
+                } @else {
+                  <span class="pill muted">À venir</span>
+                }
+                <!-- Ce que faisait le bloc « Les élèves » : ajouter un élève, imprimer, exporter. -->
+                @if (inscriptions(); as inscriptions) {
+                  @if (ajoutPossible()) {
+                    <a class="icone-seule" [routerLink]="['/professeurs/groupes', appel.groupe.id, 'inscription']"
+                       aria-label="Ajouter un élève" title="Ajouter un élève"><sh-icone nom="user-plus" /></a>
+                  }
+                  <sh-actions-de-liste [compact]="true" [titre]="appel.groupe.nom + ' · élèves'" [nombre]="inscriptions.length"
+                                       [exporter]="'/api/exports/groupes/' + appel.groupe.id" />
+                  <!-- SEA-08 : la feuille d'appel, à côté du tableau qu'elle imprime. -->
+                  <a class="feuille-d-appel" [routerLink]="['/professeurs/groupes', appel.groupe.id, 'feuille-d-appel']">
+                    <sh-icone nom="file-text" /> Feuille d'appel
+                  </a>
+                }
+              </span>
             </div>
             <sh-brouillon-repris [brouillon]="brouillon" texte="Vous reprenez l'appel que vous n'aviez pas enregistré." action="Annuler les changements" />
             @if (colonneDePaiement() && appel.eleves.length > 0) {
@@ -115,12 +133,22 @@ function memes(a: string[], b: string[]): boolean {
               <div class="ligne-appel">
                 <span class="point" [class]="'point ' + (paiementDe(eleve.eleveId)?.couleur ?? '')" aria-hidden="true"></span>
                 <span class="deux">
-                  <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                  @if (inscriptions()) {
+                    <span class="nom-et-rappel">
+                      <a class="nom-de-l-eleve" [routerLink]="['/eleves', eleve.eleveId]" [attr.title]="inscriptionEnBref(eleve.inscriptionId)"><b>{{ eleve.prenom }} {{ eleve.nom }}</b></a>
+                      <!-- CAI-08 : un élève orange ou rouge reçoit un rappel de paiement. -->
+                      @if (enRetard(inscriptionDe(eleve.inscriptionId)?.couleur)) {
+                        <sh-bouton-de-rappel [compact]="true" [eleveId]="eleve.eleveId" [pour]="eleve.prenom + ' ' + eleve.nom" />
+                      }
+                    </span>
+                  } @else {
+                    <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
+                  }
                   @if (paiementDe(eleve.eleveId); as paiement) {
                     <small>{{ paiement.texte }}</small>
                   }
                   @if (eleve.rattrapeeLe; as le) {
-                    <small>Rattrapée le {{ court(le) }}</small>
+                    <span class="venu-ailleurs">Venu le {{ court(le) }} avec un autre groupe</span>
                   }
                   @if (colonneDePaiement() && aPayerDe(eleve.eleveId) && partieDe(eleve.eleveId) === null) {
                     <button type="button" class="lien payer-une-partie" [disabled]="envoiDuPaiement()" (click)="ouvrirUnePartie(eleve.eleveId)">
@@ -187,14 +215,33 @@ function memes(a: string[], b: string[]): boolean {
             } @empty {
               <p class="vide">Aucun élève attendu à cette séance.</p>
             }
+            @for (inscription of pasACetteSeance(); track inscription.id) {
+              <div class="ligne-appel pas-a-cette-seance">
+                <span class="point" [class]="'point ' + (inscription.couleur ?? '')" aria-hidden="true"></span>
+                <span class="deux">
+                  <span class="nom-et-rappel">
+                    <a class="nom-de-l-eleve" [routerLink]="['/eleves', inscription.eleve.id]" [attr.title]="modeEtDebut(inscription)"><b>{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</b></a>
+                    @if (enRetard(inscription.couleur)) {
+                      <sh-bouton-de-rappel [compact]="true" [eleveId]="inscription.eleve.id" [pour]="inscription.eleve.prenom + ' ' + inscription.eleve.nom" />
+                    }
+                  </span>
+                  <small>{{ pourquoiPasLa(inscription) }}</small>
+                </span>
+                <span class="col-presence"><span class="tiret">—</span></span>
+                @if (colonneDePaiement()) {
+                  <span class="col-paiement"><span class="tiret">—</span></span>
+                  <span class="col-mode"></span>
+                }
+              </div>
+            }
             @if (appel.rattrapages?.length) {
-              <p class="bande">En rattrapage dans ce groupe</p>
+              <p class="bande">Venus d'un autre groupe</p>
               @for (eleve of appel.rattrapages; track eleve.rattrapageId) {
                 <div class="ligne-appel">
                   <span class="point" aria-hidden="true"></span>
                   <span class="deux">
                     <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
-                    <small>Vient du {{ eleve.groupeDOrigine }} · paie dans son groupe</small>
+                    <small>Vient du {{ eleve.groupeDOrigine }}, à la place du {{ court(eleve.seanceRattrapee) }} · paie dans son groupe</small>
                   </span>
                   <span class="col-presence">
                     @if (modifiable()) {
@@ -236,7 +283,7 @@ function memes(a: string[], b: string[]): boolean {
                     <button type="button" class="btn ghost" [disabled]="envoi()" (click)="tousPresents()">Tous présents</button>
                   }
                   @if (!appel.annulee) {
-                    <button type="button" class="btn ghost" (click)="ouvrirLeRattrapage()">+ Rattrapage</button>
+                    <button type="button" class="btn ghost" (click)="ouvrirLeRattrapage()">+ Venus d'un autre groupe</button>
                   }
                   @if (modifiable()) {
                     <button type="button" class="btn primary" [disabled]="envoi()" (click)="enregistrer()">✓ {{ appel.appelFait ? "Enregistrer la correction" : "Valider l'appel" }}</button>
@@ -288,7 +335,7 @@ function memes(a: string[], b: string[]): boolean {
                   <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
                   <small class="etat">{{ libelleDeLEtat(eleve) }}</small>
                   @if (eleve.rattrapeeLe; as le) {
-                    <small class="origine">Rattrapée le {{ court(le) }}</small>
+                    <span class="venu-ailleurs">Venu le {{ court(le) }} avec un autre groupe</span>
                   }
                 </span>
                 @if (appel.ouvert && !appel.annulee) {
@@ -299,9 +346,9 @@ function memes(a: string[], b: string[]): boolean {
               <p class="vide">Aucun élève attendu à cette séance.</p>
             }
           </div>
-          <!-- SEA-12 : les élèves en rattrapage, à part. -->
+          <!-- SEA-12 : les élèves venus d'un autre groupe, à part. -->
           @if (appel.rattrapages?.length) {
-            <h3 class="tag">En rattrapage</h3>
+            <h3 class="tag">Venus d'un autre groupe</h3>
             <div class="eleves">
               @for (eleve of appel.rattrapages; track eleve.rattrapageId) {
                 <div class="en-rattrapage">
@@ -309,7 +356,7 @@ function memes(a: string[], b: string[]): boolean {
                     <span class="deux">
                       <b>{{ eleve.prenom }} {{ eleve.nom }}</b>
                       <small class="etat">{{ libelleDeLEtat(eleve) }}</small>
-                      <small class="origine">Paie dans son groupe d'origine · {{ eleve.groupeDOrigine }}, rattrape le {{ court(eleve.seanceRattrapee) }}</small>
+                      <small class="origine">Paie dans son groupe d'origine · {{ eleve.groupeDOrigine }}, à la place du {{ court(eleve.seanceRattrapee) }}</small>
                     </span>
                     @if (appel.ouvert && !appel.annulee) {
                       <ng-container *ngTemplateOutlet="ronds; context: { $implicit: eleve }" />
@@ -360,45 +407,70 @@ function memes(a: string[], b: string[]): boolean {
           </section>
         }
 
-        <!-- SEA-12 : ajouter un élève en rattrapage ; dans la fiche du groupe, après « + Rattrapage ». -->
+        <!-- SEA-12 : « Venus d'un autre groupe » : on touche leur groupe, puis on coche les élèves venus. -->
         @if (!appel.annulee && (!integre() || rattrapageOuvert())) {
           <section class="card carte">
-            <h2 class="titre">Rattrapage</h2>
+            <h2 class="titre">Venus d'un autre groupe</h2>
             @if (rattrapables() === null) {
               <div class="actions debut">
-                <button type="button" class="btn" (click)="chercherLesRattrapables()">Ajouter un élève en rattrapage</button>
+                <button type="button" class="btn" (click)="chercherLesRattrapables()">Ajouter des élèves venus d'un autre groupe</button>
               </div>
             } @else {
-              <p class="aide">Les élèves des autres groupes du même professeur, de la même matière et du même niveau. Ils paient dans leur groupe.</p>
-              @if (rattrapables()!.length === 0) {
-                <p class="vide">Aucun élève ne peut venir en rattrapage à cette séance.</p>
+              <p class="aide">Des élèves d'un autre groupe du même professeur, de la même matière et du même niveau. Ils paient dans leur groupe.</p>
+              @if (groupesVenus().length === 0) {
+                <p class="vide">Aucun autre groupe de ce professeur, de cette matière et de ce niveau.</p>
               } @else {
-                <div class="champs">
-                  <label class="f">
-                    Élève
-                    <select class="inp" aria-label="Élève en rattrapage" (change)="choisirLeRattrapable($any($event.target).value)">
-                      <option value="">Choisissez l'élève</option>
-                      @for (eleve of rattrapables(); track eleve.inscriptionId) {
-                        <option [value]="eleve.inscriptionId">{{ eleve.prenom }} {{ eleve.nom }} · {{ eleve.groupe.nom }}</option>
-                      }
-                    </select>
-                  </label>
-                  @if (rattrapableChoisi(); as eleve) {
-                    <label class="f">
-                      Séance de son groupe qu'il rattrape
-                      <select class="inp" aria-label="Séance rattrapée" (change)="seanceRattrapee.set($any($event.target).value)">
-                        <option value="">Choisissez la séance</option>
-                        @for (seance of eleve.seances; track seance.id) {
-                          <option [value]="seance.id">{{ jour(seance.date) }} · {{ heure(seance.debut) }}</option>
-                        }
-                      </select>
-                    </label>
+                <div class="groupes-venus" role="group" aria-label="Groupe d'origine">
+                  @for (groupe of groupesVenus(); track groupe.id) {
+                    <button type="button" class="btn puce" [class.choisi]="groupeVenu() === groupe.id" [attr.aria-pressed]="groupeVenu() === groupe.id"
+                            (click)="choisirLeGroupeVenu(groupe.id)">
+                      {{ groupe.nom }}
+                    </button>
                   }
                 </div>
+                @if (groupeVenu()) {
+                  @if (seancesDuGroupeVenu().length === 0) {
+                    <p class="vide">Aucune séance de ce groupe à remplacer.</p>
+                  } @else {
+                    <p class="a-la-place">
+                      À la place de la séance du <b>{{ jour(seanceRemplacee()) }}</b>
+                      @if (!changerLaSeance()) {
+                        · <button type="button" class="lien" (click)="changerLaSeance.set(true)">changer</button>
+                      }
+                    </p>
+                    @if (changerLaSeance()) {
+                      <label class="f">
+                        Séance de leur groupe qu'ils remplacent
+                        <select class="inp" aria-label="Séance remplacée" (change)="choisirLaSeanceRemplacee($any($event.target).value)">
+                          @for (seance of seancesDuGroupeVenu(); track seance.id) {
+                            <option [value]="seance.id" [selected]="seance.id === seanceRattrapee()">{{ jour(seance.date) }} · {{ heure(seance.debut) }}</option>
+                          }
+                        </select>
+                      </label>
+                    }
+                    <div class="eleves-venus">
+                      @for (eleve of elevesDuGroupeVenu(); track eleve.inscriptionId) {
+                        <label class="eleve-venu" [class.coche]="venus().includes(eleve.inscriptionId)" [class.impossible]="!peutRemplacer(eleve)">
+                          <input type="checkbox" [checked]="venus().includes(eleve.inscriptionId)" [disabled]="!peutRemplacer(eleve) || envoi()"
+                                 [attr.aria-label]="eleve.prenom + ' ' + eleve.nom + ' est venu'"
+                                 (change)="cocherLeVenu(eleve.inscriptionId)" />
+                          <span>{{ eleve.prenom }} {{ eleve.nom }}</span>
+                          @if (!peutRemplacer(eleve)) {
+                            <small>cette séance est déjà remplacée</small>
+                          }
+                        </label>
+                      }
+                    </div>
+                  }
+                }
               }
               <div class="actions">
-                <button type="button" class="btn" [disabled]="envoi()" (click)="rattrapables.set(null)">Retour</button>
-                <button type="button" class="btn primary" [disabled]="envoi()" (click)="ajouterLeRattrapage()">Ajouter en rattrapage</button>
+                <button type="button" class="btn" [disabled]="envoi()" (click)="fermerLesVenus()">Retour</button>
+                @if (groupeVenu()) {
+                  <button type="button" class="btn primary" [disabled]="envoi() || venus().length === 0" (click)="ajouterLeRattrapage()">
+                    Ajouter{{ venus().length ? ' ' + venus().length : '' }} élève{{ venus().length > 1 ? 's' : '' }}
+                  </button>
+                }
               </div>
             }
             @if (erreurDuRattrapage(); as erreur) {
@@ -407,10 +479,23 @@ function memes(a: string[], b: string[]): boolean {
           </section>
         }
 
-        <!-- SEA-03 et SEA-04 : annuler ou déplacer la séance ; remplacer une séance annulée. -->
-        @if (!appel.appelFait && !(appel.annulee && appel.nature === 'Supplementaire')) {
-          <section class="card carte">
-            <h2 class="titre">Cette séance</h2>
+        <!-- SEA-03 et SEA-04 : annuler ou déplacer la séance ; remplacer une séance annulée. SEA-05 : ajouter une séance. -->
+        @let changeable = !appel.appelFait && !(appel.annulee && appel.nature === 'Supplementaire');
+        <!-- Sur la fiche du groupe, les boutons sont sur la puce de la séance (la bande) : seul le formulaire s'affiche, en haut. -->
+        @if (integre() ? action() !== null : changeable) {
+          @if (integre()) {
+            <div class="fond-de-fenetre" (click)="fermerLAction()"></div>
+          }
+          <section class="card carte" [class.fenetre-de-seance]="integre()" [attr.role]="integre() ? 'dialog' : null"
+                   [attr.aria-modal]="integre() ? 'true' : null" [attr.aria-labelledby]="integre() ? 'titre-de-la-fenetre-de-seance' : null">
+            @if (integre()) {
+              <div class="haut-de-fenetre">
+                <h2 class="titre" id="titre-de-la-fenetre-de-seance">{{ titreDuFormulaire() }} · {{ jourCourt(appel.date) }}</h2>
+                <button type="button" class="fermer-la-fenetre" aria-label="Fermer" (click)="fermerLAction()">✕</button>
+              </div>
+            } @else {
+              <h2 class="titre">Cette séance</h2>
+            }
             @if (action() === null) {
               <div class="actions debut">
                 @if (appel.annulee) {
@@ -457,7 +542,7 @@ function memes(a: string[], b: string[]): boolean {
         }
 
         @if (changement(); as changement) {
-          <sh-messages-du-changement [changement]="changement" />
+          <sh-messages-du-changement [class.en-haut]="integre()" [changement]="changement" />
         }
       </div>
     } @else if (erreur(); as erreur) {
@@ -546,6 +631,37 @@ function memes(a: string[], b: string[]): boolean {
     .a-jour { color: var(--ok); font-size: 13px; font-weight: 500; }
     .lien { padding: 0; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: 12.5px; text-decoration: underline; cursor: pointer; }
     .payer-une-partie { justify-self: start; margin-top: 2px; }
+    /* Sur la fiche du groupe : le formulaire de la séance et ses messages, juste sous la bande, avant l'appel. */
+    .en-haut { order: -1; }
+    /* Le formulaire s'ouvre dans une fenêtre, au centre, au-dessus de la page. */
+    .fond-de-fenetre { position: fixed; inset: 0; z-index: 60; background: rgb(15 23 42 / 0.45); }
+    .fenetre-de-seance { position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0;
+      width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 20px 22px; border-radius: 14px;
+      box-shadow: 0 12px 40px rgb(15 23 42 / 0.25); }
+    .fenetre-de-seance .haut-de-fenetre { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .fenetre-de-seance .haut-de-fenetre h2 { margin: 0; }
+    .fermer-la-fenetre { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0;
+      border-radius: 8px; background: none; color: var(--ink-2); font-size: 18px; cursor: pointer; }
+    .fermer-la-fenetre:hover { background: var(--sunk); }
+    .etat-et-outils { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+    .etat-et-outils .pill { margin-right: 4px; }
+    /* Même bordure que les ronds P et A et la case du paiement. */
+    .icone-seule { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0;
+      border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink-2); }
+    .icone-seule:hover { background: var(--sunk); color: var(--ink); }
+    .icone-seule svg { width: 17px; height: 17px; }
+    .feuille-d-appel { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--line-2);
+      border-radius: 10px; background: var(--surface); color: var(--ink); font-weight: 500; text-decoration: none; white-space: nowrap; }
+    .feuille-d-appel:hover { background: var(--sunk); }
+    .feuille-d-appel svg { width: 17px; height: 17px; color: var(--ink-2); }
+    .nom-et-rappel { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+    .nom-et-rappel sh-bouton-de-rappel { max-width: 100%; }
+    .nom-de-l-eleve b { white-space: nowrap; }
+    .nom-de-l-eleve { color: inherit; text-decoration: none; }
+    .nom-de-l-eleve:hover { color: var(--accent); text-decoration: underline; }
+    .pas-a-cette-seance { background: var(--sunk); }
+    .pas-a-cette-seance .nom-de-l-eleve b { color: var(--ink-2); }
+    .tiret { color: var(--ink-3); }
     .ligne-partie { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 18px 10px 44px; background: var(--accent-soft); font-size: 13px; }
     .ligne-partie label { display: inline-flex; align-items: center; gap: 6px; }
     .montant-partiel { width: 90px; padding: 4px 8px; font-size: 13px; }
@@ -565,6 +681,19 @@ function memes(a: string[], b: string[]): boolean {
     :host(.integre) .eleve.absent > small:first-of-type { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
     :host(.integre) .eleve small.origine { grid-column: 1; }
     .en-rattrapage { display: grid; gap: 4px; }
+    /* Dans son groupe : la séance qu'il a remplacée en venant avec un autre groupe. */
+    .venu-ailleurs { justify-self: start; width: fit-content; margin-top: 2px; padding: 2px 8px; border-radius: 999px;
+      background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+    .groupes-venus { display: flex; flex-wrap: wrap; gap: 8px; }
+    .puce { border-radius: 999px; }
+    .puce.choisi { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+    .a-la-place { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+    .eleves-venus { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+    .eleve-venu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 10px; cursor: pointer; }
+    .eleve-venu input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+    .eleve-venu.coche { border-color: var(--accent); background: var(--accent-soft); }
+    .eleve-venu.impossible { cursor: default; opacity: 0.6; }
+    .eleve-venu small { flex-basis: 100%; color: var(--ink-3); font-size: 12px; }
     .retirer { justify-self: start; font-size: 12.5px; padding: 2px 8px; }
   `,
 })
@@ -584,6 +713,62 @@ export class PageDeLAppel implements OnInit {
   readonly paiementAu = input<string | null>(null);
   /** Des reçus viennent d'être créés : la fiche du groupe recharge ce que chacun doit. */
   readonly paye = output<void>();
+  /** Sur la fiche d'un groupe ouvert : « Ajouter une séance » (SEA-05), dont le formulaire est dans la carte du calendrier. */
+  readonly ajoutPossible = input(false);
+  /** Une séance déplacée, annulée ou remplacée : la fiche du groupe recharge sa bande. */
+  readonly seanceChangee = output<void>();
+
+  /** Depuis les boutons de la puce, dans la bande des séances : le formulaire s'ouvre en haut de l'appel. */
+  ouvrirUneAction(action: ActionSurLaSeance): void {
+    this.ouvrir(action);
+  }
+
+  /** « Déplacer la séance », « Annuler la séance », « Remplacer la séance ». */
+  protected titreDuFormulaire(): string {
+    const action = this.action();
+    return action === 'annuler' ? 'Annuler la séance' : action === 'remplacer' ? 'Remplacer la séance' : 'Déplacer la séance';
+  }
+  /**
+   * Sur la fiche du groupe, ses inscriptions (ELV-03) : l'appel fait aussi la liste des élèves, à la place de l'ancien bloc
+   * « Les élèves ». `null` hors de la fiche : ni outils, ni liens, ni rappels.
+   */
+  readonly inscriptions = input<InscriptionDeLEleve[] | null>(null);
+  protected readonly enRetard = enRetard;
+
+  protected inscriptionDe(inscriptionId: string): InscriptionDeLEleve | undefined {
+    return this.inscriptions()?.find((i) => i.id === inscriptionId);
+  }
+
+  /** « Par Mois · depuis le 19/09/2026 », au survol du nom. */
+  protected inscriptionEnBref(inscriptionId: string): string | null {
+    const inscription = this.inscriptionDe(inscriptionId);
+    return inscription ? this.modeEtDebut(inscription) : null;
+  }
+
+  protected modeEtDebut(inscription: InscriptionDeLEleve): string {
+    const debut = inscription.premiereSeance?.date;
+    return `${modeCourt(inscription)}${debut ? ` · depuis le ${this.dateLongue(debut)}` : ''}`;
+  }
+
+  /** « Inscription arrêtée le 10/11 », ou « Inscrit à partir du 28/11 ». */
+  protected pourquoiPasLa(inscription: InscriptionDeLEleve): string {
+    if (inscription.arreteLe) return `Inscription arrêtée le ${this.court(inscription.arreteLe)}`;
+    const debut = inscription.premiereSeance?.date;
+    return debut ? `Inscrit à partir du ${this.court(debut)}` : 'Pas attendu à cette séance';
+  }
+
+  private dateLongue(texte: string): string {
+    return formatDate(texte, 'dd/MM/yyyy', FRANCAIS);
+  }
+
+  /** Les inscrits qui ne sont pas à l'appel de cette séance : ils restent en bas du tableau, en gris. */
+  protected readonly pasACetteSeance = computed(() => {
+    const appel = this.appel();
+    const inscriptions = this.inscriptions();
+    if (!appel || !inscriptions) return [];
+    const attendus = new Set(appel.eleves.map((e) => e.inscriptionId));
+    return inscriptions.filter((i) => !attendus.has(i.id));
+  });
 
   protected readonly montant = ecrireUnMontant;
   protected readonly colonneDePaiement = computed(() => this.integre() && !!this.groupeId());
@@ -790,39 +975,87 @@ export class PageDeLAppel implements OnInit {
     this.presentsMarques.set(marques.presents.filter((id) => attendus.has(id) && !marques.absents.includes(id)));
   }
 
-  // ----- Le rattrapage (SEA-12) -----
+  // ----- Venus d'un autre groupe (SEA-12) -----
 
   protected readonly rattrapables = signal<EleveRattrapable[] | null>(null);
-  private readonly inscriptionChoisie = signal('');
-  protected readonly rattrapableChoisi = computed(() => this.rattrapables()?.find((e) => e.inscriptionId === this.inscriptionChoisie()) ?? null);
+  /** Le groupe d'où viennent les élèves, la séance de ce groupe qu'ils remplacent, et les élèves cochés. */
+  protected readonly groupeVenu = signal<string | null>(null);
   protected readonly seanceRattrapee = signal('');
+  protected readonly changerLaSeance = signal(false);
+  protected readonly venus = signal<string[]>([]);
   protected readonly erreurDuRattrapage = signal<string | null>(null);
+
+  /** Les autres groupes du professeur, même matière, même niveau, dans l'ordre de leur nom. */
+  protected readonly groupesVenus = computed(() => {
+    const groupes = new Map<string, { id: string; nom: string }>();
+    for (const eleve of this.rattrapables() ?? []) groupes.set(eleve.groupe.id, eleve.groupe);
+    return [...groupes.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  });
+  protected readonly elevesDuGroupeVenu = computed(() => (this.rattrapables() ?? []).filter((e) => e.groupe.id === this.groupeVenu()));
+  /** Les séances du groupe que l'un au moins de ses élèves peut remplacer, par date. */
+  protected readonly seancesDuGroupeVenu = computed(() => {
+    const seances = new Map<string, EleveRattrapable['seances'][number]>();
+    for (const eleve of this.elevesDuGroupeVenu()) for (const seance of eleve.seances) seances.set(seance.id, seance);
+    return [...seances.values()].sort((a, b) => (a.date + a.debut).localeCompare(b.date + b.debut));
+  });
+  /** La date de la séance remplacée, pour « À la place de la séance du lun. 23/11 ». */
+  protected readonly seanceRemplacee = computed(() => this.seancesDuGroupeVenu().find((s) => s.id === this.seanceRattrapee())?.date ?? '');
+
+  protected peutRemplacer(eleve: EleveRattrapable): boolean {
+    return eleve.seances.some((s) => s.id === this.seanceRattrapee());
+  }
 
   protected async chercherLesRattrapables(): Promise<void> {
     this.erreurDuRattrapage.set(null);
-    this.inscriptionChoisie.set('');
-    this.seanceRattrapee.set('');
+    this.groupeVenu.set(null);
     try {
       this.rattrapables.set(await firstValueFrom(this.http.get<EleveRattrapable[]>(`/api/seances/${this.seanceId}/rattrapages/possibles`)));
+      // Un seul autre groupe : il est déjà choisi.
+      const groupes = this.groupesVenus();
+      if (groupes.length === 1) this.choisirLeGroupeVenu(groupes[0].id);
     } catch (erreur) {
       this.erreurDuRattrapage.set(messageDErreur(erreur));
     }
   }
 
-  protected choisirLeRattrapable(inscriptionId: string): void {
-    this.inscriptionChoisie.set(inscriptionId);
-    this.seanceRattrapee.set('');
+  /** Par défaut, ils remplacent la prochaine séance de leur groupe, à partir du jour de cette séance. */
+  protected choisirLeGroupeVenu(groupeId: string): void {
+    this.groupeVenu.set(groupeId);
+    this.erreurDuRattrapage.set(null);
+    this.changerLaSeance.set(false);
+    this.venus.set([]);
+    const seances = this.seancesDuGroupeVenu();
+    const jour = this.appel()?.date ?? '';
+    this.seanceRattrapee.set((seances.find((s) => s.date >= jour) ?? seances.at(-1))?.id ?? '');
+  }
+
+  protected choisirLaSeanceRemplacee(seanceId: string): void {
+    this.seanceRattrapee.set(seanceId);
+    // Un élève qui ne peut pas remplacer cette séance n'est plus coché.
+    const possibles = this.elevesDuGroupeVenu().filter((e) => this.peutRemplacer(e)).map((e) => e.inscriptionId);
+    this.venus.update((ids) => ids.filter((id) => possibles.includes(id)));
+  }
+
+  protected cocherLeVenu(inscriptionId: string): void {
+    this.venus.update((ids) => (ids.includes(inscriptionId) ? ids.filter((id) => id !== inscriptionId) : [...ids, inscriptionId]));
+  }
+
+  protected fermerLesVenus(): void {
+    this.rattrapables.set(null);
+    this.groupeVenu.set(null);
+    this.venus.set([]);
+    this.erreurDuRattrapage.set(null);
   }
 
   protected async ajouterLeRattrapage(): Promise<void> {
     if (this.envoi()) return;
-    if (!this.inscriptionChoisie() || !this.seanceRattrapee()) {
-      this.erreurDuRattrapage.set("Choisissez l'élève et la séance qu'il rattrape");
+    if (this.venus().length === 0 || !this.seanceRattrapee()) {
+      this.erreurDuRattrapage.set('Cochez les élèves venus');
       return;
     }
     await this.changerLeRattrapage(
       this.http.post<AppelDeLaSeance>(`/api/seances/${this.seanceId}/rattrapages`, {
-        inscriptionId: this.inscriptionChoisie(),
+        inscriptionIds: this.venus(),
         seanceRattrapeeId: this.seanceRattrapee(),
       }),
     );
@@ -841,7 +1074,7 @@ export class PageDeLAppel implements OnInit {
       const marques = { absents: this.absents(), presents: this.presentsMarques() };
       this.appel.set(await firstValueFrom(requete));
       this.garderLesMarques(marques);
-      this.rattrapables.set(null);
+      this.fermerLesVenus();
     } catch (erreur) {
       this.erreurDuRattrapage.set(messageDErreur(erreur));
     } finally {
@@ -956,6 +1189,11 @@ export class PageDeLAppel implements OnInit {
     this.erreurDuCalendrier.set(null);
   }
 
+  /** Échap referme la fenêtre du formulaire, sur la fiche du groupe. */
+  protected fermerAuClavier(): void {
+    if (this.integre() && this.action() !== null && !this.envoi()) this.fermerLAction();
+  }
+
   protected fermerLAction(): void {
     this.action.set(null);
     this.erreurDuCalendrier.set(null);
@@ -985,6 +1223,7 @@ export class PageDeLAppel implements OnInit {
       this.changement.set(await firstValueFrom(this.http.post<ChangementDuCalendrier>(adresse, corps)));
       this.action.set(null);
       this.montrer(await firstValueFrom(this.http.get<AppelDeLaSeance>(`/api/seances/${appel.seanceId}/appel`)));
+      this.seanceChangee.emit();
     } catch (erreur) {
       this.erreurDuCalendrier.set(messageDErreur(erreur));
     } finally {

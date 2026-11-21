@@ -99,3 +99,40 @@
 .lignes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; margin: 0; }
 .lignes dt { color: var(--ink-2); }
 .lignes dd { margin: 0; text-align: right; font-weight: 500; overflow-wrap: anywhere; }
+
+/* L'en-tête de la fiche : le sous-titre en pastilles, l'horaire en bleu avec « Changer » (SEA-06). */
+.pastilles-du-groupe { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.pastille { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--sunk);
+  color: var(--ink-2); font-size: 13px; line-height: 1.4; }
+.pastille svg { width: 14px; height: 14px; flex: none; }
+.pastille.horaire { padding-right: 4px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.pastille.horaire .changer { display: inline-flex; align-items: center; gap: 4px; margin-left: 2px; padding: 2px 9px; border: 0;
+  border-radius: 999px; background: var(--surface); color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pastille.horaire .changer:hover { background: var(--accent); color: var(--on-accent); }
+.pastille.horaire .changer svg { width: 12px; height: 12px; }
+
+/* SEA-03 à SEA-05 : la puce est une carte qui contient le choix de la séance et, choisie, ses boutons. */
+.puce-seance:has(.choix-de-la-seance) { padding: 0; display: flex; flex-direction: column; }
+.choix-de-la-seance { display: grid; gap: 1px; padding: 6px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: inherit; }
+.choix-de-la-seance small { color: var(--ink-3); font-size: 11.5px; font-weight: 400; }
+.puce-seance.fait .choix-de-la-seance small { color: var(--ok); }
+.puce-seance.a-faire .choix-de-la-seance small { color: var(--warn); }
+.puce-seance.choisie .choix-de-la-seance small { color: var(--accent-ink); }
+.puce-seance:has(.choix-de-la-seance):hover { background: var(--sunk); }
+.puce-seance.choisie:has(.choix-de-la-seance):hover { background: var(--accent-soft); }
+.actions-de-la-puce { display: flex; gap: 4px; padding: 0 10px 8px; }
+.actions-de-la-puce .mini { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--accent); border-radius: 7px; background: var(--surface); color: var(--accent); cursor: pointer; }
+.actions-de-la-puce .mini:hover { background: var(--accent); color: var(--on-accent); }
+.actions-de-la-puce .mini.rouge { border-color: var(--bad); color: var(--bad); }
+.actions-de-la-puce .mini.rouge:hover { background: var(--bad); color: #fff; }
+.actions-de-la-puce .mini svg { width: 14px; height: 14px; }
+/* Une séance annulée reste à sa date, barrée et grise. */
+.puce-seance.annulee { border-style: dashed; background: var(--sunk); }
+.puce-seance.annulee .jour { color: var(--ink-3); text-decoration: line-through; }
+.puce-seance.annulee .choix-de-la-seance small { color: var(--ink-3); }
+/* « + Ajouter », au bout du Mois. */
+.puce-seance.ajouter { display: grid; place-items: center; gap: 2px; min-width: 70px; border: 1px dashed var(--accent); background: none; color: var(--accent); }
+.puce-seance.ajouter small { color: var(--accent); }
+.puce-seance.ajouter svg { width: 16px; height: 16px; }
+.puce-seance.ajouter:hover { background: var(--accent-soft); }

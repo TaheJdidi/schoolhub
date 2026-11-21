@@ -1,25 +1,20 @@
-import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { formatDate } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, OnInit, signal, untracked } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, signal, untracked, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { BrouillonRepris } from '../../socle/brouillon-repris';
-import { garderLeBrouillon } from '../../socle/brouillons';
 import { messageDErreur } from '../../socle/erreurs';
 import { FRANCAIS } from '../../socle/francais';
-import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
-import { InscriptionDeLEleve, modeCourt } from '../inscriptions/inscription';
+import { ecrireUnMontant } from '../../socle/montants';
+import { InscriptionDeLEleve } from '../inscriptions/inscription';
 import { CarteDuCalendrier } from '../seances/carte-du-calendrier';
+import { Icone } from '../../socle/icone';
+import { NomDIcone } from '../../socle/icones';
 import { PageDeLAppel } from '../seances/page-de-l-appel';
 import { EncaissementDuGroupe } from '../caisse/recu';
-import { BadgeDuGroupeComponent, BoutonDeRappel, enRetard, PastilleDeCouleur } from '../caisse/paiement';
+import { BadgeDuGroupeComponent } from '../caisse/paiement';
 import { dateDuJourLocale, eleves, etatDeLaSeance, FicheDuGroupe, heure, TYPES } from './groupe';
-import { requis } from '../../socle/champs-requis';
 
-const PRIX_ILLISIBLE = 'Écrivez le prix du Mois, par exemple 60,000';
 
 /**
  * Le prix selon le type : « 60,000 TND par Mois » ; « 50,000 TND les 3 séances, ou 16,667 TND la séance » ;
@@ -42,92 +37,65 @@ function prixDuGroupe(fiche: FicheDuGroupe): string {
     }
   }
 }
-const CAPACITE_ILLISIBLE = 'Écrivez la capacité en nombre de places, par exemple 16';
-const FERMETURE_INCOMPLETE = 'Choisissez la date et écrivez le motif';
 
 /**
  * GRP-04 à GRP-07 : la fiche d'un groupe. Une Étude montre ses Mois ; une Révision ou une Formation, ses séances
- * numérotées (avec leur prix pour une Révision) et les tranches d'une Formation. « Modifier » change le nom, la capacité
- * et, pour une Étude seulement, le prix du Mois ; le nouveau prix vaut pour les Mois qui n'ont pas encore commencé, et
- * c'est le serveur qui le décide. « Fermer le groupe » (GRP-08) le ferme à une date, avec un motif : ses séances après
- * cette date disparaissent, et il ne se modifie plus.
+ * numérotées (avec leur prix pour une Révision) et les tranches d'une Formation. « Modifier » et « Fermer le groupe »
+ * (GRP-08) se font depuis la carte du groupe, sur la page du professeur (FenetreDuGroupe).
  */
 @Component({
   selector: 'sh-page-du-groupe',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, CarteDuCalendrier, PastilleDeCouleur, BadgeDuGroupeComponent, BoutonDeRappel, ActionsDeListe, BrouillonRepris, PageDeLAppel],
+  imports: [RouterLink, CarteDuCalendrier, BadgeDuGroupeComponent, PageDeLAppel, Icone],
   templateUrl: './page-du-groupe.html',
   styleUrl: './groupes.css',
 })
 export class PageDuGroupe implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly route = inject(ActivatedRoute);
-  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly eleves = eleves;
   protected readonly types = TYPES;
-  protected readonly modeCourt = modeCourt;
   /** Les élèves inscrits, par nom puis prénom (ELV-03). */
   protected readonly inscriptions = signal<InscriptionDeLEleve[]>([]);
   protected readonly heure = heure;
   protected readonly montant = ecrireUnMontant;
-  protected readonly enRetard = enRetard;
 
   protected readonly fiche = signal<FicheDuGroupe | null>(null);
+  /** La carte du calendrier, sous la bande : « + Ajouter » et le nouvel horaire y ouvrent leur formulaire. */
+  protected readonly calendrier = viewChild(CarteDuCalendrier);
+  /** L'appel de la séance choisie : les boutons de sa puce y ouvrent Déplacer, Annuler ou Remplacer. */
+  protected readonly appelChoisi = viewChild(PageDeLAppel);
+  /** Un groupe fermé ou terminé ne change plus. */
+  protected readonly modifiable = computed(() => !!this.fiche() && !this.fiche()!.fermeLe && !this.fiche()!.termine);
+
+  /**
+   * SEA-03 et SEA-04 : les boutons de la puce choisie. Une séance qui a son appel ne change plus ; une séance annulée se
+   * remplace (sauf une supplémentaire, ou une déjà remplacée) ; sinon, elle se déplace ou s'annule.
+   */
+  protected actionsDe(seance: { appelFait?: boolean; annulee?: boolean; nature?: string; remplaceeLe?: string | null }): ('deplacer' | 'annuler' | 'remplacer')[] | null {
+    if (seance.annulee) return seance.nature === 'Supplementaire' || seance.remplaceeLe ? null : ['remplacer'];
+    if (seance.appelFait) return null;
+    return ['deplacer', 'annuler'];
+  }
   protected readonly introuvable = signal(false);
-  protected readonly enModification = signal(false);
-  protected readonly enFermeture = signal(false);
-  /** La date de fermeture choisie, pour compter les séances qui disparaîtront. */
-  private readonly dateDeFermeture = signal('');
-  protected readonly envoi = signal(false);
-  protected readonly succes = signal<string | null>(null);
   protected readonly erreur = signal<string | null>(null);
 
-  protected readonly formulaire = new FormGroup({
-    nom: new FormControl('', { nonNullable: true }),
-    capacite: new FormControl('', { nonNullable: true }),
-    prix: new FormControl('', { nonNullable: true, validators: requis() }),
-  });
-
-  protected readonly fermeture = new FormGroup({
-    dateDeFermeture: new FormControl('', { nonNullable: true, validators: requis() }),
-    motif: new FormControl('', { nonNullable: true, validators: requis() }),
-  });
-
-  /** Une modification ou une fermeture commencée, puis laissée pour une autre page, se retrouve en revenant. */
-  protected readonly brouillonDeLaModification = garderLeBrouillon(() => `groupe-${this.id}`, this.formulaire, {
-    aGarder: () => this.enModification(),
-    etat: { lire: () => this.enModification(), ecrire: (ouvert) => this.enModification.set(ouvert) },
-  });
-  protected readonly brouillonDeLaFermeture = garderLeBrouillon(() => `fermeture-${this.id}`, this.fermeture, {
-    aGarder: () => this.enFermeture(),
-    etat: { lire: () => this.enFermeture(), ecrire: (ouvert) => this.enFermeture.set(ouvert) },
-  });
-
-  /** « Les 3 séances prévues après le 02/10/2027 seront supprimées. » */
-  protected readonly avertissementDeFermeture = computed(() => {
+  /** Les pastilles du sous-titre : la matière, le niveau, le professeur, puis « Étude, 60,000 TND par Mois ». */
+  protected readonly pastilles = computed((): { icone: NomDIcone; texte: string }[] => {
     const fiche = this.fiche();
-    const date = this.dateDeFermeture();
-    if (!fiche || !date) return '';
-    const dates = [...fiche.mois.flatMap((m) => m.seances), ...fiche.seances].map((s) => s.date);
-    const supprimees = dates.filter((d) => d > date).length;
-    const le = this.date(date);
-    if (supprimees === 0) return `Aucune séance prévue après le ${le}.`;
-    if (supprimees === 1) return `La séance prévue après le ${le} sera supprimée.`;
-    return `Les ${supprimees} séances prévues après le ${le} seront supprimées.`;
+    if (!fiche) return [];
+    return [
+      { icone: 'book-open' as const, texte: fiche.matiere },
+      ...(fiche.niveau ? [{ icone: 'graduation-cap' as const, texte: fiche.niveau.nom }] : []),
+      { icone: 'contact' as const, texte: `${fiche.professeur.prenom} ${fiche.professeur.nom}` },
+      { icone: 'wallet' as const, texte: `${TYPES[fiche.type]}, ${prixDuGroupe(fiche)}` },
+    ];
   });
 
-  /** « Mathématiques · 9ᵉ année de base · Karim Ben Salah · Étude, 60,000 TND par Mois ». */
-  protected readonly sousTitre = computed(() => {
-    const fiche = this.fiche();
-    if (!fiche) return '';
-    const parties = [fiche.matiere, fiche.niveau?.nom, `${fiche.professeur.prenom} ${fiche.professeur.nom}`].filter(Boolean);
-    return `${parties.join(' · ')} · ${TYPES[fiche.type]}, ${prixDuGroupe(fiche)}`;
-  });
-
-  /** « Samedi de 10h à 12h, Mardi de 17h à 19h ». */
+  /** « Samedi 10h → 12h », ou « Lundi 17h → 19h, Jeudi 17h → 19h ». */
   protected readonly horaire = computed(
-    () => this.fiche()?.creneaux.map((c) => `${c.jour} de ${heure(c.debut)} à ${heure(c.fin)}`).join(', ') ?? '',
+    () => this.fiche()?.creneaux.map((c) => `${c.jour} ${heure(c.debut)} → ${heure(c.fin)}`).join(', ') ?? '',
   );
 
   /** SEA-02 : le jour, pour l'état des séances. */
@@ -151,13 +119,28 @@ export class PageDuGroupe implements OnInit {
   /** « séances 9 à 12 » : les numéros des séances d'un Mois. */
   // ----- La bande des séances et l'appel de la séance choisie (prototype, écran 3) -----
 
-  /** Toutes les séances du groupe, avec leur Mois pour une Étude. */
+  /**
+   * Toutes les séances du groupe, avec leur Mois pour une Étude. Les séances supplémentaires (SEA-05) s'y glissent à leur
+   * date : pour une Étude, dans le Mois en cours à cette date, même si elles n'y comptent pas.
+   */
   private readonly toutesLesSeances = computed(() => {
     const fiche = this.fiche();
     if (!fiche) return [];
-    return fiche.type === 'Etude'
-      ? fiche.mois.flatMap((mois) => mois.seances.map((seance) => ({ ...seance, mois: mois.numero as number | null })))
-      : fiche.seances.map((seance) => ({ ...seance, mois: null as number | null }));
+    const prevues =
+      fiche.type === 'Etude'
+        ? fiche.mois.flatMap((mois) => mois.seances.map((seance) => ({ ...seance, mois: mois.numero as number | null })))
+        : fiche.seances.map((seance) => ({ ...seance, mois: null as number | null }));
+    const moisAvecSeances = fiche.mois.filter((m) => m.seances.length > 0);
+    const moisDe = (date: string): number | null =>
+      fiche.type !== 'Etude' ? null : (moisAvecSeances.filter((m) => m.seances[0].date <= date).at(-1) ?? moisAvecSeances[0])?.numero ?? null;
+    // Les séances supplémentaires (SEA-05) et les séances annulées (SEA-03), barrées, à leur date.
+    const horsCompte = (fiche.horsCompte ?? [])
+      .filter((s) => s.annulee || s.nature === 'Supplementaire')
+      .map((s) => ({ id: s.id, date: s.date, debut: s.debut, fin: s.fin, appelFait: s.appelFait, nature: s.nature, mois: moisDe(s.date),
+        annulee: s.annulee, remplaceeLe: s.remplaceeLe }));
+    if (horsCompte.length === 0) return prevues.map((s) => ({ ...s, annulee: false, remplaceeLe: null as string | null }));
+    return [...prevues.map((s) => ({ ...s, annulee: false, remplaceeLe: null as string | null })), ...horsCompte]
+      .sort((a, b) => (a.date + a.debut).localeCompare(b.date + b.debut));
   });
   /** `?seance=…` (depuis Aujourd'hui) ouvre l'appel de cette séance dans la fiche du groupe. */
   private readonly seanceDemandee = signal<string | null>(this.route.snapshot.queryParamMap.get('seance'));
@@ -166,9 +149,11 @@ export class PageDuGroupe implements OnInit {
     const seances = this.toutesLesSeances();
     const demandee = this.seanceDemandee();
     if (demandee && seances.some((s) => s.id === demandee)) return demandee;
+    const ontLieu = seances.filter((s) => !s.annulee);
     return (
-      seances.find((s) => s.date === this.aujourdhui) ??
-      seances.filter((s) => s.date < this.aujourdhui).at(-1) ??
+      ontLieu.find((s) => s.date === this.aujourdhui) ??
+      ontLieu.filter((s) => s.date < this.aujourdhui).at(-1) ??
+      ontLieu[0] ??
       seances[0]
     )?.id ?? null;
   });
@@ -201,9 +186,12 @@ export class PageDuGroupe implements OnInit {
   }
 
   /** « appel fait », « aujourd'hui », « à venir » ou « appel à faire ». */
-  protected libelleDeLaPuce(seance: { date: string; appelFait?: boolean; nature?: string }): string {
+  protected libelleDeLaPuce(seance: { date: string; appelFait?: boolean; nature?: string; annulee?: boolean; remplaceeLe?: string | null }): string {
+    if (seance.annulee) return seance.remplaceeLe ? `annulée · remplacée le ${this.jourDeSeance(seance.remplaceeLe).split(' ')[1]}` : 'annulée';
     const etat = this.etat(seance);
     const libelle = seance.date === this.aujourdhui && etat !== 'appel fait' ? "aujourd'hui" : etat;
+    if (seance.nature === 'Supplementaire') return `supplémentaire · ${libelle}`;
+    if (seance.nature === 'Ajoutee') return `ajoutée · ${libelle}`;
     return seance.nature === 'Remplacement' ? `remplacement · ${libelle}` : libelle;
   }
 
@@ -232,9 +220,6 @@ export class PageDuGroupe implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    this.fermeture.controls.dateDeFermeture.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((date) => this.dateDeFermeture.set(date));
     try {
       const [fiche, inscriptions] = await Promise.all([
         firstValueFrom(this.http.get<FicheDuGroupe>(`/api/groupes/${this.id}`)),
@@ -242,7 +227,6 @@ export class PageDuGroupe implements OnInit {
       ]);
       this.fiche.set(fiche);
       this.inscriptions.set(inscriptions);
-      if (!this.brouillonDeLaModification.reprendre()) this.brouillonDeLaFermeture.reprendre();
       // Ce que chacun doit se charge dès que la fiche est là (l'effet du constructeur), puis à chaque séance choisie.
     } catch (erreur) {
       if (erreur instanceof HttpErrorResponse && erreur.status === 404) this.introuvable.set(true);
@@ -321,6 +305,8 @@ export class PageDuGroupe implements OnInit {
     const fiche = this.fiche();
     const id = this.seanceChoisie();
     if (!fiche || !id) return null;
+    if (fiche.horsCompte?.some((s) => s.id === id && s.annulee)) return 'séance annulée';
+    if (fiche.horsCompte?.some((s) => s.id === id && s.nature === 'Supplementaire')) return 'séance supplémentaire, offerte, hors des Mois';
     if (fiche.type === 'Etude') {
       const mois = fiche.mois.find((m) => m.seances.some((s) => s.id === id));
       return mois ? `séance ${mois.seances.findIndex((s) => s.id === id) + 1} du Mois ${mois.numero}` : null;
@@ -348,91 +334,4 @@ export class PageDuGroupe implements OnInit {
     return formatDate(texte, 'EEE dd/MM', FRANCAIS);
   }
 
-  protected modifier(fiche: FicheDuGroupe): void {
-    this.formulaire.setValue({
-      nom: fiche.nom,
-      capacite: fiche.capacite === null ? '' : String(fiche.capacite),
-      prix: fiche.prixDuMois === null ? '' : ecrireUnMontant(fiche.prixDuMois),
-    });
-    this.succes.set(null);
-    this.erreur.set(null);
-    this.enModification.set(true);
-  }
-
-  protected annuler(): void {
-    this.brouillonDeLaModification.oublier();
-    this.enModification.set(false);
-    this.erreur.set(null);
-  }
-
-  protected ouvrirLaFermeture(): void {
-    this.fermeture.setValue({ dateDeFermeture: dateDuJourLocale(), motif: '' });
-    this.succes.set(null);
-    this.erreur.set(null);
-    this.enFermeture.set(true);
-  }
-
-  protected annulerLaFermeture(): void {
-    this.brouillonDeLaFermeture.oublier();
-    this.enFermeture.set(false);
-    this.erreur.set(null);
-  }
-
-  protected async fermer(): Promise<void> {
-    if (this.envoi()) return;
-
-    const { dateDeFermeture, motif } = this.fermeture.getRawValue();
-    if (!dateDeFermeture || !motif.trim()) return this.refuser(FERMETURE_INCOMPLETE);
-
-    this.envoi.set(true);
-    this.succes.set(null);
-    this.erreur.set(null);
-    try {
-      const fiche = await firstValueFrom(
-        this.http.post<FicheDuGroupe>(`/api/groupes/${this.id}/fermeture`, { date: dateDeFermeture, motif: motif.trim() }),
-      );
-      this.fiche.set(fiche);
-      this.brouillonDeLaFermeture.oublier();
-      this.enFermeture.set(false);
-      this.succes.set('Groupe fermé');
-    } catch (erreur) {
-      this.erreur.set(messageDErreur(erreur));
-    } finally {
-      this.envoi.set(false);
-    }
-  }
-
-  protected async enregistrer(): Promise<void> {
-    if (this.envoi()) return;
-
-    const valeurs = this.formulaire.getRawValue();
-    // Le prix d'une Révision ou d'une Formation est fixé à la création : seul celui d'une Étude se change.
-    const etude = this.fiche()?.type === 'Etude';
-    const prix = etude ? lireUnNombre(valeurs.prix) : null;
-    const capacite = lireUnNombre(valeurs.capacite);
-    if (etude && (prix === null || prix === undefined)) return this.refuser(PRIX_ILLISIBLE);
-    if (capacite === undefined || (capacite !== null && !Number.isInteger(capacite))) return this.refuser(CAPACITE_ILLISIBLE);
-
-    this.envoi.set(true);
-    this.succes.set(null);
-    this.erreur.set(null);
-    try {
-      const fiche = await firstValueFrom(
-        this.http.put<FicheDuGroupe>(`/api/groupes/${this.id}`, { nom: valeurs.nom.trim(), capacite, prixDuMois: prix }),
-      );
-      this.fiche.set(fiche);
-      this.brouillonDeLaModification.oublier();
-      this.enModification.set(false);
-      this.succes.set('Groupe enregistré');
-    } catch (erreur) {
-      this.erreur.set(messageDErreur(erreur));
-    } finally {
-      this.envoi.set(false);
-    }
-  }
-
-  private refuser(message: string): void {
-    this.succes.set(null);
-    this.erreur.set(message);
-  }
 }

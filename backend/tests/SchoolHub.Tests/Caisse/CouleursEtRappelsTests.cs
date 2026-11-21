@@ -146,10 +146,14 @@ public sealed class CouleursEtRappelsTests(PostgreSqlDeTest postgreSql) : IAsync
     {
         var rappel = (await _amira.GetFromJsonAsync<RappelDePaiement>($"/api/eleves/{_adem.Eleve}/rappel"))!;
 
-        Assert.Equal("Bonjour, il reste à payer pour Adem Miled : Mois 3 de mathématiques, 40,000 TND ; assurance 2027-2028, 20,000 TND. "
-            + "Total : 60,000 TND. Centre Les Jasmins.", rappel.Texte);
+        Assert.Equal("Bonjour,\n\nCentre Les Jasmins vous rappelle qu'il reste à payer pour Adem Miled :\n\n"
+            + "• Mois 3 de mathématiques : 40,000 TND\n• Assurance 2027-2028 : 20,000 TND\n\n*Total : 60,000 TND*\n\n"
+            + "Merci de passer régler au centre. Bonne journée.", rappel.Texte);
         Assert.Equal(["Parent", "Adem"], rappel.Messages.Select(m => m.Destinataire));
         Assert.Null(rappel.DernierRappelLe);
+        // La fenêtre du rappel montre le détail ligne par ligne, et le total.
+        Assert.Equal([new LigneDuRappel("Mois 3 de mathématiques", 40m), new LigneDuRappel("Assurance 2027-2028", 20m)], rappel.Lignes);
+        Assert.Equal(60m, rappel.Total);
 
         Assert.Equal(HttpStatusCode.NoContent, (await _amira.PostAsync($"/api/eleves/{_adem.Eleve}/rappel/envoye", null)).StatusCode);
 

@@ -27,7 +27,7 @@ En tant que secrétaire, je veux savoir si tout un groupe a payé, afin de repé
 
 **Critères d'acceptation**
 
-- Le badge « Groupe payé » s'affiche quand tous les élèves encore inscrits ont payé ce qui est dû à ce jour. Un élève à 0 TND compte comme payé ; un élève en rattrapage ne compte pas.
+- Le badge « Groupe payé » s'affiche quand tous les élèves encore inscrits ont payé ce qui est dû à ce jour. Un élève à 0 TND compte comme payé ; un élève venu d'un autre groupe ne compte pas.
 - Sinon, le badge dit « 3 rappels à envoyer » (élèves orange ou rouges), ou « 2 à payer aujourd'hui ».
 - Le badge apparaît sur le cadre du groupe (GRP-02), sur sa fiche et sur l'accueil.
 
@@ -115,7 +115,19 @@ En tant que secrétaire, je veux envoyer un rappel de paiement à un élève en 
 **Critères d'acceptation**
 
 - « Envoyer un rappel » apparaît sur chaque élève orange ou rouge : sur sa fiche, dans la liste du groupe et dans « Élèves en rouge » de l'accueil.
-- « Envoyer un rappel » prépare un message pour chacun de ses [destinataires](00-exigences-communes.md#messages), déjà écrit : « Bonjour, il reste à payer pour Adem Miled : Mois 3 de mathématiques, 40,000 TND. Centre Les Jasmins. »
+- « Envoyer un rappel » (une cloche dans l'appel du groupe) ouvre une fenêtre : ce que l'élève doit, ligne par ligne, le total, et un bouton WhatsApp pour chacun de ses [destinataires](00-exigences-communes.md#messages).
+- Le message est déjà écrit, une somme par ligne :
+
+  > Bonjour,
+  >
+  > Centre Les Jasmins vous rappelle qu'il reste à payer pour Adem Miled :
+  >
+  > • Mois 3 de mathématiques : 40,000 TND
+  > • Assurance 2027-2028 : 20,000 TND
+  >
+  > *Total : 60,000 TND*
+  >
+  > Merci de passer régler au centre. Bonne journée.
 - La date du dernier rappel s'affiche, « rappel envoyé le 12/10 », pour ne pas l'envoyer deux fois.
 
 Maquette : fiche groupe (« rappels à envoyer ») et Aujourd'hui (« Élèves en rouge »).

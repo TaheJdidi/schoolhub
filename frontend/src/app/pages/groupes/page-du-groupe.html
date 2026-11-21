@@ -11,12 +11,27 @@
         } @else if (fiche.termine) {
           <span class="pill muted">Terminé</span>
         }
-        <sh-badge-du-groupe [badge]="fiche.badge" />
       </h1>
-      <p class="sub">{{ sousTitre() }}</p>
-    </div>
-    <div class="actions">
-      <a class="btn" [routerLink]="['/professeurs/groupes', fiche.id, 'feuille-d-appel']">Feuille d'appel</a>
+      <!-- Le sous-titre en pastilles ; l'horaire, en bleu, se change d'un toucher (SEA-06). -->
+      <div class="sub pastilles-du-groupe">
+        @for (pastille of pastilles(); track pastille.texte) {
+          <span class="pastille"><sh-icone [nom]="pastille.icone" />{{ pastille.texte }}</span>
+        }
+        <span class="pastille horaire">
+          <sh-icone nom="clock" />{{ horaire() }}
+          @if (!fiche.fermeLe && !fiche.termine) {
+            <button type="button" class="changer" aria-label="Changer l'horaire" (click)="calendrier()?.ouvrirLeNouvelHoraire()">
+              <sh-icone nom="pencil" />Changer
+            </button>
+          }
+        </span>
+      </div>
+      @if (fiche.fermeLe) {
+        <p class="note">Fermé le {{ date(fiche.fermeLe) }} : {{ fiche.motifDeFermeture }}</p>
+      }
+      @if (erreur(); as erreur) {
+        <p class="note bad" role="alert">{{ erreur }}</p>
+      }
     </div>
   </div>
 
@@ -34,17 +49,37 @@
             <span class="etiquette-du-mois" aria-hidden="true">Mois {{ mois }}</span>
           }
           @for (seance of seancesAffichees(); track seance.id) {
-            <button
-              type="button"
-              class="puce-seance"
-              [class.choisie]="seance.id === seanceChoisie()"
-              [attr.aria-pressed]="seance.id === seanceChoisie()"
-              [class.fait]="etat(seance) === 'appel fait'"
-              [class.a-faire]="etat(seance) === 'appel à faire' && seance.date !== aujourdhui"
-              (click)="choisirLaSeance(seance.id)"
-            >
-              {{ jourDeSeance(seance.date) }}
-              <small>{{ libelleDeLaPuce(seance) }}</small>
+            <!-- SEA-03 à SEA-05 : la séance choisie porte ses boutons ; une séance annulée reste, barrée. -->
+            <div class="puce-seance" [class.choisie]="seance.id === seanceChoisie()" [class.annulee]="seance.annulee"
+                 [class.fait]="etat(seance) === 'appel fait'"
+                 [class.a-faire]="!seance.annulee && etat(seance) === 'appel à faire' && seance.date !== aujourdhui">
+              <button type="button" class="choix-de-la-seance" [attr.aria-pressed]="seance.id === seanceChoisie()" (click)="choisirLaSeance(seance.id)">
+                <span class="jour">{{ jourDeSeance(seance.date) }}</span>
+                <small>{{ libelleDeLaPuce(seance) }}</small>
+              </button>
+              @if (seance.id === seanceChoisie() && modifiable()) {
+                @if (actionsDe(seance); as actions) {
+                  <span class="actions-de-la-puce">
+                    @if (actions.includes('remplacer')) {
+                      <button type="button" class="mini" title="Remplacer cette séance" aria-label="Remplacer cette séance"
+                              (click)="appelChoisi()?.ouvrirUneAction('remplacer')"><sh-icone nom="calendar" /></button>
+                    }
+                    @if (actions.includes('deplacer')) {
+                      <button type="button" class="mini" title="Déplacer cette séance" aria-label="Déplacer cette séance"
+                              (click)="appelChoisi()?.ouvrirUneAction('deplacer')"><sh-icone nom="arrows" /></button>
+                    }
+                    @if (actions.includes('annuler')) {
+                      <button type="button" class="mini rouge" title="Annuler cette séance" aria-label="Annuler cette séance"
+                              (click)="appelChoisi()?.ouvrirUneAction('annuler')"><sh-icone nom="ban" /></button>
+                    }
+                  </span>
+                }
+              }
+            </div>
+          }
+          @if (modifiable()) {
+            <button type="button" class="puce-seance ajouter" title="Ajouter une séance" (click)="calendrier()?.ajouterUneSeance()">
+              <sh-icone nom="plus" /><small>Ajouter</small>
             </button>
           }
         </div>
@@ -55,6 +90,9 @@
       @if (avancement()) {
         <p class="aide avancement">{{ avancement() }}</p>
       }
+
+      <!-- SEA-05 et SEA-06 : « + Ajouter » et le nouvel horaire s'ouvrent ici, sous la bande. -->
+      <sh-carte-du-calendrier [fiche]="fiche" [modifiable]="modifiable()" (modifie)="recharger()" />
 
       <!-- SEA-07 : l'appel de la séance choisie, sur la fiche même. -->
       @for (id of seanceChoisieEnListe(); track id) {
@@ -67,8 +105,12 @@
           [aPayer]="aPayer()"
           [paiementAu]="paiementAu()"
           (paye)="apresLePaiement()"
+          [ajoutPossible]="modifiable()"
+          [inscriptions]="inscriptions()"
+          (seanceChangee)="recharger()"
         />
       }
+
 
       @if (fiche.tranches.length > 0) {
         <section class="card carte">
@@ -99,121 +141,6 @@
         <p class="aide">Une somme due à une séance passe en orange à la séance suivante, puis en rouge à celle d'après.</p>
       </section>
 
-    <section class="card carte le-groupe">
-      <h2 class="titre">Le groupe</h2>
-      @if (enModification()) {
-        <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
-          <sh-brouillon-repris [brouillon]="brouillonDeLaModification" texte="Vous reprenez la modification que vous aviez commencée." action="Abandonner" />
-          <div class="champs">
-            <label class="f">
-              Nom du groupe
-              <input formControlName="nom" autocomplete="off" />
-            </label>
-            <label class="f">
-              Capacité (facultatif)
-              <input formControlName="capacite" inputmode="numeric" autocomplete="off" />
-            </label>
-            @if (fiche.type === 'Etude') {
-              <label class="f">
-                Prix du Mois (TND)
-                <input formControlName="prix" inputmode="decimal" autocomplete="off" />
-              </label>
-            }
-          </div>
-          @if (fiche.type === 'Etude') {
-            <p class="aide">Le nouveau prix vaut pour les Mois qui n'ont pas encore commencé.</p>
-          }
-          <div class="actions">
-            <button type="button" class="btn" [disabled]="envoi()" (click)="annuler()">Annuler</button>
-            <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
-          </div>
-        </form>
-      } @else if (enFermeture()) {
-        <form class="formulaire" [formGroup]="fermeture" (ngSubmit)="fermer()" novalidate>
-          <sh-brouillon-repris [brouillon]="brouillonDeLaFermeture" texte="Vous reprenez la fermeture que vous aviez commencée." action="Abandonner" />
-          <div class="champs">
-            <label class="f">
-              Date de fermeture
-              <input type="date" formControlName="dateDeFermeture" />
-            </label>
-            <label class="f">
-              Motif
-              <input formControlName="motif" autocomplete="off" placeholder="Trop peu d'élèves" />
-            </label>
-          </div>
-          <p class="aide">{{ avertissementDeFermeture() }}</p>
-          <div class="actions">
-            <button type="button" class="btn" [disabled]="envoi()" (click)="annulerLaFermeture()">Annuler</button>
-            <button type="submit" class="btn primary" [disabled]="envoi()">Fermer le groupe</button>
-          </div>
-        </form>
-      } @else {
-        <dl class="lignes">
-          <dt>Professeur</dt>
-          <dd>{{ fiche.professeur.prenom }} {{ fiche.professeur.nom }}</dd>
-          <dt>Horaire</dt>
-          <dd>{{ horaire() }}</dd>
-          <dt>Type</dt>
-          <dd>{{ types[fiche.type] }}</dd>
-          <dt>Depuis le</dt>
-          <dd>{{ date(fiche.dateDeDebut) }}</dd>
-          <dt>Élèves</dt>
-          <dd>{{ eleves(fiche) }}</dd>
-          @if (moisEnCours(); as mois) {
-            <dt>Mois en cours</dt>
-            <dd>Mois {{ mois }}</dd>
-          }
-        </dl>
-        @if (fiche.fermeLe) {
-          <p class="resume">Fermé le {{ date(fiche.fermeLe) }} : {{ fiche.motifDeFermeture }}</p>
-        } @else {
-          <div class="actions">
-            <button type="button" class="btn" (click)="modifier(fiche)">Modifier</button>
-            <button type="button" class="btn" (click)="ouvrirLaFermeture()">Fermer le groupe</button>
-          </div>
-        }
-      }
-
-      @if (succes(); as succes) {
-        <p class="note ok" role="status">{{ succes }}</p>
-      }
-      @if (erreur(); as erreur) {
-        <p class="note bad" role="alert">{{ erreur }}</p>
-      }
-    </section>
-
-    <section class="card carte les-eleves">
-      <div class="entete">
-        <h2 class="titre">Les élèves</h2>
-        <sh-actions-de-liste [titre]="fiche.nom + ' · élèves'" [nombre]="inscriptions().length" [exporter]="'/api/exports/groupes/' + fiche.id" />
-        @if (!fiche.fermeLe && !fiche.termine) {
-          <a class="btn" [routerLink]="['/professeurs/groupes', fiche.id, 'inscription']">Ajouter un élève</a>
-        }
-      </div>
-      @for (inscription of inscriptions(); track inscription.id) {
-        <div class="eleve-inscrit">
-          <span class="nom-et-couleur">
-            <a [routerLink]="['/eleves', inscription.eleve.id]">{{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</a>
-            <sh-pastille-de-couleur [couleur]="inscription.couleur" />
-          </span>
-          <small>
-            {{ modeCourt(inscription) }}@if (inscription.premiereSeance; as premiere) { · depuis le {{ date(premiere.date) }}}@if (
-              inscription.arreteLe;
-              as arreteLe
-            ) { · inscription arrêtée le {{ date(arreteLe) }}}
-          </small>
-          <!-- CAI-08 : un élève orange ou rouge reçoit un rappel de paiement. -->
-          @if (enRetard(inscription.couleur)) {
-            <sh-bouton-de-rappel [eleveId]="inscription.eleve.id" />
-          }
-        </div>
-      } @empty {
-        <p class="aide">Aucun élève pour l'instant.</p>
-      }
-    </section>
-
-    <!-- SEA-03 à SEA-06 : les séances annulées et supplémentaires, et les changements du calendrier. -->
-    <sh-carte-du-calendrier [fiche]="fiche" [modifiable]="!fiche.fermeLe && !fiche.termine" (modifie)="recharger()" />
 
     </div>
   </div>

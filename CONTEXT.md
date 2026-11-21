@@ -108,8 +108,12 @@ _Avoid_ : séance supprimée, séance reportée
 Séance ajoutée à une autre date pour remplacer une séance annulée. Elle compte à sa place dans le Mois.
 _Avoid_ : séance de rattrapage
 
+**Séance ajoutée** :
+Séance ajoutée à une Étude en plus de son horaire. Elle compte dans le Mois comme une séance prévue : le Mois garde 4 séances, et les suivantes passent au Mois d'après.
+_Avoid_ : séance supplémentaire (pour une Étude), séance bonus
+
 **Séance supplémentaire** :
-Séance ajoutée en plus des séances prévues, par exemple avant un examen. Elle est offerte et ne compte pas dans le Mois.
+Séance ajoutée à une Révision ou à une Formation en plus des séances prévues, par exemple avant un examen. Elle est offerte et ne compte pas.
 _Avoid_ : séance bonus, séance de rattrapage
 
 **Bibliothèque** :
@@ -166,9 +170,9 @@ _Avoid_ : pointage, contrôle
 Liste imprimée depuis la plateforme des élèves d'un groupe et des séances d'une période, par exemple les 4 séances du Mois 2, pour faire l'appel sur papier.
 _Avoid_ : cahier d'appel, liste de présence
 
-**Rattrapage** :
-Participation d'un élève à une séance d'un autre groupe du même professeur, de la même matière et du même niveau, à la place d'une séance de son groupe qu'il manque. L'élève continue de payer dans son propre groupe.
-_Avoid_ : remplacement, changement de séance
+**Venu d'un autre groupe** :
+Élève qui assiste à une séance d'un autre groupe du même professeur, de la même matière et du même niveau, à la place d'une séance précise de son groupe, avant ou après elle. L'élève continue de payer dans son propre groupe. Dans le code, ce concept s'appelle encore `Rattrapage`.
+_Avoid_ : rattrapage (l'élève n'a souvent rien manqué), remplacement, changement de séance
 
 **Changement de groupe** :
 Passage définitif d'un élève d'un groupe à un autre du même type. Les séances déjà payées et non suivies dans l'ancien groupe sont déduites de ce qu'il doit dans le nouveau.

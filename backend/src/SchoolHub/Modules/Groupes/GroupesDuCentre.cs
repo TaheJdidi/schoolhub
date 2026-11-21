@@ -123,10 +123,13 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
         var groupes = await contexte.Groupes.OrderBy(g => g.Nom).ThenBy(g => g.Id).ToListAsync();
         var matieres = await contexte.Matieres.ToDictionaryAsync(m => m.Id, m => m.Nom);
         var niveaux = await contexte.Niveaux.ToDictionaryAsync(n => n.Id, n => n.Nom);
-        var dernieresSeances = await contexte.Seances.QuiComptent()
+        // Les séances qui comptent, pour la fin du groupe et son avancement : le Mois en cours, ou « séance 2 sur 3 ».
+        var seancesParGroupe = (await contexte.Seances.QuiComptent()
+                .OrderBy(s => s.Date).ThenBy(s => s.Debut).ThenBy(s => s.Id)
+                .ToListAsync())
             .GroupBy(s => s.GroupeId)
-            .Select(g => new { GroupeId = g.Key, Derniere = g.Max(s => s.Date) })
-            .ToDictionaryAsync(g => g.GroupeId, g => g.Derniere);
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<Seance>)g.ToList());
+        var dernieresSeances = seancesParGroupe.ToDictionary(g => g.Key, g => g.Value[^1].Date);
         var aujourdhuiPourLesInscrits = DateDeTunis.Aujourdhui(temps);
         // Un élève arrêté ne compte plus une fois le dernier jour de son inscription passé (ELV-08).
         var inscrits = await contexte.Inscriptions
@@ -148,8 +151,23 @@ public sealed class GroupesDuCentre(SchoolHubDbContext contexte, TimeProvider te
                 g.Capacite,
                 Eleves: inscrits.GetValueOrDefault(g.Id),
                 CalendrierDuGroupe.EstTermine(g.Type, dernieresSeances.TryGetValue(g.Id, out var derniere) ? derniere : null, aujourdhui),
-                Ferme: g.FermeLe is not null))
+                Ferme: g.FermeLe is not null)
+            {
+                MoisEnCours = g.Type == TypeDeGroupe.Etude ? MoisEnCours(g, seancesParGroupe.GetValueOrDefault(g.Id) ?? [], aujourdhui) : null,
+                SeancesPassees = g.Type == TypeDeGroupe.Etude ? null
+                    : g.PremiereSeance - 1 + (seancesParGroupe.GetValueOrDefault(g.Id) ?? []).Count(s => s.Date <= aujourdhui),
+                // Une Formation n'a pas toujours de nombre fixé : elle compte alors ses séances.
+                NombreDeSeances = g.Type == TypeDeGroupe.Etude ? null
+                    : g.NombreDeSeances ?? g.PremiereSeance - 1 + (seancesParGroupe.GetValueOrDefault(g.Id) ?? []).Count,
+            })
             .ToList();
+    }
+
+    /// <summary>Le Mois en cours d'une Étude ; <c>null</c> tant que son premier Mois n'a pas commencé.</summary>
+    private static int? MoisEnCours(Groupe groupe, IReadOnlyList<Seance> seances, DateOnly aujourdhui)
+    {
+        var enCours = PremierMoisAVenir(groupe, seances, aujourdhui) - 1;
+        return enCours >= CalendrierDuGroupe.MoisDeLaSeance(groupe.PremiereSeance) ? enCours : null;
     }
 
     /// <summary>

@@ -221,9 +221,9 @@ describe("la page de l'appel", () => {
       ],
     });
 
-    expect(eleveA('Adem').textContent).toContain('Rattrapée le 30/11');
-    expect(page.textContent).toContain('En rattrapage');
-    expect(eleveA('Lina').textContent).toContain("Paie dans son groupe d'origine · Groupe Mardi 17h → 19h, rattrape le 30/11");
+    expect(eleveA('Adem').querySelector('.venu-ailleurs')?.textContent).toContain('Venu le 30/11 avec un autre groupe');
+    expect(page.textContent).toContain("Venus d'un autre groupe");
+    expect(eleveA('Lina').textContent).toContain("Paie dans son groupe d'origine · Groupe Mardi 17h → 19h, à la place du 30/11");
     expect(page.textContent).toContain('0 présent · 0 absent · 2 à marquer');
 
     rond('Lina', 'A').click();
@@ -236,34 +236,33 @@ describe("la page de l'appel", () => {
     requete.flush({ ...APPEL, appelFait: true });
   });
 
-  it('ajoute un élève en rattrapage', async () => {
+  const MARDI = { id: 'g2', nom: 'Groupe Mardi 17h → 19h' };
+  const SEANCES_DU_MARDI = [
+    { id: 's8', date: '2027-11-23', debut: '17:00', fin: '19:00' },
+    { id: 's9', date: '2027-11-30', debut: '17:00', fin: '19:00' },
+    { id: 's10', date: '2027-12-07', debut: '17:00', fin: '19:00' },
+  ];
+  const venu = (inscriptionId: string, prenom: string, groupe = MARDI, seances = SEANCES_DU_MARDI) =>
+    ({ inscriptionId, eleveId: 'e' + inscriptionId, prenom, nom: 'Gharbi', groupe, seances });
+  const caseDe = (prenom: string) =>
+    [...page.querySelectorAll('.eleve-venu')].find((l) => l.textContent?.includes(prenom))!.querySelector('input') as HTMLInputElement;
+
+  it("ajoute d'un coup les élèves venus d'un autre groupe, à la place de la prochaine séance de leur groupe", async () => {
     await ouvrir(APPEL);
 
-    bouton('Ajouter un élève en rattrapage')!.click();
-    http.expectOne('/api/seances/s1/rattrapages/possibles').flush([
-      {
-        inscriptionId: 'i9',
-        eleveId: 'e9',
-        prenom: 'Lina',
-        nom: 'Gharbi',
-        groupe: { id: 'g2', nom: 'Groupe Mardi 17h → 19h' },
-        seances: [{ id: 's9', date: '2027-11-30', debut: '17:00', fin: '19:00' }],
-      },
-    ]);
-    await vi.waitFor(() => expect(page.querySelector('select[aria-label="Élève en rattrapage"]')).not.toBeNull());
-    const choisir = (libelle: string, valeur: string) => {
-      const liste = page.querySelector(`select[aria-label="${libelle}"]`) as HTMLSelectElement;
-      liste.value = valeur;
-      liste.dispatchEvent(new Event('change'));
-    };
-    choisir('Élève en rattrapage', 'i9');
-    await vi.waitFor(() => expect(page.querySelector('select[aria-label="Séance rattrapée"]')).not.toBeNull());
-    expect(page.querySelector('select[aria-label="Séance rattrapée"]')?.textContent).toContain('mardi 30/11/2027 · 17h');
-    choisir('Séance rattrapée', 's9');
+    bouton("Ajouter des élèves venus d'un autre groupe")!.click();
+    // Un seul autre groupe : il est déjà choisi.
+    http.expectOne('/api/seances/s1/rattrapages/possibles').flush([venu('i9', 'Lina'), venu('i10', 'Sarra'), venu('i11', 'Omar')]);
+    await vi.waitFor(() => expect(page.querySelectorAll('.eleve-venu').length).toBe(3));
+    // Le samedi 27/11 : la prochaine séance du mardi est le 30/11.
+    expect(page.querySelector('.a-la-place')?.textContent).toContain('mardi 30/11/2027');
 
-    bouton('Ajouter en rattrapage')!.click();
+    caseDe('Lina').click();
+    caseDe('Sarra').click();
+    await vi.waitFor(() => expect(bouton('Ajouter 2 élèves')).toBeDefined());
+    bouton('Ajouter 2 élèves')!.click();
     const requete = http.expectOne({ method: 'POST', url: '/api/seances/s1/rattrapages' });
-    expect(requete.request.body).toEqual({ inscriptionId: 'i9', seanceRattrapeeId: 's9' });
+    expect(requete.request.body).toEqual({ inscriptionIds: ['i9', 'i10'], seanceRattrapeeId: 's9' });
     requete.flush({
       ...APPEL,
       rattrapages: [
@@ -272,17 +271,49 @@ describe("la page de l'appel", () => {
       ],
     });
 
-    await vi.waitFor(() => expect(page.textContent).toContain('En rattrapage'));
-    expect(bouton('Ajouter un élève en rattrapage')).toBeDefined();
+    await vi.waitFor(() => expect(page.querySelector('h3.tag')?.textContent).toContain("Venus d'un autre groupe"));
+    expect(bouton("Ajouter des élèves venus d'un autre groupe")).toBeDefined();
   });
 
-  it('dit quand aucun élève ne peut venir en rattrapage', async () => {
+  it("choisit d'abord le groupe, et la séance remplacée se change", async () => {
     await ouvrir(APPEL);
 
-    bouton('Ajouter un élève en rattrapage')!.click();
+    bouton("Ajouter des élèves venus d'un autre groupe")!.click();
+    const JEUDI = { id: 'g3', nom: 'Groupe Jeudi 17h → 19h' };
+    http.expectOne('/api/seances/s1/rattrapages/possibles').flush([
+      venu('i9', 'Lina'),
+      // Rania a déjà remplacé la séance du 30/11 : elle ne propose que le 7/12.
+      venu('i12', 'Rania', MARDI, [SEANCES_DU_MARDI[2]]),
+      venu('i13', 'Sami', JEUDI, [{ id: 's20', date: '2027-12-02', debut: '17:00', fin: '19:00' }]),
+    ]);
+    await vi.waitFor(() => expect(bouton('Groupe Jeudi 17h → 19h')).toBeDefined());
+    expect(page.querySelectorAll('.eleve-venu').length).toBe(0);
+
+    bouton('Groupe Mardi 17h → 19h')!.click();
+    await vi.waitFor(() => expect(page.querySelectorAll('.eleve-venu').length).toBe(2));
+    expect(caseDe('Rania').disabled).toBe(true);
+
+    bouton('changer')!.click();
+    await vi.waitFor(() => expect(page.querySelector('select[aria-label="Séance remplacée"]')).not.toBeNull());
+    const liste = page.querySelector('select[aria-label="Séance remplacée"]') as HTMLSelectElement;
+    liste.value = 's10';
+    liste.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => expect(caseDe('Rania').disabled).toBe(false));
+    caseDe('Rania').click();
+    await vi.waitFor(() => expect(bouton('Ajouter 1 élève')).toBeDefined());
+    bouton('Ajouter 1 élève')!.click();
+    const requete = http.expectOne({ method: 'POST', url: '/api/seances/s1/rattrapages' });
+    expect(requete.request.body).toEqual({ inscriptionIds: ['i12'], seanceRattrapeeId: 's10' });
+    requete.flush(APPEL);
+  });
+
+  it("dit quand aucun autre groupe ne peut venir", async () => {
+    await ouvrir(APPEL);
+
+    bouton("Ajouter des élèves venus d'un autre groupe")!.click();
     http.expectOne('/api/seances/s1/rattrapages/possibles').flush([]);
 
-    await vi.waitFor(() => expect(page.textContent).toContain('Aucun élève ne peut venir en rattrapage à cette séance.'));
+    await vi.waitFor(() => expect(page.textContent).toContain('Aucun autre groupe de ce professeur, de cette matière et de ce niveau.'));
   });
   it("dit qu'une séance inconnue n'existe pas", async () => {
     await ouvrir(null);
