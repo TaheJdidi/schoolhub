@@ -11,7 +11,6 @@ import { ecrireUnMontant, lireUnNombre } from '../../socle/montants';
 import { EleveAEncaisser, ModeDePaiement, RecusDuGroupe, resteAPayer } from '../caisse/recu';
 import { heure } from '../groupes/groupe';
 import { InscriptionDeLEleve, MessageWhatsApp, modeCourt } from '../inscriptions/inscription';
-import { ActionsDeListe } from '../../socle/actions-de-liste';
 import { Icone } from '../../socle/icone';
 import { BoutonDeRappel, enRetard } from '../caisse/paiement';
 import { AppelDeLaSeance, ChangementDuCalendrier, EleveALAppel, EleveEnRattrapage, EleveRattrapable } from './appel';
@@ -40,7 +39,7 @@ function memes(a: string[], b: string[]): boolean {
 @Component({
   selector: 'sh-page-de-l-appel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, NgTemplateOutlet, MessagesDuChangement, BrouillonRepris, ActionsDeListe, BoutonDeRappel, Icone],
+  imports: [RouterLink, NgTemplateOutlet, MessagesDuChangement, BrouillonRepris, BoutonDeRappel, Icone],
   host: { '[class.integre]': 'integre()', '(document:keydown.escape)': 'fermerAuClavier()' },
   template: `
     @if (introuvable()) {
@@ -104,14 +103,12 @@ function memes(a: string[], b: string[]): boolean {
                 } @else {
                   <span class="pill muted">À venir</span>
                 }
-                <!-- Ce que faisait le bloc « Les élèves » : ajouter un élève, imprimer, exporter. -->
+                <!-- Ce que faisait le bloc « Les élèves » : ajouter un élève ; et la feuille d'appel. -->
                 @if (inscriptions(); as inscriptions) {
                   @if (ajoutPossible()) {
                     <a class="icone-seule" [routerLink]="['/professeurs/groupes', appel.groupe.id, 'inscription']"
                        aria-label="Ajouter un élève" title="Ajouter un élève"><sh-icone nom="user-plus" /></a>
                   }
-                  <sh-actions-de-liste [compact]="true" [titre]="appel.groupe.nom + ' · élèves'" [nombre]="inscriptions.length"
-                                       [exporter]="'/api/exports/groupes/' + appel.groupe.id" />
                   <!-- SEA-08 : la feuille d'appel, à côté du tableau qu'elle imprime. -->
                   <a class="feuille-d-appel" [routerLink]="['/professeurs/groupes', appel.groupe.id, 'feuille-d-appel']">
                     <sh-icone nom="file-text" /> Feuille d'appel

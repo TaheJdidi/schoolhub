@@ -276,7 +276,7 @@ describe('la fiche d’un groupe', () => {
   const ADEM = { inscriptionId: 'i1', eleveId: 'e1', prenom: 'Adem', nom: 'Miled' };
   const appel = () => page.querySelector('.appel-integre') as HTMLElement;
 
-  it('montre ses élèves dans l’appel, et propose d’en ajouter, de les imprimer et de les exporter', async () => {
+  it('montre ses élèves dans l’appel, et propose d’en ajouter', async () => {
     await ouvrir(FICHE, [{ ...INSCRIPTION, couleur: 'Rouge' }]);
     await repondreALAppel([ADEM]);
 
@@ -286,8 +286,9 @@ describe('la fiche d’un groupe', () => {
     expect(nom.textContent).toContain('Adem Miled');
     expect(nom.getAttribute('title')).toBe('En totalité · depuis le 25/09/2027');
     expect(appel().querySelector('a[href="/professeurs/groupes/g1/inscription"]')?.getAttribute('aria-label')).toBe('Ajouter un élève');
-    expect(appel().querySelector('[aria-label="Imprimer"]')).not.toBeNull();
-    expect(appel().querySelector('[aria-label="Exporter (Excel)"]')).not.toBeNull();
+    // Ni « Imprimer » ni « Exporter (Excel) » dans l'appel : la feuille d'appel suffit.
+    expect(appel().querySelector('[aria-label="Imprimer"]')).toBeNull();
+    expect(appel().querySelector('[aria-label="Exporter (Excel)"]')).toBeNull();
     // SEA-08 : la feuille d'appel est à côté du tableau, plus en haut de la page.
     expect(appel().querySelector('a[href="/professeurs/groupes/g1/feuille-d-appel"]')?.textContent).toContain("Feuille d'appel");
     expect(page.querySelector('.pagehead a[href="/professeurs/groupes/g1/feuille-d-appel"]')).toBeNull();
