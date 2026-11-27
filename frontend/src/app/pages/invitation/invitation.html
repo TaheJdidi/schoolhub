@@ -9,7 +9,11 @@
       <p class="note bad" role="alert">{{ message() }}</p>
     }
     @case ('formulaire') {
-      <p>Bonjour {{ accueil()?.prenom }}, bienvenue au {{ accueil()?.centre }}</p>
+      @if (accueil()?.centre) {
+        <p>Bonjour {{ accueil()?.prenom }}, bienvenue au {{ accueil()?.centre }}</p>
+      } @else {
+        <p>Bonjour {{ accueil()?.prenom }}, bienvenue dans le back office de SchoolUp</p>
+      }
       <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="choisir()" novalidate>
         <sh-champ-mot-de-passe
           [controle]="motDePasse"

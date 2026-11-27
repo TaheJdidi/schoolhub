@@ -47,3 +47,6 @@
   .shell{display:block;background:#fff}
   .main{padding:0}
 }
+
+/* EDI-05 : le bandeau de l'abonnement, au-dessus de chaque page. */
+.abonnement{margin:0 0 14px}

@@ -7,7 +7,7 @@ import { CartePublique } from '../../cadre/carte-publique';
 import { ChampMotDePasse, LONGUEUR_MINIMALE, MOT_DE_PASSE_TROP_COURT } from '../../socle/champ-mot-de-passe';
 import { messageDErreur } from '../../socle/erreurs';
 import { lireLeLienDeLEmail } from '../../socle/lien-de-l-email';
-import { Moi } from '../../socle/session/moi';
+import { EtapeSuivante, Moi, premierePage } from '../../socle/session/moi';
 import { Session } from '../../socle/session/session';
 import { requis } from '../../socle/champs-requis';
 
@@ -46,11 +46,17 @@ export class NouveauMotDePasse {
     this.envoi.set(true);
     this.message.set(null);
     try {
-      const moi = await firstValueFrom(
-        this.http.post<Moi>('/api/nouveau-mot-de-passe', { ...this.lien, motDePasse }),
+      const reponse = await firstValueFrom(
+        this.http.post<Moi | EtapeSuivante>('/api/nouveau-mot-de-passe', { ...this.lien, motDePasse }, { observe: 'response' }),
       );
+      // L'Éditeur passe encore par son application d'authentification (EDI-00), sur la page de connexion.
+      if (reponse.status === 202) {
+        await this.router.navigate(['/connexion'], { queryParams: { etape: (reponse.body as EtapeSuivante).etape } });
+        return;
+      }
+      const moi = reponse.body as Moi;
       this.session.connaitre(moi);
-      await this.router.navigateByUrl('/aujourdhui');
+      await this.router.navigateByUrl(premierePage(moi));
     } catch (erreur) {
       this.message.set(messageDErreur(erreur));
       if (erreur instanceof HttpErrorResponse && erreur.status === 410) this.expire.set(true);

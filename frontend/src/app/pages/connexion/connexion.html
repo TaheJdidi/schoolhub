@@ -1,25 +1,54 @@
 <sh-carte-publique>
-  <h1 class="h1">Se connecter</h1>
+  @if (etapeEnCours(); as etape) {
+    <h1 class="h1">Double authentification</h1>
+    <p class="note">{{ etape.message }}</p>
 
-  @if (expiree()) {
-    <p class="note">Votre session a expiré : reconnectez-vous</p>
-  }
-
-  <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="seConnecter()" novalidate>
-    <label class="f">
-      Email
-      <input shEmail type="email" formControlName="email" autocomplete="username" inputmode="email" />
-    </label>
-    <sh-champ-mot-de-passe [controle]="formulaire.controls.motDePasse" autocomplete="current-password" />
-
-    @if (message(); as message) {
-      <p class="note bad" role="alert">{{ message }}</p>
+    @if (etape.etape === 'activation-2fa') {
+      @if (activation(); as activation) {
+        <img class="qr" [src]="activation.qrCode" width="220" height="220" alt="QR code à scanner avec votre application d'authentification" />
+        <p class="cle">Sans appareil photo, saisissez cette clé dans l'application : <code>{{ activation.cle }}</code></p>
+      }
     }
 
-    <button type="submit" class="btn primary wide" [disabled]="envoi()">
-      {{ envoi() ? 'Connexion…' : 'Se connecter' }}
-    </button>
-  </form>
+    <form class="formulaire" [formGroup]="formulaireDuCode" (ngSubmit)="confirmerLeCode()" novalidate>
+      <label class="f">
+        Code à 6 chiffres
+        <input type="text" formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" />
+      </label>
 
-  <a class="lnk oubli" routerLink="/mot-de-passe-oublie">Mot de passe oublié</a>
+      @if (message(); as message) {
+        <p class="note bad" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" class="btn primary wide" [disabled]="envoi()">
+        {{ envoi() ? 'Vérification…' : 'Valider' }}
+      </button>
+    </form>
+
+    <button type="button" class="lnk oubli" (click)="recommencer()">Revenir au mot de passe</button>
+  } @else {
+    <h1 class="h1">Se connecter</h1>
+
+    @if (expiree()) {
+      <p class="note">Votre session a expiré : reconnectez-vous</p>
+    }
+
+    <form class="formulaire" [formGroup]="formulaire" (ngSubmit)="seConnecter()" novalidate>
+      <label class="f">
+        Email
+        <input shEmail type="email" formControlName="email" autocomplete="username" inputmode="email" />
+      </label>
+      <sh-champ-mot-de-passe [controle]="formulaire.controls.motDePasse" autocomplete="current-password" />
+
+      @if (message(); as message) {
+        <p class="note bad" role="alert">{{ message }}</p>
+      }
+
+      <button type="submit" class="btn primary wide" [disabled]="envoi()">
+        {{ envoi() ? 'Connexion…' : 'Se connecter' }}
+      </button>
+    </form>
+
+    <a class="lnk oubli" routerLink="/mot-de-passe-oublie">Mot de passe oublié</a>
+  }
 </sh-carte-publique>

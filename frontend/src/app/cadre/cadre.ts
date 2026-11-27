@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterOutlet, UrlTree } from '@angular/router';
 import { filter, fromEvent, map, merge } from 'rxjs';
+import { Abonnement } from '../socle/abonnement';
 import { DernieresPages } from '../socle/dernieres-pages';
 import { NombreDeDemandes } from '../socle/nombre-de-demandes';
 import { dateDuJour } from '../socle/dates';
@@ -52,8 +53,14 @@ export class Cadre {
   private readonly dernieresPages = inject(DernieresPages);
   protected readonly demandesATraiter = this.nombreDeDemandes.aTraiter;
 
+  /** EDI-05 : l'abonnement du centre, pour le bandeau rouge En retard ou Suspendu. Lu une fois, à l'ouverture du cadre. */
+  private readonly abonnement = inject(Abonnement);
+  protected readonly situation = this.abonnement.situation;
+  protected readonly date_ = (iso: string | null) => (iso ? iso.split('-').reverse().join('/') : '');
+
   /** Le cadre naît pendant une navigation : la fin de celle-ci donne déjà la première lecture. */
   constructor() {
+    void this.abonnement.charger();
     this.router.events
       .pipe(
         filter((evenement) => evenement instanceof NavigationEnd),

@@ -22,5 +22,10 @@ internal sealed class CompteConfiguration : IEntityTypeConfiguration<Compte>
 
         // Un email est unique dans tout SchoolHub, tous centres confondus (CPT-04).
         compte.HasIndex(c => c.NormalizedEmail).IsUnique();
+
+        // L'Éditeur n'a pas de centre, et lui seul (EDI-00).
+        compte.ToTable(t => t.HasCheckConstraint(
+            "ck_comptes_centre_sauf_editeur",
+            "(role = 'Editeur') = (centre_id IS NULL)"));
     }
 }

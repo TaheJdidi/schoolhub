@@ -46,6 +46,7 @@ public static class ConfigurationDesComptes
             .AddTokenProvider<JetonDeMotDePasseOublie>(JetonDeMotDePasseOublie.Nom);
 
         services.AddScoped<Invitations>();
+        services.AddScoped<OuvertureDeSession>();
 
         services
             .AddAuthentication(IdentityConstants.ApplicationScheme)
@@ -72,22 +73,54 @@ public static class ConfigurationDesComptes
                 options.Events.OnRedirectToAccessDenied = contexte =>
                 {
                     contexte.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    return contexte.Response.WriteAsJsonAsync(new Avis("Accès réservé au propriétaire"));
+                    return contexte.Response.WriteAsJsonAsync(new Avis(MessageDuRefus(contexte.HttpContext)));
                 };
+            })
+            // Le mot de passe de l'Éditeur est vérifié, il reste le code de son application (EDI-00) :
+            // ce cookie-là ne donne accès qu'à cette étape.
+            .AddCookie(EtapeDeConnexion.Schema, options =>
+            {
+                options.Cookie.Name = EtapeDeConnexion.Cookie;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.ExpireTimeSpan = EtapeDeConnexion.Duree;
+                options.SlidingExpiration = false;
             });
 
-        // Le cookie lit l'horloge de l'application, que les tests remplacent.
-        services
-            .AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
-            .Configure<TimeProvider>((options, temps) => options.TimeProvider = temps);
+        // Les cookies lisent l'horloge de l'application, que les tests remplacent.
+        foreach (var schema in new[] { IdentityConstants.ApplicationScheme, EtapeDeConnexion.Schema })
+            services
+                .AddOptions<CookieAuthenticationOptions>(schema)
+                .Configure<TimeProvider>((options, temps) => options.TimeProvider = temps);
 
         services
             .AddAuthorizationBuilder()
-            // Toute adresse exige d'être connecté, sauf celles marquées AllowAnonymous : une adresse oubliée est protégée d'office.
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-            .AddPolicy(Politiques.Proprietaire, politique => politique.RequireRole(nameof(RoleDuCompte.Proprietaire)));
+            // Toute adresse exige d'être connecté à un centre, sauf celles marquées AllowAnonymous ou qui ont leur propre politique :
+            // une adresse oubliée est protégée d'office, et l'Éditeur, qui n'a pas de centre, n'y entre pas (EDI-00).
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .RequireClaim(RevendicationsDuCompte.Centre)
+                .Build())
+            .AddPolicy(Politiques.Connecte, politique => politique.RequireAuthenticatedUser())
+            .AddPolicy(Politiques.Proprietaire, politique => politique
+                .RequireClaim(RevendicationsDuCompte.Centre)
+                .RequireRole(nameof(RoleDuCompte.Proprietaire)))
+            .AddPolicy(Politiques.Editeur, politique => politique
+                .RequireRole(nameof(RoleDuCompte.Editeur))
+                .RequireClaim(RevendicationsDuCompte.DoubleAuthentification));
 
         return services;
+    }
+
+    /// <summary>Le message d'un refus 403, selon ce qui était demandé et qui le demandait.</summary>
+    private static string MessageDuRefus(HttpContext http)
+    {
+        if (http.Request.Path.StartsWithSegments("/api/editeur"))
+            return "Accès réservé à l'Éditeur";
+        if (http.User.IsInRole(nameof(RoleDuCompte.Editeur)))
+            return "Accès réservé aux comptes d'un centre";
+        return "Accès réservé au propriétaire";
     }
 
     /// <summary>
@@ -126,4 +159,10 @@ public static class Politiques
 {
     /// <summary>Réservé au propriétaire : une secrétaire reçoit 403 « Accès réservé au propriétaire ».</summary>
     public const string Proprietaire = "Proprietaire";
+
+    /// <summary>Toute personne connectée, Éditeur compris : savoir qui est connecté, se déconnecter.</summary>
+    public const string Connecte = "Connecte";
+
+    /// <summary>Réservé à l'Éditeur dont la double authentification est active (EDI-00).</summary>
+    public const string Editeur = "Editeur";
 }

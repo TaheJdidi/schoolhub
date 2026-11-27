@@ -111,4 +111,42 @@ describe('la page de connexion', () => {
     const lien = page.querySelector('a[href="/mot-de-passe-oublie"]');
     expect(lien?.textContent).toContain('Mot de passe oublié');
   });
+  it("l'Éditeur scanne le QR code, saisit le code de son application, puis entre dans le back office (EDI-00)", async () => {
+    const page = await ouvrir();
+    seConnecter(page, 'nadia@schoolup.tn', 'back-office-2027');
+
+    http.expectOne('/api/connexion').flush(
+      { etape: 'activation-2fa', message: 'Scannez le QR code' },
+      { status: 202, statusText: 'Accepted' },
+    );
+    // Le QR code se demande une fois la réponse 202 lue.
+    const activation = await vi.waitFor(() => http.expectOne('/api/connexion/activation-2fa'));
+    activation.flush({ qrCode: 'data:image/png;base64,AAAA', cle: 'ABCD EFGH' });
+    await vi.waitFor(() => expect(page.querySelector('img.qr')).not.toBeNull());
+    expect(page.textContent).toContain('Scannez le QR code');
+    expect(page.querySelector('img.qr')?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
+    expect(page.textContent).toContain('ABCD EFGH');
+
+    saisir(page, 'input[autocomplete="one-time-code"]', '123 456');
+    envoyer(page);
+    const code = http.expectOne('/api/connexion/code-2fa');
+    expect(code.request.body).toEqual({ code: '123456' });
+    code.flush({ prenom: 'Nadia', nom: 'Mansour', role: 'Editeur', centre: null });
+
+    await vi.waitFor(() => expect(adresseActuelle()).toBe('/editeur'));
+  });
+
+  it("un code faux s'affiche et le champ se vide", async () => {
+    const page = await ouvrir('/connexion?etape=code-2fa');
+    expect(page.textContent).toContain('Saisissez le code à 6 chiffres');
+
+    saisir(page, 'input[autocomplete="one-time-code"]', '000000');
+    envoyer(page);
+    http.expectOne('/api/connexion/code-2fa').flush(
+      { message: "Ce code n'est pas le bon" },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    await vi.waitFor(() => expect(page.textContent).toContain("Ce code n'est pas le bon"));
+  });
 });

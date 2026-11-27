@@ -17,7 +17,7 @@ import { MotDePasseOublie } from './pages/mot-de-passe-oublie/mot-de-passe-oubli
 import { NouveauMotDePasse } from './pages/nouveau-mot-de-passe/nouveau-mot-de-passe';
 import { Parametres } from './pages/parametres/parametres';
 import { EntreeDuMenu, MENU } from './socle/menu';
-import { estConnecte, estProprietaire, nonConnecte } from './socle/session/gardes';
+import { estConnecte, estEditeur, estProprietaire, nonConnecte } from './socle/session/gardes';
 
 const titre = (page: string) => `${page} · SchoolUp`;
 
@@ -33,6 +33,14 @@ const pageDEncaissement = () => import('./pages/caisse/page-d-encaissement').the
 const pageDuRecu = () => import('./pages/caisse/page-du-recu').then((module) => module.PageDuRecu);
 const recuAImprimer = () => import('./pages/caisse/recu-a-imprimer').then((module) => module.RecuAImprimer);
 const feuilleDAppel = () => import('./pages/seances/feuille-d-appel').then((module) => module.FeuilleDAppel);
+
+/** Le back office de l'Éditeur (EDI-00 à EDI-05), chargé à la demande : les centres ne le chargent jamais. */
+const espaceEditeur = () => import('./pages/editeur/espace-editeur').then((module) => module.EspaceEditeur);
+const listeDesCentres = () => import('./pages/editeur/liste-des-centres').then((module) => module.ListeDesCentres);
+const nouveauCentre = () => import('./pages/editeur/nouveau-centre').then((module) => module.NouveauCentre);
+const ficheDuCentre = () => import('./pages/editeur/fiche-du-centre').then((module) => module.FicheDuCentreDuBackOffice);
+const journalDeLEditeur = () => import('./pages/editeur/journal-de-l-editeur').then((module) => module.JournalDeLEditeur);
+const titreEditeur = (page: string) => `${page} · SchoolUp Éditeur`;
 
 /** Les pages du menu déjà construites, par adresse : les autres affichent « Cette page arrive bientôt ». */
 const PAGES: Partial<Record<string, Type<unknown>>> = {
@@ -93,6 +101,18 @@ export const routes: Routes = [
     path: 'feuille-d-appel/:id',
     redirectTo: ({ params, queryParams }) =>
       inject(Router).createUrlTree(['/professeurs/groupes', params['id'], 'feuille-d-appel'], { queryParams }),
+  },
+  // EDI-00 : le back office de l'Éditeur, à part du cadre des centres.
+  {
+    path: 'editeur',
+    loadComponent: espaceEditeur,
+    canActivate: [estEditeur],
+    children: [
+      { path: '', loadComponent: listeDesCentres, title: titreEditeur('Centres') },
+      { path: 'centres/nouveau', loadComponent: nouveauCentre, title: titreEditeur('Créer un centre') },
+      { path: 'centres/:id', loadComponent: ficheDuCentre, title: titreEditeur('Centre') },
+      { path: 'journal', loadComponent: journalDeLEditeur, title: titreEditeur('Journal') },
+    ],
   },
   {
     path: '',

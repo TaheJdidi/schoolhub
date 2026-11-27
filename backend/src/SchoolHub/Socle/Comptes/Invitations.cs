@@ -12,22 +12,35 @@ public sealed class Invitations(UserManager<Compte> comptes, IEnvoiEmail emails,
 {
     /// <summary>
     /// Fabrique le jeton d'invitation du compte, puis envoie l'email avec le lien, valable 7 jours.
+    /// L'Éditeur n'a pas de centre (<paramref name="centre"/> vide) : son email parle du back office.
     /// Si l'envoi échoue, l'exception remonte : c'est à l'appelant de décider quoi faire.
     /// </summary>
-    public async Task EnvoyerAsync(Compte compte, Centre centre, CancellationToken annulation = default)
+    public async Task EnvoyerAsync(Compte compte, Centre? centre, CancellationToken annulation = default)
     {
-        var jeton = await comptes.GenerateUserTokenAsync(compte, JetonDInvitation.Nom, JetonDInvitation.But);
-
-        // Le jeton contient des « + », des « / » et des « = » : il doit être encodé pour passer dans une adresse.
-        var lien = $"{application.Value.Adresse.TrimEnd('/')}/invitation?compte={compte.Id}&jeton={Uri.EscapeDataString(jeton)}";
+        var lien = await LienAsync(compte);
+        var (sujet, invitation) = centre is null
+            ? ("Votre compte Éditeur SchoolUp", "Vous êtes invité(e) à gérer les centres de SchoolUp depuis le back office.")
+            : ($"Rejoindre le {centre.Nom} sur SchoolUp", $"Vous êtes invité(e) à rejoindre le {centre.Nom} sur SchoolUp.");
         var texte = string.Join(
             '\n',
             $"Bonjour {compte.Prenom},",
             "",
-            $"Vous êtes invité(e) à rejoindre le {centre.Nom} sur SchoolUp.",
+            invitation,
             "Choisissez votre mot de passe en ouvrant ce lien, valable 7 jours :",
             lien);
 
-        await emails.EnvoyerAsync(compte.Email!, $"Rejoindre le {centre.Nom} sur SchoolUp", texte, annulation);
+        await emails.EnvoyerAsync(compte.Email!, sujet, texte, annulation);
+    }
+
+    /// <summary>
+    /// Un nouveau lien d'invitation du compte, valable 7 jours : celui de l'email, ou celui que l'Éditeur envoie
+    /// par WhatsApp (EDI-03). Il ne rend pas caducs les liens déjà envoyés : seul un changement du tampon de sécurité le fait.
+    /// </summary>
+    public async Task<string> LienAsync(Compte compte)
+    {
+        var jeton = await comptes.GenerateUserTokenAsync(compte, JetonDInvitation.Nom, JetonDInvitation.But);
+
+        // Le jeton contient des « + », des « / » et des « = » : il doit être encodé pour passer dans une adresse.
+        return $"{application.Value.Adresse.TrimEnd('/')}/invitation?compte={compte.Id}&jeton={Uri.EscapeDataString(jeton)}";
     }
 }

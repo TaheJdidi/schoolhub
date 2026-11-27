@@ -72,11 +72,11 @@ public static class MotDePasseOublieEndpoints
         return reponse;
     }
 
-    private static async Task<Results<Ok<Moi>, JsonHttpResult<Avis>>> ChangerLeMotDePasseAsync(
+    private static async Task<Results<Ok<Moi>, Accepted<EtapeSuivante>, JsonHttpResult<Avis>>> ChangerLeMotDePasseAsync(
         ChoixDuMotDePasse choix,
+        HttpContext http,
         UserManager<Compte> comptes,
-        SignInManager<Compte> connexion,
-        SchoolHubDbContext contexte)
+        OuvertureDeSession ouverture)
     {
         // Le lien d'abord : un lien expiré passe avant un mot de passe trop court, inutile de corriger un mot de passe qui ne servira pas.
         var compte = await VerifierLeLienAsync(comptes, choix.Compte, choix.Jeton);
@@ -97,8 +97,8 @@ public static class MotDePasseOublieEndpoints
         await comptes.ResetAccessFailedCountAsync(compte);
         await comptes.SetLockoutEndDateAsync(compte, null);
 
-        await ConnexionEndpoints.OuvrirLaSessionAsync(connexion, compte);
-        return TypedResults.Ok(await ConnexionEndpoints.MoiAsync(compte, contexte));
+        // L'Éditeur passe encore par son application d'authentification (EDI-00).
+        return await ouverture.ApresLeMotDePasseAsync(http, compte);
     }
 
     /// <summary>

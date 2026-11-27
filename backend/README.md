@@ -50,6 +50,19 @@ dotnet SchoolHub.dll creer-centre --nom "…" --code … --prenom … --nom-prop
 - La commande écrit son résultat, puis s'arrête avec le code de sortie 0 si tout va bien, ou 1 pour un refus (code ou email déjà pris, option manquante…). Le serveur ne démarre pas. Une erreur inattendue (base injoignable…) affiche une trace, avec un code de sortie différent de 0, et rien n'est créé.
 - En développement, l'email d'invitation, lien compris, est écrit dans la console. En production, la commande refuse de s'exécuter tant que l'envoi des emails n'est pas branché (Brevo).
 
+## Créer un compte Éditeur (le back office, EDI-00)
+
+Le back office `/editeur` sert à l'équipe SchoolHub à créer les centres et à suivre leurs abonnements ([stories EDI](../docs/user-stories/13-back-office.md)). Un compte Éditeur n'appartient à aucun centre ; il naît d'une commande :
+
+```bash
+dotnet run --project src/SchoolHub -- creer-editeur --email lassad@exemple.tn --prenom Lassad --nom Smaoui
+```
+
+- L'Éditeur reçoit une invitation, choisit son mot de passe, puis scanne le QR code avec son application d'authentification (Google Authenticator, Microsoft Authenticator…). Ensuite, chaque connexion demande le code à 6 chiffres.
+- Sans double authentification active, aucune adresse `/api/editeur` ne répond.
+- Le prix mensuel de l'offre se règle dans la section `Abonnements:PrixMensuel` de la configuration (90 dinars par défaut).
+- Un centre Suspendu est en lecture seule : toute écriture d'un de ses comptes reçoit 403 (`Modules/Abonnements/LectureSeule.cs`). Une adresse en POST qui ne modifie rien se marque `.PermiseEnLectureSeule()`.
+
 ## Lancer les tests
 
 ```bash

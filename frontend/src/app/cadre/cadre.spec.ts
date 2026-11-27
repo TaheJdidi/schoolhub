@@ -29,6 +29,7 @@ describe('le cadre', () => {
   afterEach(() => {
     const http = TestBed.inject(HttpTestingController);
     http.match('/api/demandes/nombre').forEach((requete) => requete.flush({ aTraiter: 0 }));
+    http.match('/api/abonnement').forEach((r) => r.flush({ etat: 'Actif', payeJusquAu: null, finDeLaPeriodeDeGrace: null, lectureSeule: false }));
     http.match('/api/seances/a-recopier').forEach((requete) => requete.flush([]));
     http.match('/api/seances/du-jour').forEach((requete) => requete.flush([]));
     http.match((requete) => requete.url === '/api/bibliotheque').forEach((requete) => requete.flush({ presents: 0, capacite: null, entrees: 0 }));

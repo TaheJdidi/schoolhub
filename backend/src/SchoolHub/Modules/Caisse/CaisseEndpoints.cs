@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using SchoolHub.Modules.Abonnements;
 using SchoolHub.Modules.Inscriptions;
 using SchoolHub.Socle.Comptes;
 
@@ -82,7 +83,9 @@ public static class CaisseEndpoints
         groupe.MapPost("/{id:guid}/annulation", async (Guid id, AnnulationDuRecu saisie, ClaimsPrincipal utilisateur, UserManager<Compte> comptes,
             RecusDuCentre recus) => Repondre(await recus.AnnulerAsync(await AuteurAsync(utilisateur, comptes), id, saisie)));
         groupe.MapPost("/{id:guid}/email", async (Guid id, ClaimsPrincipal utilisateur, UserManager<Compte> comptes, RecusDuCentre recus) =>
-            Repondre(await recus.RenvoyerLEmailAsync(id, await AuteurAsync(utilisateur, comptes))));
+            Repondre(await recus.RenvoyerLEmailAsync(id, await AuteurAsync(utilisateur, comptes))))
+            // Renvoyer un reçu déjà fait reste possible pour un centre Suspendu (EDI-05).
+            .PermiseEnLectureSeule();
         return api;
     }
 

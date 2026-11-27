@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
+using SchoolHub.Modules.Abonnements;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
@@ -26,6 +27,12 @@ public sealed class ModeleTests
         typeof(IdentityUserClaim<Guid>),
         typeof(IdentityUserLogin<Guid>),
         typeof(IdentityUserToken<Guid>),
+        // Les données de l'Éditeur sur les centres (EDI-01 à EDI-05) : le back office les lit pour tous les centres,
+        // et le centre ne lit que la sienne, par le centre courant (AbonnementCoteCentre).
+        typeof(Abonnement),
+        typeof(PaiementDAbonnement),
+        typeof(EnvoiAuProprietaire),
+        typeof(LigneDuJournalDeLEditeur),
     ];
 
     [Fact]

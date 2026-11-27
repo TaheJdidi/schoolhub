@@ -7,5 +7,6 @@ export function initiales(prenom: string, nom: string): string {
 
 /** Le rôle tel qu'il s'affiche, avec ses accents. */
 export function libelleDuRole(role: Role): string {
+  if (role === 'Editeur') return 'Éditeur';
   return role === 'Proprietaire' ? 'Propriétaire' : 'Secrétaire';
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using SchoolHub.Modules.Abonnements;
 using SchoolHub.Modules.Achats;
 using SchoolHub.Modules.Bibliotheque;
 using SchoolHub.Modules.Caisse;
@@ -19,9 +20,9 @@ using SchoolHub.Socle.Emails;
 using SchoolHub.Socle.Journal;
 using SchoolHub.Socle.Pages;
 
-// « creer-centre » lance la commande au lieu du serveur. Ses options (--nom, --code…) ne doivent pas
+// « creer-centre » et « creer-editeur » lancent la commande au lieu du serveur. Leurs options (--nom, --email…) ne doivent pas
 // se mélanger à la configuration de l'application, qui lit les arguments : la commande n'en reçoit aucun.
-var enCommande = args is [CommandeCreerCentre.Nom, ..];
+var enCommande = args is [CommandeCreerCentre.Nom or CommandeCreerEditeur.Nom, ..];
 var builder = WebApplication.CreateBuilder(enCommande ? Array.Empty<string>() : args);
 
 builder.Services.AddSingleton(TimeProvider.System);
@@ -56,6 +57,7 @@ builder.Services.AddScoped<ExportsDesListes>();
 builder.Services.AddScoped<ImportsDesListes>();
 builder.Services.AddScoped<SelectionDEleves>();
 builder.Services.AjouterLaProtectionDuFormulaire();
+builder.Services.AjouterLesAbonnements();
 
 // Les liens des emails contiennent un jeton protégé par ASP.NET. La commande creer-centre le fabrique dans un autre
 // processus que le serveur web, parfois lancé depuis un autre dossier (console SSH) : par défaut, la protection
@@ -85,7 +87,9 @@ if (app.Services.GetService<IEnvoiEmail>() is null)
 // et l'email d'invitation (écrit dans le journal en développement) pourrait sinon se perdre.
 if (enCommande)
 {
-    var codeDeSortie = await CommandeCreerCentre.ExecuterAsync(app.Services, args[1..], Console.Out);
+    var codeDeSortie = args[0] == CommandeCreerCentre.Nom
+        ? await CommandeCreerCentre.ExecuterAsync(app.Services, args[1..], Console.Out)
+        : await CommandeCreerEditeur.ExecuterAsync(app.Services, args[1..], Console.Out);
     await app.DisposeAsync();
     return codeDeSortie;
 }
@@ -98,6 +102,8 @@ if (!string.Equals(app.Configuration["ForwardedHeaders_Enabled"], "true", String
 // Les fichiers d'Angular passent avant la session : ils sont publics, sinon la page de connexion répondrait 401.
 app.UtiliserLesFichiersDeLApplication();
 app.UtiliserLaSession();
+// EDI-05 : un centre Suspendu ne crée et ne modifie plus rien.
+app.UtiliserLaLectureSeule();
 app.UseRateLimiter();
 
 var api = app.MapGroup("/api");
@@ -122,6 +128,7 @@ api.MapAchats();
 api.MapRessourcesHumaines();
 api.MapTableauDeBord();
 api.MapListes();
+api.MapAbonnements();
 app.MapPagesDeLApplication(api);
 
 app.Run();

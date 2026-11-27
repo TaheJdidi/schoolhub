@@ -7,21 +7,27 @@ using SchoolHub.Socle.Journal;
 
 namespace SchoolHub.Socle.Centres;
 
-/// <summary>Ce qu'il faut pour ouvrir un centre : son nom, son code, et son premier propriétaire.</summary>
+/// <summary>
+/// Ce qu'il faut pour ouvrir un centre : son nom, son code, et son premier propriétaire.
+/// Le back office de l'Éditeur (EDI-01) donne aussi le téléphone du propriétaire (8 chiffres, déjà vérifiés).
+/// </summary>
 public sealed record NouveauCentre(
     string Nom,
     string Code,
     string PrenomDuProprietaire,
     string NomDuProprietaire,
-    string EmailDuProprietaire);
+    string EmailDuProprietaire,
+    string? TelephoneDuProprietaire = null);
 
-/// <summary>Ce qui s'est passé : le message est destiné à la personne qui lance la commande.</summary>
-public sealed record ResultatDeCreation(bool Reussi, string Message);
+/// <summary>Ce qui s'est passé : le message est destiné à la personne qui lance la commande. Le centre, s'il est créé.</summary>
+public sealed record ResultatDeCreation(bool Reussi, string Message, Centre? Centre = null);
 
 /// <summary>
 /// CEN-01 : crée un centre et son premier propriétaire (invité), puis lui envoie son invitation.
 /// Tout ou rien : le centre, ses niveaux d'office, le compte, sa ligne au journal et l'envoi de l'email forment une seule transaction,
 /// validée seulement une fois l'email parti.
+/// Le back office de l'Éditeur (EDI-01) n'envoie pas l'invitation (elle attend le premier paiement d'abonnement, EDI-03),
+/// et ajoute ce qu'il lui faut dans la même transaction (<c>completer</c>).
 /// </summary>
 public sealed partial class CreationDeCentre(
     SchoolHubDbContext contexte,
@@ -31,8 +37,22 @@ public sealed partial class CreationDeCentre(
     NiveauxDuCentre niveaux,
     JournalDuCentre journal)
 {
-    public async Task<ResultatDeCreation> CreerAsync(NouveauCentre demande, CancellationToken annulation = default)
+    public Task<ResultatDeCreation> CreerAsync(NouveauCentre demande, CancellationToken annulation = default) =>
+        CreerAsync(demande, envoyerLInvitation: true, completer: null, annulation);
+
+    /// <summary>
+    /// Crée le centre, avec ou sans l'invitation. <paramref name="completer"/> s'exécute dans la transaction,
+    /// une fois le centre et son propriétaire enregistrés.
+    /// </summary>
+    public async Task<ResultatDeCreation> CreerAsync(
+        NouveauCentre demande,
+        bool envoyerLInvitation,
+        Func<Centre, Task>? completer,
+        CancellationToken annulation = default)
     {
+        if (demande.Nom.Length > Centre.LongueurMaximaleDuNom)
+            return Refus($"Le nom du centre fait au plus {Centre.LongueurMaximaleDuNom} caractères.");
+
         if (!CodeValable().IsMatch(demande.Code))
             return Refus("Le code ne peut contenir que des lettres minuscules, des chiffres et des tirets.");
 
@@ -62,7 +82,10 @@ public sealed partial class CreationDeCentre(
             demande.PrenomDuProprietaire,
             demande.NomDuProprietaire,
             demande.EmailDuProprietaire,
-            RoleDuCompte.Proprietaire);
+            RoleDuCompte.Proprietaire)
+        {
+            PhoneNumber = demande.TelephoneDuProprietaire,
+        };
         var creation = await comptes.CreateAsync(proprietaire);
         if (!creation.Succeeded)
         {
@@ -76,6 +99,18 @@ public sealed partial class CreationDeCentre(
             $"{proprietaire.Prenom} {proprietaire.Nom} · {LibellesDesComptes.De(RoleDuCompte.Proprietaire)} · {proprietaire.Email}");
         await contexte.SaveChangesAsync(annulation);
 
+        if (completer is not null)
+        {
+            await completer(centre);
+            await contexte.SaveChangesAsync(annulation);
+        }
+
+        if (!envoyerLInvitation)
+        {
+            await transaction.CommitAsync(annulation);
+            return new ResultatDeCreation(true, $"Centre « {centre.Nom} » créé.", centre);
+        }
+
         try
         {
             await invitations.EnvoyerAsync(proprietaire, centre, annulation);
@@ -87,7 +122,7 @@ public sealed partial class CreationDeCentre(
         }
 
         await transaction.CommitAsync(annulation);
-        return new ResultatDeCreation(true, $"Centre « {centre.Nom} » créé. Invitation envoyée à {proprietaire.Email}.");
+        return new ResultatDeCreation(true, $"Centre « {centre.Nom} » créé. Invitation envoyée à {proprietaire.Email}.", centre);
     }
 
     private static ResultatDeCreation Refus(string message) => new(false, message);

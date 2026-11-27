@@ -8,34 +8,41 @@ using SchoolHub.Socle.Donnees;
 namespace SchoolHub.Socle.Comptes;
 
 /// <summary>
-/// CPT-01 : se connecter, se déconnecter, et savoir qui est connecté.
+/// CPT-01 : se connecter (avec, pour l'Éditeur, le code de son application d'authentification, EDI-00),
+/// se déconnecter, et savoir qui est connecté.
 /// </summary>
 public static class ConnexionEndpoints
 {
     private const string Incorrect = "Email ou mot de passe incorrect";
-    private const string TropDEssais = "Trop d'essais : réessayez dans 15 minutes";
     internal const string CompteDesactive = "Ce compte est désactivé : adressez-vous au propriétaire du centre";
 
     public static IEndpointRouteBuilder MapConnexion(this IEndpointRouteBuilder api)
     {
         api.MapPost("/connexion", SeConnecterAsync).AllowAnonymous();
+        api.MapGet("/connexion/activation-2fa", (HttpContext http, OuvertureDeSession ouverture) =>
+            ouverture.ActivationAsync(http)).AllowAnonymous();
+        api.MapPost("/connexion/code-2fa", (SaisieDuCode saisie, HttpContext http, OuvertureDeSession ouverture) =>
+            ouverture.CodeDeLApplicationAsync(http, saisie.Code)).AllowAnonymous();
 
         // Pas SignInManager.SignOutAsync : il déconnecte aussi des schémas externes, non enregistrés ici, et lève une exception.
+        // La déconnexion ferme aussi une étape de connexion en cours.
         api.MapPost("/deconnexion", async (HttpContext http) =>
         {
             await http.SignOutAsync(IdentityConstants.ApplicationScheme);
+            await EtapeDeConnexion.TerminerAsync(http);
             return TypedResults.NoContent();
-        });
+        }).RequireAuthorization(Politiques.Connecte);
 
-        api.MapGet("/moi", QuiEstConnecteAsync);
+        api.MapGet("/moi", QuiEstConnecteAsync).RequireAuthorization(Politiques.Connecte);
         return api;
     }
 
-    private static async Task<Results<Ok<Moi>, JsonHttpResult<Avis>>> SeConnecterAsync(
+    private static async Task<Results<Ok<Moi>, Accepted<EtapeSuivante>, JsonHttpResult<Avis>>> SeConnecterAsync(
         DemandeDeConnexion demande,
+        HttpContext http,
         UserManager<Compte> comptes,
         SignInManager<Compte> connexion,
-        SchoolHubDbContext contexte)
+        OuvertureDeSession ouverture)
     {
         var email = demande.Email?.Trim();
         // Un mot de passe vide (ce qu'envoie un formulaire vide) n'est pas un essai : il ne compte pas dans les 5 avant blocage.
@@ -53,7 +60,7 @@ public static class ConnexionEndpoints
         var resultat = await connexion.CheckPasswordSignInAsync(
             compte, demande.MotDePasse, lockoutOnFailure: compte.Etat != EtatDuCompte.Invite);
         if (resultat.IsLockedOut)
-            return Refus(StatusCodes.Status401Unauthorized, TropDEssais);
+            return Refus(StatusCodes.Status401Unauthorized, OuvertureDeSession.TropDEssais);
         if (!resultat.Succeeded)
             return Refus(StatusCodes.Status401Unauthorized, Incorrect);
 
@@ -63,8 +70,7 @@ public static class ConnexionEndpoints
         if (compte.Etat != EtatDuCompte.Actif)
             return Refus(StatusCodes.Status401Unauthorized, Incorrect);
 
-        await OuvrirLaSessionAsync(connexion, compte);
-        return TypedResults.Ok(await MoiAsync(compte, contexte));
+        return await ouverture.ApresLeMotDePasseAsync(http, compte);
     }
 
     private static async Task<Results<Ok<Moi>, UnauthorizedHttpResult>> QuiEstConnecteAsync(
@@ -76,13 +82,15 @@ public static class ConnexionEndpoints
         return compte is null ? TypedResults.Unauthorized() : TypedResults.Ok(await MoiAsync(compte, contexte));
     }
 
-    /// <summary>Ce que l'API dit de la personne connectée, avec le nom de son centre.</summary>
+    /// <summary>Ce que l'API dit de la personne connectée, avec le nom de son centre (aucun pour l'Éditeur).</summary>
     internal static async Task<Moi> MoiAsync(Compte compte, SchoolHubDbContext contexte)
     {
-        var centre = await contexte.Centres
-            .Where(c => c.Id == compte.CentreId)
-            .Select(c => c.Nom)
-            .SingleAsync();
+        var centre = compte.CentreId is null
+            ? null
+            : await contexte.Centres
+                .Where(c => c.Id == compte.CentreId)
+                .Select(c => c.Nom)
+                .SingleAsync();
         return new Moi(compte.Prenom, compte.Nom, compte.Role.ToString(), centre);
     }
 
@@ -101,8 +109,11 @@ public static class ConnexionEndpoints
 /// <summary>Un message de l'API, en français : <c>{ "message": "…" }</c>.</summary>
 public sealed record Avis(string Message);
 
-/// <summary>Qui est connecté : de quoi accueillir la personne et adapter le menu à son rôle.</summary>
-public sealed record Moi(string Prenom, string Nom, string Role, string Centre);
+/// <summary>
+/// Qui est connecté : de quoi accueillir la personne et adapter le menu à son rôle.
+/// L'Éditeur n'a pas de centre : <see cref="Centre"/> est alors vide.
+/// </summary>
+public sealed record Moi(string Prenom, string Nom, string Role, string? Centre);
 
 /// <summary>Ce que la page de connexion envoie. Un champ vide reçoit le refus habituel.</summary>
 public sealed record DemandeDeConnexion(string? Email, string? MotDePasse);

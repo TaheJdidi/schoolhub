@@ -1,0 +1,38 @@
+.bandeau{margin:0 0 14px}
+.etat{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.h2{font-family:var(--font-display);font-size:16px;font-weight:600;margin:0}
+.grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px;align-items:start}
+.bloc{display:grid;gap:12px;padding:16px;margin-bottom:16px;justify-items:start;align-content:start}
+.grille .bloc{margin-bottom:0}
+.infos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin:0;width:100%}
+.infos .large{grid-column:1/-1}
+.infos dt{font-size:12.5px;color:var(--ink-2)}
+.infos dd{margin:0}
+.email{overflow-wrap:anywhere}
+.boutons{display:flex;flex-wrap:wrap;gap:8px}
+.aide{margin:0;font-size:13px}
+.envois{margin:0;padding-left:18px;color:var(--ink-2);font-size:13px;display:grid;gap:2px}
+.ligne-de-saisie{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;width:100%}
+.ligne-de-saisie .f{flex:1 1 220px}
+.relance{display:grid;gap:8px;justify-items:start}
+.champs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%}
+.champs.trois{grid-template-columns:repeat(3,minmax(0,1fr))}
+.champs .boutons{grid-column:1/-1}
+.table{overflow-x:auto;width:100%}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);white-space:nowrap;vertical-align:top}
+thead th{border-top:0;color:var(--ink-2);font-weight:500;font-size:13px}
+.nb{text-align:right}
+.confirmations{display:grid;gap:2px;font-size:13px;color:var(--ink-2)}
+.manque{color:var(--warn)}
+.actions{text-align:right}
+.actions .btn{margin-left:6px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.suppression .f{width:100%}
+@media (max-width: 960px){
+  .grille{grid-template-columns:minmax(0,1fr)}
+  .champs.trois{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 600px){
+  .champs,.champs.trois,.infos{grid-template-columns:minmax(0,1fr)}
+}

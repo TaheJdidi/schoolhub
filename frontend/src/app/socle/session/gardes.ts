@@ -1,14 +1,29 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, CanMatchFn, Router } from '@angular/router';
+import { premierePage } from './moi';
 import { Session } from './session';
 
-/** Les pages du cadre : sans session, on va sur la connexion, qui ramènera ensuite à la page demandée. */
+/**
+ * Les pages du cadre d'un centre : sans session, on va sur la connexion, qui ramènera ensuite à la page demandée.
+ * L'Éditeur n'appartient à aucun centre : il va dans son back office (EDI-00).
+ */
 export const estConnecte: CanActivateFn = async (_route, etat) => {
   const session = inject(Session);
   const router = inject(Router);
 
   const moi = await session.charger();
-  return moi ? true : router.createUrlTree(['/connexion'], { queryParams: { retour: etat.url } });
+  if (!moi) return router.createUrlTree(['/connexion'], { queryParams: { retour: etat.url } });
+  return moi.role === 'Editeur' ? router.createUrlTree(['/editeur']) : true;
+};
+
+/** Le back office (EDI-00) : réservé à l'Éditeur. Un compte de centre retourne sur sa première page. */
+export const estEditeur: CanActivateFn = async (_route, etat) => {
+  const session = inject(Session);
+  const router = inject(Router);
+
+  const moi = await session.charger();
+  if (!moi) return router.createUrlTree(['/connexion'], { queryParams: { retour: etat.url } });
+  return moi.role === 'Editeur' ? true : router.createUrlTree(['/aujourdhui']);
 };
 
 /**
@@ -22,11 +37,11 @@ export const estProprietaire: CanMatchFn = async () => {
   return moi?.role === 'Proprietaire';
 };
 
-/** La page de connexion : une personne déjà connectée va directement sur « Aujourd'hui ». */
+/** La page de connexion : une personne déjà connectée va directement sur sa première page. */
 export const nonConnecte: CanActivateFn = async () => {
   const session = inject(Session);
   const router = inject(Router);
 
   const moi = await session.charger();
-  return moi ? router.createUrlTree(['/aujourdhui']) : true;
+  return moi ? router.createUrlTree([premierePage(moi)]) : true;
 };

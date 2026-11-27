@@ -20,7 +20,11 @@ public static class ValidationDeLaSession
         var compte = id is null ? null : await comptes.FindByIdAsync(id);
         var tampon = contexte.Principal?.FindFirst(comptes.Options.ClaimsIdentity.SecurityStampClaimType)?.Value;
 
-        if (compte is null || compte.Etat != EtatDuCompte.Actif || compte.SecurityStamp != tampon)
+        // Un Éditeur sans double authentification n'a pas de session (EDI-00), même avec un cookie valable.
+        if (compte is null
+            || compte.Etat != EtatDuCompte.Actif
+            || compte.SecurityStamp != tampon
+            || (compte.Role == RoleDuCompte.Editeur && !compte.TwoFactorEnabled))
         {
             contexte.RejectPrincipal();
             await contexte.HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);

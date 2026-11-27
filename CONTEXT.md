@@ -38,6 +38,28 @@ _Avoid_ : compte supprimé
 Historique des actions qui touchent à l'argent ou à la présence : qui a fait quoi, et quand. Seul le propriétaire le consulte.
 _Avoid_ : log, audit, historique
 
+**Éditeur** :
+Membre de l'équipe SchoolHub (Lassad ou Taha) qui crée les centres et suit leurs abonnements depuis le back office, avec la double authentification. Il n'appartient à aucun centre et ne voit pas leurs données.
+_Avoid_ : super admin, admin plateforme
+
+**Abonnement** :
+Droit d'un centre à utiliser SchoolUp, accordé et suspendu par l'éditeur. Une seule offre, avec un prix mensuel que l'éditeur peut ajuster par centre. Pas d'essai gratuit.
+_Avoid_ : licence, forfait
+
+**Paiement d'abonnement** :
+Somme payée par le centre à l'éditeur, saisie à la main (date, montant, mode, période couverte, n° de facture), qui prolonge l'abonnement. À ne pas confondre avec un paiement d'élève.
+_Avoid_ : versement, facture
+
+**État de l'abonnement** :
+En attente (aucun paiement d'abonnement), Actif (payé jusqu'à une date), En retard (période de grâce) ou Suspendu.
+
+**Période de grâce** :
+Les 15 jours après la fin de l'abonnement pendant lesquels le centre fonctionne encore normalement, avec un bandeau rouge.
+
+**Suspension** :
+État d'un centre qui ne paie plus : lecture seule, il consulte mais ne crée et ne modifie plus rien. Automatique à la fin de la période de grâce, ou posée à la main par l'éditeur avec un motif.
+_Avoid_ : blocage, désactivation (réservé aux comptes)
+
 **Élève** :
 Personne inscrite dans un ou plusieurs groupes du centre, ou qui vient seulement à la bibliothèque.
 _Avoid_ : étudiant, apprenant

@@ -1,0 +1,318 @@
+<div class="pagehead">
+  <div>
+    <h1 class="h1">{{ fiche()?.nom ?? 'Centre' }}</h1>
+    @if (fiche(); as fiche) {
+      <p class="sub">Lien public : /inscription/{{ fiche.code }}</p>
+    }
+    @if (fiche(); as fiche) {
+      <p class="sub etat">
+        <span class="pill {{ etat()?.classe }}">{{ etat()?.libelle }}</span>
+        @switch (fiche.etat) {
+          @case ('EnAttente') {
+            <span>Aucun paiement d'abonnement : l'invitation attend le premier.</span>
+          }
+          @case ('Actif') {
+            @if (fiche.reactiveJusquAu) {
+              <span class="reactive">Réactivé jusqu'au {{ date(fiche.reactiveJusquAu) }} inclus, sans paiement : ensuite, Suspendu.</span>
+            } @else if (fiche.payeJusquAu) {
+              <span>Payé jusqu'au {{ date(fiche.payeJusquAu) }} inclus.</span>
+            }
+          }
+          @case ('EnRetard') {
+            <span
+              >Fin le {{ date(fiche.payeJusquAu) }} · période de grâce jusqu'au
+              {{ date(fiche.finDeLaPeriodeDeGrace) }}.</span
+            >
+          }
+          @case ('Suspendu') {
+            <span>Suspendu depuis le {{ date(fiche.suspenduLe) }} · lecture seule.</span>
+          }
+        }
+      </p>
+    }
+  </div>
+  <a class="btn ghost" routerLink="/editeur">Retour aux centres</a>
+</div>
+
+@if (message(); as message) {
+  <p class="note bad bandeau" role="alert">{{ message }}</p>
+}
+@if (succes(); as succes) {
+  <p class="note ok bandeau" role="status">{{ succes }}</p>
+}
+@if (lienAOuvrir(); as lien) {
+  <p class="note bandeau">
+    WhatsApp s'ouvre dans un nouvel onglet. S'il ne s'est pas ouvert :&nbsp;<a
+      [href]="lien"
+      target="_blank"
+      rel="noopener"
+      >ouvrir le message</a
+    >.
+  </p>
+}
+
+@if (fiche(); as fiche) {
+  <div class="grille">
+    <!-- L'abonnement : prix, suspension -->
+    <section class="card bloc" aria-labelledby="titre-abonnement">
+      <h2 class="h2" id="titre-abonnement">Abonnement</h2>
+      <dl class="infos">
+        <div>
+          <dt>Prix mensuel</dt>
+          <dd class="num">{{ montant(fiche.prixMensuel) }}</dd>
+        </div>
+        <div>
+          <dt>Comptes</dt>
+          <dd class="num">{{ fiche.nombreDeComptes }}</dd>
+        </div>
+        @if (fiche.motifDuForcage) {
+          <div class="large">
+            <dt>
+              {{ fiche.forcage === 'Suspendu' ? 'Suspendu à la main' : 'Réactivé à la main' }} le
+              {{ date(fiche.forceLe) }}
+            </dt>
+            <dd>{{ fiche.motifDuForcage }}</dd>
+          </div>
+        }
+      </dl>
+
+      @if (modificationDuPrix()) {
+        <form
+          class="ligne-de-saisie"
+          (submit)="$event.preventDefault(); changerLePrix()"
+          novalidate
+        >
+          <label class="f"
+            >Nouveau prix mensuel (TND)
+            <input type="text" [formControl]="prix" inputmode="decimal" name="prix"
+          /></label>
+          <button type="submit" class="btn primary" [disabled]="envoi()">
+            Enregistrer le prix
+          </button>
+          <button type="button" class="btn" (click)="modificationDuPrix.set(false)">Annuler</button>
+        </form>
+      } @else {
+        <button type="button" class="btn" (click)="modificationDuPrix.set(true)">
+          Changer le prix
+        </button>
+      }
+
+
+      <form
+        class="ligne-de-saisie"
+        (submit)="$event.preventDefault(); suspendreOuReactiver()"
+        novalidate
+      >
+        <label class="f">
+          Motif
+          <input type="text" [formControl]="motif" name="motif" autocomplete="off" />
+        </label>
+        <button
+          type="submit"
+          class="btn"
+          [class.danger]="fiche.etat !== 'Suspendu'"
+          [disabled]="envoi()"
+        >
+          {{ fiche.etat === 'Suspendu' ? 'Réactiver' : 'Suspendre' }}
+        </button>
+      </form>
+
+    </section>
+
+    <!-- Le Propriétaire et son Invitation -->
+    <section class="card bloc" aria-labelledby="titre-proprietaire">
+      <h2 class="h2" id="titre-proprietaire">Premier propriétaire</h2>
+      @if (fiche.proprietaire; as proprietaire) {
+        @if (correction()) {
+          <form
+            class="champs"
+            [formGroup]="formulaireDuProprietaire"
+            (ngSubmit)="enregistrerLeProprietaire()"
+            novalidate
+          >
+            <label class="f"
+              >Prénom <input type="text" formControlName="prenom" autocomplete="off"
+            /></label>
+            <label class="f"
+              >Nom <input type="text" formControlName="nom" autocomplete="off"
+            /></label>
+            <label class="f">
+              Email
+              <input
+                shEmail
+                type="email"
+                formControlName="email"
+                autocomplete="off"
+                [readonly]="proprietaire.etat !== 'Invite'"
+              />
+            </label>
+            <label class="f"
+              >Téléphone
+              <input shTelephone type="text" formControlName="telephone" autocomplete="off"
+            /></label>
+            <div class="boutons">
+              <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer</button>
+              <button type="button" class="btn" (click)="correction.set(false)">Annuler</button>
+            </div>
+          </form>
+        } @else {
+          <dl class="infos">
+            <div>
+              <dt>Nom</dt>
+              <dd>{{ proprietaire.prenom }} {{ proprietaire.nom }}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd class="email">{{ proprietaire.email }}</dd>
+            </div>
+            <div>
+              <dt>Téléphone</dt>
+              <dd class="num">{{ telephone(proprietaire.telephone) }}</dd>
+            </div>
+            <div>
+              <dt>Compte</dt>
+              <dd>
+                {{
+                  proprietaire.etat === 'Invite'
+                    ? 'Invité'
+                    : proprietaire.etat === 'Actif'
+                      ? 'Inscrit'
+                      : proprietaire.etat
+                }}
+              </dd>
+            </div>
+          </dl>
+          <div class="boutons">
+            <button
+              type="button"
+              class="btn primary invitation-email"
+              [disabled]="envoi() || !invitationPossible()"
+              (click)="inviterParEmail()"
+            >
+              Envoyer l'invitation par email
+            </button>
+            <button
+              type="button"
+              class="btn invitation-whatsapp"
+              [disabled]="envoi() || !invitationPossible() || !proprietaire.telephone"
+              (click)="inviterParWhatsApp()"
+            >
+              Envoyer l'invitation par WhatsApp
+            </button>
+            <button type="button" class="btn ghost" (click)="corriger()">Corriger</button>
+          </div>
+          @if (fiche.paiements.length === 0) {
+            <p class="sub aide">
+              Les boutons de l'invitation s'activent après le premier paiement d'abonnement.
+            </p>
+          }
+        }
+        @if (fiche.invitations.length > 0) {
+          <ul class="envois" aria-label="Invitations envoyées">
+            @for (envoi of fiche.invitations; track envoi.quand) {
+              <li>
+                Invitation · {{ canal(envoi) }} · {{ envoi.destinataire }} ·
+                {{ moment(envoi.quand) }}
+              </li>
+            }
+          </ul>
+        }
+      }
+    </section>
+  </div>
+
+  <!-- Saisir un paiement d'abonnement -->
+  <form
+    #formulaireDuPaiement="ngForm"
+    class="card bloc paiement"
+    [formGroup]="paiement"
+    (ngSubmit)="enregistrerLePaiement()"
+    novalidate
+  >
+    <h2 class="h2">Saisir un paiement d'abonnement</h2>
+    <div class="champs trois">
+      <label class="f">Date du paiement <input type="date" formControlName="date" /></label>
+      <label class="f"
+        >Montant (TND)
+        <input type="text" formControlName="montant" inputmode="decimal" autocomplete="off"
+      /></label>
+      <label class="f">
+        Mode
+        <select class="inp" formControlName="mode">
+          @for (mode of modes; track mode[0]) {
+            <option [value]="mode[0]">{{ mode[1] }}</option>
+          }
+        </select>
+      </label>
+      <label class="f">Du <input type="date" formControlName="du" /></label>
+      <label class="f">Au (inclus) <input type="date" formControlName="au" /></label>
+      <label class="f"
+        >N° de facture <input type="text" formControlName="numeroDeFacture" autocomplete="off"
+      /></label>
+    </div>
+    <button type="submit" class="btn primary" [disabled]="envoi()">Enregistrer le paiement</button>
+  </form>
+
+  <!-- L'historique des paiements -->
+  <section class="card bloc" aria-labelledby="titre-paiements">
+    <h2 class="h2" id="titre-paiements">Paiements</h2>
+    @if (fiche.paiements.length === 0) {
+      <p class="sub">Aucun paiement pour l'instant.</p>
+    } @else {
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th class="nb">Montant</th>
+              <th>Mode</th>
+              <th>Période</th>
+              <th>Facture</th>
+              <th>Confirmation</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (paiement of fiche.paiements; track paiement.id) {
+              <tr [attr.data-paiement]="paiement.id">
+                <td class="num">{{ date(paiement.date) }}</td>
+                <td class="num nb">{{ montant(paiement.montant) }}</td>
+                <td>{{ libelleDuMode(paiement) }}</td>
+                <td class="num">du {{ date(paiement.du) }} au {{ date(paiement.au) }}</td>
+                <td>{{ paiement.numeroDeFacture }}</td>
+                <td class="confirmations">
+                  @for (envoi of paiement.confirmations; track envoi.quand) {
+                    <span>{{ canal(envoi) }} · {{ moment(envoi.quand) }}</span>
+                  } @empty {
+                    <span class="manque">Pas encore envoyée</span>
+                  }
+                </td>
+                <td class="actions">
+                  <button
+                    type="button"
+                    class="btn"
+                    [disabled]="envoi()"
+                    (click)="confirmerParEmail(paiement)"
+                  >
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    [disabled]="envoi() || !fiche.proprietaire?.telephone"
+                    (click)="confirmerParWhatsApp(paiement)"
+                  >
+                    WhatsApp
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+} @else if (!message()) {
+  <p class="sub">Chargement du centre…</p>
+}

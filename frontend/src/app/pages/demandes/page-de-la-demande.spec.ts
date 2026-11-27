@@ -96,6 +96,7 @@ describe("la page d'une demande d'inscription", () => {
   // Un enregistrement relit le nombre de demandes à traiter, pour le menu.
   afterEach(() => {
     http.match('/api/demandes/nombre').forEach((r) => r.flush({ aTraiter: 0 }));
+    http.match('/api/abonnement').forEach((r) => r.flush({ etat: 'Actif', payeJusquAu: null, finDeLaPeriodeDeGrace: null, lectureSeule: false }));
     http.verify();
   });
 

@@ -33,11 +33,11 @@ public static class InvitationEndpoints
         return TypedResults.Ok(new Accueil(moi.Prenom, moi.Centre));
     }
 
-    private static async Task<Results<Ok<Moi>, JsonHttpResult<Avis>>> ChoisirLeMotDePasseAsync(
+    private static async Task<Results<Ok<Moi>, Accepted<EtapeSuivante>, JsonHttpResult<Avis>>> ChoisirLeMotDePasseAsync(
         ChoixDuMotDePasse choix,
+        HttpContext http,
         UserManager<Compte> comptes,
-        SignInManager<Compte> connexion,
-        SchoolHubDbContext contexte)
+        OuvertureDeSession ouverture)
     {
         var invite = await VerifierLeLienAsync(comptes, choix.Compte, choix.Jeton);
         if (invite is null)
@@ -53,8 +53,8 @@ public static class InvitationEndpoints
             // La longueur est déjà vérifiée : il reste le cas où ce même lien vient d'être utilisé par un autre envoi simultané.
             return ConnexionEndpoints.Refus(StatusCodes.Status410Gone, LienExpire);
 
-        await ConnexionEndpoints.OuvrirLaSessionAsync(connexion, invite);
-        return TypedResults.Ok(await ConnexionEndpoints.MoiAsync(invite, contexte));
+        // L'Éditeur passe ensuite à sa double authentification (EDI-00).
+        return await ouverture.ApresLeMotDePasseAsync(http, invite);
     }
 
     /// <summary>
@@ -76,8 +76,8 @@ public static class InvitationEndpoints
     }
 }
 
-/// <summary>Ce que la page d'invitation affiche pour accueillir la personne : son prénom et son centre.</summary>
-public sealed record Accueil(string Prenom, string Centre);
+/// <summary>Ce que la page d'invitation affiche pour accueillir la personne : son prénom et son centre (aucun pour l'Éditeur).</summary>
+public sealed record Accueil(string Prenom, string? Centre);
 
 /// <summary>
 /// Ce que la page envoie pour choisir un mot de passe : le lien reçu par email (compte et jeton) et le mot de passe choisi.

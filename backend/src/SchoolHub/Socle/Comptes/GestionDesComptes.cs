@@ -58,6 +58,10 @@ public sealed class GestionDesComptes(
             return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, ChampsObligatoires);
         var role = Enum.Parse<RoleDuCompte>(invitation.Role!);
 
+        // L'Éditeur n'appartient à aucun centre : il naît de la commande creer-editeur (EDI-00).
+        if (role == RoleDuCompte.Editeur)
+            return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, ChampsObligatoires);
+
         if (prenom.Length > Compte.LongueurMaximaleDuNom || nom.Length > Compte.LongueurMaximaleDuNom)
             return IssueDeLAction.Refusee(StatusCodes.Status400BadRequest, NomTropLong);
 

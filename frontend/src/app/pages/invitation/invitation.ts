@@ -7,14 +7,15 @@ import { CartePublique } from '../../cadre/carte-publique';
 import { ChampMotDePasse, LONGUEUR_MINIMALE, MOT_DE_PASSE_TROP_COURT } from '../../socle/champ-mot-de-passe';
 import { messageDErreur } from '../../socle/erreurs';
 import { lireLeLienDeLEmail } from '../../socle/lien-de-l-email';
-import { Moi } from '../../socle/session/moi';
+import { EtapeSuivante, Moi, premierePage } from '../../socle/session/moi';
 import { Session } from '../../socle/session/session';
 import { requis } from '../../socle/champs-requis';
 
 /** Ce que le serveur dit d'un lien d'invitation valable : à qui il est destiné. */
 interface Accueil {
   prenom: string;
-  centre: string;
+  /** Aucun pour l'Éditeur. */
+  centre: string | null;
 }
 
 /** CPT-02 : choisir son mot de passe depuis le lien d'invitation, puis être connecté. */
@@ -69,9 +70,17 @@ export class Invitation {
     this.envoi.set(true);
     this.message.set(null);
     try {
-      const moi = await firstValueFrom(this.http.post<Moi>('/api/invitation', { ...this.lien, motDePasse }));
+      const reponse = await firstValueFrom(
+        this.http.post<Moi | EtapeSuivante>('/api/invitation', { ...this.lien, motDePasse }, { observe: 'response' }),
+      );
+      // L'Éditeur passe ensuite à sa double authentification (EDI-00), sur la page de connexion.
+      if (reponse.status === 202) {
+        await this.router.navigate(['/connexion'], { queryParams: { etape: (reponse.body as EtapeSuivante).etape } });
+        return;
+      }
+      const moi = reponse.body as Moi;
       this.session.connaitre(moi);
-      await this.router.navigateByUrl('/aujourdhui');
+      await this.router.navigateByUrl(premierePage(moi));
     } catch (erreur) {
       this.message.set(messageDErreur(erreur));
       // Le lien a été utilisé ou a expiré entre-temps : le formulaire ne servirait plus à rien.

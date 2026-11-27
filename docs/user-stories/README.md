@@ -45,6 +45,7 @@ Chaque épopée s'appuie sur les précédentes : on ne peut pas encaisser sans �
 | 10 | [RH et achats](10-rh-achats.md) | RHA | 6 | 07 |
 | 11 | [Tableau de bord et journal](11-tableau-journal.md) | TDB | 4 | 07 à 10 |
 | 12 | [Listes](12-listes.md) | LST | 5 | 03, 04 |
+| 13 | [Back office de l'Éditeur](13-back-office.md) | EDI | 6 | 01, 02 |
 
 Le journal s'écrit dès la première story qui touche à l'argent ou à la présence ([exigences communes](00-exigences-communes.md#journal)) ; seul l'écran qui le consulte (TDB-04) vient à la fin.
 
@@ -64,3 +65,4 @@ Le journal s'écrit dès la première story qui touche à l'argent ou à la pré
 | RHA | 01 fiche employé · 02 congés · 03 salaire payé · 04 saisir un achat · 05 refaire un achat · 06 totaux des achats |
 | TDB | 01 tableau de bord · 02 détail par groupe · 03 prix spéciaux et dispenses · 04 journal |
 | LST | 01 imprimer · 02 exporter · 03 importer des élèves · 04 importer des professeurs · 05 sélection multiple |
+| EDI | 00 double authentification · 01 créer un centre · 02 paiement d'abonnement · 03 invitation du propriétaire · 04 confirmation du paiement · 05 état de l'abonnement |

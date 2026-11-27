@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using SchoolHub.Modules.Abonnements;
 using SchoolHub.Socle.Centres;
 using SchoolHub.Socle.Comptes;
 using SchoolHub.Socle.Donnees;
@@ -68,7 +69,10 @@ public sealed class ApplicationDeTest(
         {
             var baseDeDonnees = services.GetRequiredService<SchoolHubDbContext>().Database;
             if (await baseDeDonnees.EnsureCreatedAsync())
+            {
                 await baseDeDonnees.ExecuteSqlRawAsync(JournalDuCentre.SqlDeLaProtection);
+                await baseDeDonnees.ExecuteSqlRawAsync(JournalDeLEditeur.SqlDeLaProtection);
+            }
             return true;
         });
 
@@ -125,6 +129,19 @@ public sealed class ApplicationDeTest(
                     "Le compte de test n'a pas pu être créé : " + string.Join(" ", resultat.Errors.Select(e => e.Description)));
 
             return compte;
+        });
+
+    /// <summary>Un compte Éditeur actif, sans centre, qui n'a pas encore activé sa double authentification (EDI-00).</summary>
+    public Task<Compte> CreerEditeurAsync(string prenom = "Nadia", string nom = "Mansour", string motDePasse = "back-office-2027") =>
+        DansUnScopeAsync(async services =>
+        {
+            var editeur = Compte.Editeur(prenom, nom, $"{prenom}.{Unique()}@schoolup.tn".ToLowerInvariant());
+            editeur.Activer();
+            var resultat = await services.GetRequiredService<UserManager<Compte>>().CreateAsync(editeur, motDePasse);
+            if (!resultat.Succeeded)
+                throw new InvalidOperationException(
+                    "Le compte de test n'a pas pu être créé : " + string.Join(" ", resultat.Errors.Select(e => e.Description)));
+            return editeur;
         });
 
     /// <summary>Une nouvelle note dans ce centre, que seul ce centre peut lire.</summary>

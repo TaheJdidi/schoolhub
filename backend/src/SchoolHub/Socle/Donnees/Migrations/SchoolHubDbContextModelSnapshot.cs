@@ -103,6 +103,201 @@ namespace SchoolHub.Socle.Donnees.Migrations
                     b.ToTable("comptes_jetons", (string)null);
                 });
 
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.Abonnement", b =>
+                {
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Forcage")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("forcage");
+
+                    b.Property<DateOnly?>("ForceLe")
+                        .HasColumnType("date")
+                        .HasColumnName("force_le");
+
+                    b.Property<string>("MotifDuForcage")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("motif_du_forcage");
+
+                    b.Property<DateOnly?>("PayeJusquAu")
+                        .HasColumnType("date")
+                        .HasColumnName("paye_jusqu_au");
+
+                    b.Property<decimal>("PrixMensuel")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("prix_mensuel");
+
+                    b.HasKey("CentreId")
+                        .HasName("pk_abonnements");
+
+                    b.ToTable("abonnements", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.EnvoiAuProprietaire", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Canal")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("canal");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Destinataire")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("destinataire");
+
+                    b.Property<string>("Objet")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("objet");
+
+                    b.Property<Guid?>("PaiementId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paiement_id");
+
+                    b.Property<DateTimeOffset>("Quand")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("quand");
+
+                    b.HasKey("Id")
+                        .HasName("pk_envois_au_proprietaire");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_envois_au_proprietaire_centre_id");
+
+                    b.HasIndex("PaiementId")
+                        .HasDatabaseName("ix_envois_au_proprietaire_paiement_id");
+
+                    b.ToTable("envois_au_proprietaire", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.LigneDuJournalDeLEditeur", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("Auteur")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("auteur");
+
+                    b.Property<Guid?>("AuteurId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("auteur_id");
+
+                    b.Property<string>("Centre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("centre");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("detail");
+
+                    b.Property<DateTimeOffset>("Quand")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("quand");
+
+                    b.HasKey("Id")
+                        .HasName("pk_journal_editeur");
+
+                    b.HasIndex("AuteurId")
+                        .HasDatabaseName("ix_journal_editeur_auteur_id");
+
+                    b.ToTable("journal_editeur", (string)null);
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.PaiementDAbonnement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("Au")
+                        .HasColumnType("date")
+                        .HasColumnName("au");
+
+                    b.Property<Guid>("CentreId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("centre_id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<DateOnly>("Du")
+                        .HasColumnType("date")
+                        .HasColumnName("du");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("mode");
+
+                    b.Property<decimal>("Montant")
+                        .HasPrecision(12, 3)
+                        .HasColumnType("numeric(12,3)")
+                        .HasColumnName("montant");
+
+                    b.Property<string>("NumeroDeFacture")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("numero_de_facture");
+
+                    b.Property<DateTimeOffset>("SaisiLe")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("saisi_le");
+
+                    b.Property<string>("SaisiPar")
+                        .IsRequired()
+                        .HasMaxLength(201)
+                        .HasColumnType("character varying(201)")
+                        .HasColumnName("saisi_par");
+
+                    b.HasKey("Id")
+                        .HasName("pk_paiements_d_abonnement");
+
+                    b.HasIndex("CentreId")
+                        .HasDatabaseName("ix_paiements_d_abonnement_centre_id");
+
+                    b.ToTable("paiements_d_abonnement", (string)null);
+                });
+
             modelBuilder.Entity("SchoolHub.Modules.Achats.Achat", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1663,7 +1858,7 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("access_failed_count");
 
-                    b.Property<Guid>("CentreId")
+                    b.Property<Guid?>("CentreId")
                         .HasColumnType("uuid")
                         .HasColumnName("centre_id");
 
@@ -1762,7 +1957,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("comptes", (string)null);
+                    b.ToTable("comptes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_comptes_centre_sauf_editeur", "(role = 'Editeur') = (centre_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("SchoolHub.Socle.Journal.LigneDuJournal", b =>
@@ -1852,6 +2050,51 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_comptes_jetons_comptes_user_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.Abonnement", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithOne()
+                        .HasForeignKey("SchoolHub.Modules.Abonnements.Abonnement", "CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_abonnements_centres_centre_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.EnvoiAuProprietaire", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_envois_au_proprietaire_centres_centre_id");
+
+                    b.HasOne("SchoolHub.Modules.Abonnements.PaiementDAbonnement", null)
+                        .WithMany()
+                        .HasForeignKey("PaiementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_envois_au_proprietaire_paiement_d_abonnement_paiement_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.LigneDuJournalDeLEditeur", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Comptes.Compte", null)
+                        .WithMany()
+                        .HasForeignKey("AuteurId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_journal_editeur_asp_net_users_auteur_id");
+                });
+
+            modelBuilder.Entity("SchoolHub.Modules.Abonnements.PaiementDAbonnement", b =>
+                {
+                    b.HasOne("SchoolHub.Socle.Centres.Centre", null)
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_paiements_d_abonnement_centres_centre_id");
                 });
 
             modelBuilder.Entity("SchoolHub.Modules.Achats.Achat", b =>
@@ -2585,7 +2828,6 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .WithMany()
                         .HasForeignKey("CentreId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_comptes_centres_centre_id");
                 });
 
