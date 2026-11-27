@@ -43,6 +43,8 @@ public sealed class ApplicationDeTest(
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:SchoolHub", postgreSql.ChaineDeConnexion(nomDeLaBase));
+        // Les relances automatiques (EDI-06) ne partent pas toutes seules : les tests les lancent eux-mêmes.
+        builder.UseSetting("Abonnements:RelancesAutomatiques", "false");
         // Les pages Angular ne sont construites qu'à la publication : de faux fichiers les remplacent.
         builder.UseWebRoot(Path.Combine(AppContext.BaseDirectory, "wwwroot-de-test"));
         builder.ConfigureTestServices(services =>
@@ -72,6 +74,7 @@ public sealed class ApplicationDeTest(
             {
                 await baseDeDonnees.ExecuteSqlRawAsync(JournalDuCentre.SqlDeLaProtection);
                 await baseDeDonnees.ExecuteSqlRawAsync(JournalDeLEditeur.SqlDeLaProtection);
+                await baseDeDonnees.ExecuteSqlRawAsync(SuppressionDUnCentre.SqlDeLaProtection);
             }
             return true;
         });

@@ -31,6 +31,10 @@ export const ACTIONS: Record<string, string> = {
   RecuAnnule: 'Reçu annulé',
   CaisseCloturee: 'Caisse clôturée',
   SortieDeCaisse: 'Sortie de caisse',
+  AccesSupportAutorise: 'Accès support autorisé',
+  AccesSupportRetire: 'Accès support retiré',
+  AccesSupportConsultation: 'Page vue par le support',
+  ExportDesDonnees: 'Export des données',
 };
 
 /**

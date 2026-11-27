@@ -2,7 +2,6 @@
 
 Un espace web à part, `/editeur`, réservé à l'équipe SchoolHub (Lassad et Taha), avec la double authentification. Il remplace peu à peu la commande `creer-centre` (CEN-01), qui reste pour dépanner. Le principe est celui du back office de Kinap : l'abonnement se paie hors ligne et se saisit à la main ; il n'y a ni essai gratuit, ni inscription en ligne.
 
-Les stories EDI-06 à EDI-08 de Kinap (relances, accès support 24 h, export puis suppression d'un centre parti) viendront plus tard.
 
 ### EDI-00 · Entrer dans le back office avec la double authentification
 
@@ -72,6 +71,38 @@ En tant qu'Éditeur, je veux que l'état de chaque centre change tout seul, afin
 - L'Éditeur peut aussi suspendre ou réactiver un centre à la main, avec un motif. Un centre impayé réactivé à la main reste Actif 15 jours, puis repasse Suspendu sans paiement.
 - Un nouveau paiement rend le centre Actif tout de suite.
 - Un centre ouvert avant le back office (par la commande) est **En attente** : il fonctionne normalement tant que l'Éditeur ne saisit rien.
-- Chaque action de l'Éditeur (création, prix, paiement, correction du propriétaire, suspension, réactivation) va au journal de l'Éditeur, que personne ne peut modifier ni effacer.
+- Chaque action de l'Éditeur (création, prix, paiement, correction du propriétaire, suspension, réactivation, suppression) va au journal de l'Éditeur, que personne ne peut modifier ni effacer.
+- Le formulaire public d'inscription d'un centre Suspendu est fermé : « Les inscriptions en ligne de ce centre sont fermées pour le moment ».
+
+### EDI-06 · Relancer les centres
+
+En tant qu'Éditeur, je veux voir qui relancer, afin d'être payé à temps.
+
+**Critères d'acceptation**
+
+- 7 jours avant la fin, le centre entre dans la liste « à relancer », et un bandeau s'affiche chez son propriétaire : « Votre abonnement se termine le 04/04/2027 ». Un centre En retard y reste.
+- Un email automatique part au premier propriétaire à J-7, puis le jour de la fin. Chacun part une seule fois ; s'il ne part pas (panne), il repart au passage suivant (toutes les heures).
+- Dans la liste, un bouton WhatsApp ouvre le message de relance pré-écrit, avec le prix mensuel et le jour où SchoolUp passera en lecture seule. Chaque relance est datée sur la fiche.
+
+### EDI-07 · Voir un centre en accès support
+
+En tant qu'Éditeur, je veux voir un centre seulement quand son propriétaire l'autorise, afin d'aider sans accéder aux données des élèves le reste du temps.
+
+**Critères d'acceptation**
+
+- Sans autorisation, l'Éditeur ne voit que : nom du centre, état de l'abonnement, paiements, nombre de comptes.
+- Dans sa page « Abonnement », le propriétaire clique sur « Autoriser le support 24 h ». Pendant 24 h, l'Éditeur voit l'accueil du centre (identité, nombre d'élèves, de groupes ouverts et de professeurs) et ses comptes, en lecture seule. Un centre Suspendu peut aussi le faire.
+- Chaque page consultée par l'Éditeur va au journal du centre.
+- Le propriétaire peut retirer l'autorisation avant la fin des 24 h. Une secrétaire ne peut ni la donner ni la retirer.
+
+### EDI-08 · Exporter puis supprimer les données d'un centre parti
+
+En tant qu'Éditeur, je veux rendre ses données à un centre qui part puis les supprimer, afin de respecter la loi.
+
+**Critères d'acceptation**
+
+- Pendant 12 mois après la suspension, le propriétaire télécharge depuis sa page « Abonnement » un fichier Excel : élèves, professeurs (au centre et partis), reçus, employés, achats et comptes. L'export est noté au journal du centre.
+- Après 12 mois, le centre apparaît dans la liste « à supprimer ». L'Éditeur confirme en retapant exactement le nom du centre. Rien n'est supprimé automatiquement.
+- La suppression efface le centre, ses comptes, son abonnement, ses paiements, son journal et toutes ses données. Elle est notée au journal de l'Éditeur, qui garde le nom du centre.
 
 Maquette : sans objet, les écrans reprennent ceux de Kinap.

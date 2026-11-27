@@ -107,10 +107,14 @@ public static class DemandesEndpoints
         return $"{options.Adresse.TrimEnd('/')}/inscription/{code}";
     }
 
-    private static async Task<Results<Ok<FormulaireDuCentre>, JsonHttpResult<Avis>>> LireAsync(string code, FormulairePublic formulaire) =>
-        await formulaire.LireAsync(code) is { } trouve
+    private static async Task<Results<Ok<FormulaireDuCentre>, JsonHttpResult<Avis>>> LireAsync(string code, FormulairePublic formulaire)
+    {
+        if (await formulaire.FermeAsync(code))
+            return ConnexionEndpoints.Refus(StatusCodes.Status403Forbidden, FormulairePublic.InscriptionsFermees);
+        return await formulaire.LireAsync(code) is { } trouve
             ? TypedResults.Ok(trouve)
             : ConnexionEndpoints.Refus(StatusCodes.Status404NotFound, "Ce lien d'inscription n'existe pas");
+    }
 
     private static async Task<Results<Created<DemandeRecue>, JsonHttpResult<Avis>>> EnvoyerAsync(
         string code,

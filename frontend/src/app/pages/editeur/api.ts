@@ -21,13 +21,20 @@ export interface LigneDeCentre {
   nombreDeComptes: number;
   proprietaire: string | null;
   reactiveJusquAu: string | null;
+  /** La fin est dans 7 jours ou moins, ou le centre est En retard (EDI-06). */
+  aRelancer: boolean;
+  /** Suspendu depuis 12 mois ou plus (EDI-08). */
+  aSupprimer: boolean;
+  suppressionPossibleLe: string | null;
+  telephoneConnu: boolean;
 }
 
 export interface Envoi {
-  objet: 'Invitation' | 'ConfirmationDePaiement';
+  objet: 'Invitation' | 'ConfirmationDePaiement' | 'RelanceAvantLaFin' | 'RelanceDeLaFin' | 'Relance';
   canal: 'Email' | 'WhatsApp';
   quand: string;
   destinataire: string;
+  echeance: string | null;
 }
 
 export interface Paiement {
@@ -67,8 +74,14 @@ export interface FicheDuCentre {
   proprietaire: ProprietaireDuCentre | null;
   paiements: Paiement[];
   invitations: Envoi[];
+  relances: Envoi[];
   /** Le dernier jour (inclus) d'une réactivation à la main sans paiement : ensuite, le centre repasse Suspendu (EDI-05). */
   reactiveJusquAu: string | null;
+  aRelancer: boolean;
+  aSupprimer: boolean;
+  suppressionPossibleLe: string | null;
+  /** La fin de l'accès support donné par le propriétaire, ou `null` (EDI-07). */
+  supportJusquAu: string | null;
 }
 
 export interface LienWhatsApp {
@@ -97,9 +110,18 @@ export const ACTIONS: Record<string, string> = {
   ProprietaireCorrige: 'Propriétaire corrigé',
   CentreSuspendu: 'Centre suspendu',
   CentreReactive: 'Centre réactivé',
+  CentreSupprime: 'Centre supprimé',
 };
 
 export const CANAUX: Record<Envoi['canal'], string> = { Email: 'Email', WhatsApp: 'WhatsApp' };
+
+export const OBJETS: Record<Envoi['objet'], string> = {
+  Invitation: 'Invitation',
+  ConfirmationDePaiement: 'Confirmation',
+  RelanceAvantLaFin: 'Relance automatique (J-7)',
+  RelanceDeLaFin: 'Relance automatique (jour de la fin)',
+  Relance: 'Relance',
+};
 
 /** « 270,000 TND ». */
 export function formaterMontant(montant: number): string {

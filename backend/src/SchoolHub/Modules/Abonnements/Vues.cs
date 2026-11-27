@@ -5,7 +5,7 @@ namespace SchoolHub.Modules.Abonnements;
 
 /// <summary>
 /// Un centre dans la liste du back office : son nom, son état, ses paiements et son nombre de comptes,
-/// plus son premier propriétaire. L'Éditeur ne voit rien des élèves, des groupes ni de l'argent du centre.
+/// plus son premier propriétaire. Sans accès support (EDI-07), l'Éditeur ne voit rien des élèves, des groupes ni de l'argent du centre.
 /// </summary>
 public sealed record LigneDeCentre(
     Guid Id,
@@ -16,7 +16,11 @@ public sealed record LigneDeCentre(
     decimal PrixMensuel,
     int NombreDeComptes,
     string? Proprietaire,
-    DateOnly? ReactiveJusquAu);
+    DateOnly? ReactiveJusquAu,
+    bool ARelancer,
+    bool ASupprimer,
+    DateOnly? SuppressionPossibleLe,
+    bool TelephoneConnu);
 
 /// <summary>La fiche d'un centre dans le back office.</summary>
 public sealed record FicheDuCentre(
@@ -35,7 +39,12 @@ public sealed record FicheDuCentre(
     ProprietaireDuCentre? Proprietaire,
     IReadOnlyList<PaiementVu> Paiements,
     IReadOnlyList<EnvoiVu> Invitations,
-    DateOnly? ReactiveJusquAu);
+    IReadOnlyList<EnvoiVu> Relances,
+    DateOnly? ReactiveJusquAu,
+    bool ARelancer,
+    bool ASupprimer,
+    DateOnly? SuppressionPossibleLe,
+    DateTimeOffset? SupportJusquAu);
 
 /// <summary>
 /// Le premier propriétaire du centre (celui créé avec lui), pour lui envoyer son invitation.
@@ -55,10 +64,10 @@ public sealed record PaiementVu(
     string SaisiPar,
     IReadOnlyList<EnvoiVu> Confirmations);
 
-public sealed record EnvoiVu(string Objet, string Canal, DateTimeOffset Quand, string Destinataire)
+public sealed record EnvoiVu(string Objet, string Canal, DateTimeOffset Quand, string Destinataire, DateOnly? Echeance)
 {
     public static EnvoiVu De(EnvoiAuProprietaire envoi) =>
-        new(envoi.Objet.ToString(), envoi.Canal.ToString(), envoi.Quand, envoi.Destinataire);
+        new(envoi.Objet.ToString(), envoi.Canal.ToString(), envoi.Quand, envoi.Destinataire, envoi.Echeance);
 }
 
 /// <summary>Un lien WhatsApp à ouvrir (le message déjà écrit), et la fiche à jour, avec la date du clic.</summary>
@@ -93,12 +102,38 @@ public sealed record CorrectionDuProprietaire(string? Prenom, string? Nom, strin
 
 public sealed record Motif(string? Texte);
 
+public sealed record ConfirmationDeSuppression(string? Nom);
+
 /// <summary>Le prix de l'offre, pour pré-remplir la création d'un centre (EDI-01).</summary>
 public sealed record OffreDuBackOffice(decimal PrixMensuel);
 
-/// <summary>L'abonnement vu par le centre (GET /api/abonnement) : de quoi afficher ses bandeaux (EDI-05).</summary>
+/// <summary>
+/// L'abonnement vu par le centre (GET /api/abonnement) : de quoi afficher ses bandeaux (EDI-05, EDI-06),
+/// l'accès support (EDI-07) et l'export de ses données (EDI-08).
+/// </summary>
 public sealed record AbonnementDuCentre(
     string Etat,
     DateOnly? PayeJusquAu,
     DateOnly? FinDeLaPeriodeDeGrace,
-    bool LectureSeule);
+    bool FinProche,
+    bool LectureSeule,
+    DateTimeOffset? SupportJusquAu,
+    bool ExportPossible,
+    DateOnly? ExportPossibleJusquAu);
+
+/// <summary>
+/// Ce que l'Éditeur voit d'un centre pendant un accès support : son identité, son état et ses chiffres.
+/// Rien des élèves eux-mêmes, ni de l'argent.
+/// </summary>
+public sealed record CentreEnAccesSupport(
+    string Nom,
+    string Code,
+    string? Telephone,
+    string? Email,
+    string Etat,
+    DateTimeOffset SupportJusquAu,
+    int Eleves,
+    int GroupesOuverts,
+    int Professeurs);
+
+public sealed record CompteEnAccesSupport(string Prenom, string Nom, string Email, string Role, string Etat);

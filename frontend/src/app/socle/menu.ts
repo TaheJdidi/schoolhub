@@ -28,6 +28,8 @@ export const MENU: readonly EntreeDuMenu[] = [
   { libelle: 'Journal', chemin: 'journal', icone: 'history', reservee: true },
   { libelle: 'Comptes', chemin: 'comptes', icone: 'user-cog', reservee: true },
   { libelle: 'Paramètres du centre', chemin: 'parametres', icone: 'settings', reservee: true },
+  // EDI-07, EDI-08 : l'abonnement, l'accès support et l'export des données.
+  { libelle: 'Abonnement', chemin: 'abonnement', icone: 'receipt', reservee: true },
 ];
 
 /** Les onglets du téléphone, en bas de l'écran : « Plus » liste tout le menu. */

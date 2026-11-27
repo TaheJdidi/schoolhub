@@ -98,6 +98,28 @@
       }
 
 
+      @if (fiche.aRelancer) {
+        <div class="relance">
+          <p class="note warn">
+            @if (fiche.etat === 'EnRetard') {
+              En retard depuis le {{ date(fiche.payeJusquAu) }} : à relancer.
+            } @else {
+              L'abonnement se termine le {{ date(fiche.payeJusquAu) }} : à relancer.
+            }
+          </p>
+          <button type="button" class="btn" [disabled]="envoi() || !fiche.proprietaire?.telephone" (click)="relancer()">
+            Relancer par WhatsApp
+          </button>
+        </div>
+      }
+      @if (fiche.relances.length > 0) {
+        <ul class="envois" aria-label="Relances envoyées">
+          @for (envoi of fiche.relances; track envoi.quand) {
+            <li>{{ objet(envoi) }} · {{ canal(envoi) }} · {{ moment(envoi.quand) }}</li>
+          }
+        </ul>
+      }
+
       <form
         class="ligne-de-saisie"
         (submit)="$event.preventDefault(); suspendreOuReactiver()"
@@ -116,6 +138,13 @@
           {{ fiche.etat === 'Suspendu' ? 'Réactiver' : 'Suspendre' }}
         </button>
       </form>
+
+      @if (fiche.supportJusquAu) {
+        <p class="note ok">
+          Le propriétaire a autorisé l'accès support jusqu'au {{ moment(fiche.supportJusquAu) }}.&nbsp;
+          <a [routerLink]="['/editeur/centres', fiche.id, 'support']">Voir le centre</a>
+        </p>
+      }
 
     </section>
 
@@ -313,6 +342,25 @@
     }
   </section>
 
+
+  @if (fiche.aSupprimer) {
+    <form class="card bloc suppression" (submit)="$event.preventDefault(); supprimer()" novalidate>
+      <h2 class="h2">Supprimer le centre</h2>
+      <p class="note bad">
+        Suspendu depuis le {{ date(fiche.suspenduLe) }}, soit plus de 12 mois. La suppression efface le centre, ses comptes et
+        toutes ses données (élèves, groupes, reçus, journal…). Elle ne peut pas être annulée.
+      </p>
+      <label class="f">
+        Retapez le nom du centre pour confirmer : « {{ fiche.nom }} »
+        <input type="text" [formControl]="nomRetape" name="nomRetape" autocomplete="off" />
+      </label>
+      <button type="submit" class="btn danger" [disabled]="envoi() || nomRetapeValeur().trim() !== fiche.nom">
+        Supprimer définitivement
+      </button>
+    </form>
+  } @else if (fiche.suppressionPossibleLe) {
+    <p class="sub">Ce centre pourra être supprimé à partir du {{ date(fiche.suppressionPossibleLe) }}, 12 mois après sa suspension.</p>
+  }
 } @else if (!message()) {
   <p class="sub">Chargement du centre…</p>
 }

@@ -17,8 +17,15 @@ export interface SituationDuCentre {
   etat: EtatDeLAbonnement;
   payeJusquAu: string | null;
   finDeLaPeriodeDeGrace: string | null;
+  /** La fin est dans 7 jours ou moins : le bandeau du propriétaire (EDI-06). */
+  finProche: boolean;
   /** Suspendu : rien ne se crée ni ne se modifie (EDI-05). */
   lectureSeule: boolean;
+  /** La fin de l'accès support donné à l'Éditeur, ou `null` (EDI-07). */
+  supportJusquAu: string | null;
+  /** L'export Excel des données est possible (EDI-08). */
+  exportPossible: boolean;
+  exportPossibleJusquAu: string | null;
 }
 
 /**

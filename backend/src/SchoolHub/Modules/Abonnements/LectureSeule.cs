@@ -22,6 +22,8 @@ public static class LectureSeule
         "/api/invitation",
         "/api/mot-de-passe-oublie",
         "/api/nouveau-mot-de-passe",
+        // Le propriétaire d'un centre Suspendu peut avoir besoin d'aide (EDI-07).
+        "/api/abonnement/support",
     ];
 
     /// <summary>Après la session (le compte et son centre sont connus) : avant l'adresse elle-même.</summary>

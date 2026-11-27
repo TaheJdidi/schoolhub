@@ -39,6 +39,7 @@ const espaceEditeur = () => import('./pages/editeur/espace-editeur').then((modul
 const listeDesCentres = () => import('./pages/editeur/liste-des-centres').then((module) => module.ListeDesCentres);
 const nouveauCentre = () => import('./pages/editeur/nouveau-centre').then((module) => module.NouveauCentre);
 const ficheDuCentre = () => import('./pages/editeur/fiche-du-centre').then((module) => module.FicheDuCentreDuBackOffice);
+const vueSupport = () => import('./pages/editeur/vue-support').then((module) => module.VueSupport);
 const journalDeLEditeur = () => import('./pages/editeur/journal-de-l-editeur').then((module) => module.JournalDeLEditeur);
 const titreEditeur = (page: string) => `${page} · SchoolUp Éditeur`;
 
@@ -60,6 +61,7 @@ const PAGES_A_LA_DEMANDE: Partial<Record<string, () => Promise<Type<unknown>>>> 
   'ressources-humaines': () => import('./pages/rh/ressources-humaines').then((module) => module.RessourcesHumaines),
   'tableau-de-bord': () => import('./pages/tableau/tableau-de-bord').then((module) => module.TableauDeBord),
   journal: () => import('./pages/tableau/journal').then((module) => module.Journal),
+  abonnement: () => import('./pages/abonnement/page-abonnement').then((module) => module.PageAbonnement),
 };
 
 /**
@@ -111,6 +113,7 @@ export const routes: Routes = [
       { path: '', loadComponent: listeDesCentres, title: titreEditeur('Centres') },
       { path: 'centres/nouveau', loadComponent: nouveauCentre, title: titreEditeur('Créer un centre') },
       { path: 'centres/:id', loadComponent: ficheDuCentre, title: titreEditeur('Centre') },
+      { path: 'centres/:id/support', loadComponent: vueSupport, title: titreEditeur('Accès support') },
       { path: 'journal', loadComponent: journalDeLEditeur, title: titreEditeur('Journal') },
     ],
   },

@@ -75,6 +75,11 @@ public enum ActionDuJournal
     RecuAnnule,
     CaisseCloturee,
     SortieDeCaisse,
+    // Le back office (EDI-07, EDI-08) : l'accès support donné, retiré, chaque page vue par l'Éditeur, et l'export des données.
+    AccesSupportAutorise,
+    AccesSupportRetire,
+    AccesSupportConsultation,
+    ExportDesDonnees,
 }
 
 internal sealed class LigneDuJournalConfiguration : IEntityTypeConfiguration<LigneDuJournal>

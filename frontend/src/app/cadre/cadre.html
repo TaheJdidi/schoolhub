@@ -40,6 +40,10 @@
           Votre abonnement SchoolUp est terminé depuis le {{ date_(situation.payeJusquAu) }}. Tout fonctionne encore jusqu'au
           {{ date_(situation.finDeLaPeriodeDeGrace) }} ; ensuite, SchoolUp passera en lecture seule. Contactez l'équipe SchoolUp pour le renouveler.
         </p>
+      } @else if (situation.finProche && personne()?.role === 'Proprietaire') {
+        <p class="note warn abonnement" role="status">
+          Votre abonnement se termine le {{ date_(situation.payeJusquAu) }}. Pensez à le renouveler auprès de l'équipe SchoolUp.
+        </p>
       } @else if (situation.lectureSeule) {
         <p class="note bad abonnement" role="alert">
           Votre abonnement est suspendu : SchoolUp est en lecture seule. Vous consultez vos données, mais rien ne se crée ni ne se modifie.

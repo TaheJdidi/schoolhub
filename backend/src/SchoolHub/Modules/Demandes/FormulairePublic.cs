@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SchoolHub.Modules.Abonnements;
 using SchoolHub.Modules.Eleves;
 using SchoolHub.Modules.Groupes;
 using SchoolHub.Socle.Centres;
@@ -21,6 +22,18 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
     private const string GroupePlusPropose = "Ce groupe n'est plus proposé";
     private const string UnGroupeParMatiere = "Choisissez un seul groupe par matière";
     private const string AmisTropLongs = "Les amis font au plus 500 caractères";
+
+    /// <summary>EDI-05 : un centre Suspendu ne reçoit plus de demandes, puisqu'il ne peut plus les traiter.</summary>
+    public const string InscriptionsFermees =
+        "Les inscriptions en ligne de ce centre sont fermées pour le moment : contactez directement le centre.";
+
+    /// <summary>Le centre de ce code existe et son abonnement est suspendu : son formulaire est fermé.</summary>
+    public async Task<bool> FermeAsync(string code)
+    {
+        await using var espace = espaces.CreateAsyncScope();
+        var (contexte, centre) = await OuvrirAsync(espace, code);
+        return centre is not null && (await AbonnementCoteCentre.SituationAsync(contexte, centre.Id, temps)).LectureSeule;
+    }
 
     /// <summary>Le formulaire du centre de ce code : son nom, son année, ses niveaux et ses groupes proposés ; <c>null</c> si le code est inconnu.</summary>
     public async Task<FormulaireDuCentre?> LireAsync(string code)
@@ -51,6 +64,8 @@ public sealed class FormulairePublic(IServiceScopeFactory espaces, LimiteDesDema
         var (contexte, centre) = await OuvrirAsync(espace, code);
         if (centre is null)
             return Refus(StatusCodes.Status404NotFound, LienInconnu);
+        if ((await AbonnementCoteCentre.SituationAsync(contexte, centre.Id, temps)).LectureSeule)
+            return Refus(StatusCodes.Status403Forbidden, InscriptionsFermees);
         if (!string.IsNullOrWhiteSpace(envoi.SiteWeb))
             return new IssueDeLEnvoi(new DemandeRecue(envoi.Prenom?.Trim() ?? ""), StatusCodes.Status201Created, null);
 

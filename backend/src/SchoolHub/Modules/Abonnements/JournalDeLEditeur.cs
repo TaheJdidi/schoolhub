@@ -6,8 +6,8 @@ using SchoolHub.Socle.Donnees;
 namespace SchoolHub.Modules.Abonnements;
 
 /// <summary>
-/// Une ligne du journal de l'Éditeur : ce qu'il a fait sur un centre (création, paiement, prix, suspension…).
-/// Elle n'a pas de lien vers le centre, dont elle garde le nom au moment de l'action.
+/// Une ligne du journal de l'Éditeur : ce qu'il a fait sur un centre (création, paiement, prix, suspension, suppression…).
+/// Elle n'a pas de lien vers le centre, dont elle garde le nom : elle survit à sa suppression (EDI-08).
 /// Personne ne peut la modifier ni l'effacer, même en base (<see cref="JournalDeLEditeur.SqlDeLaProtection"/>).
 /// </summary>
 public sealed class LigneDuJournalDeLEditeur
@@ -57,6 +57,7 @@ public enum ActionDeLEditeur
     ProprietaireCorrige,
     CentreSuspendu,
     CentreReactive,
+    CentreSupprime,
 }
 
 /// <summary>Écrit au journal de l'Éditeur, avant l'enregistrement : la ligne part avec l'action.</summary>

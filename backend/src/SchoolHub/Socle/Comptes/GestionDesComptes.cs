@@ -249,6 +249,7 @@ public static class LibellesDesComptes
     {
         RoleDuCompte.Proprietaire => "Propriétaire",
         RoleDuCompte.Secretaire => "Secrétaire",
+        RoleDuCompte.Editeur => "Éditeur",
         _ => throw new ArgumentOutOfRangeException(nameof(role)),
     };
 

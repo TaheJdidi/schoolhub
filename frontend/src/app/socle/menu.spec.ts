@@ -16,7 +16,7 @@ describe('le menu', () => {
   it('ajoute au propriétaire les pages qui lui sont réservées', () => {
     const menu = menuDe('Proprietaire');
 
-    expect(menu).toHaveLength(13);
+    expect(menu).toHaveLength(14);
     expect(menu.slice(7).map((entree) => entree.libelle)).toEqual([
       'Parts des professeurs',
       'Tableau de bord',
@@ -24,6 +24,7 @@ describe('le menu', () => {
       'Journal',
       'Comptes',
       'Paramètres du centre',
+      'Abonnement',
     ]);
     expect(menu.slice(7).every((entree) => entree.reservee)).toBe(true);
   });
@@ -43,6 +44,7 @@ describe('le menu', () => {
       'journal',
       'comptes',
       'parametres',
+      'abonnement',
     ]);
   });
 

@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, FormGroupDirective, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ETATS_DE_L_ABONNEMENT } from '../../socle/abonnement';
 import {
@@ -36,6 +36,7 @@ import {
   lireUnPrix,
   MODES,
   ModeDePaiement,
+  OBJETS,
   ouvrirWhatsApp,
   Paiement,
   PaiementEnregistre,
@@ -44,7 +45,7 @@ import {
 /**
  * La fiche d'un centre dans le back office : son état et son prix (EDI-01, EDI-05), ses paiements d'abonnement et leur
  * confirmation (EDI-02, EDI-04), l'invitation de son premier propriétaire (EDI-03), et la suspension ou la réactivation
- * à la main (EDI-05).
+ * à la main (EDI-05), la relance (EDI-06), l'accès support (EDI-07) et, 12 mois après la suspension, la suppression (EDI-08).
  */
 @Component({
   selector: 'sh-fiche-du-centre',
@@ -55,6 +56,7 @@ import {
 })
 export class FicheDuCentreDuBackOffice implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   /** L'identifiant du Centre, dans l'adresse. */
   readonly id = input.required<string>();
@@ -74,6 +76,7 @@ export class FicheDuCentreDuBackOffice implements OnInit {
   protected readonly montant = formaterMontant;
   protected readonly telephone = (chiffres: string | null) => (chiffres ? grouperUnTelephone(chiffres) : '');
   protected readonly canal = (envoi: Envoi) => CANAUX[envoi.canal];
+  protected readonly objet = (envoi: Envoi) => OBJETS[envoi.objet];
   protected readonly libelleDuMode = (paiement: Paiement) => MODES[paiement.mode];
 
   protected readonly etat = computed(() => {
@@ -109,6 +112,12 @@ export class FicheDuCentreDuBackOffice implements OnInit {
   });
 
   protected readonly motif = new FormControl('', { nonNullable: true });
+  protected readonly nomRetape = new FormControl('', { nonNullable: true });
+  protected readonly nomRetapeValeur = signal('');
+
+  constructor() {
+    this.nomRetape.valueChanges.subscribe((valeur) => this.nomRetapeValeur.set(valeur));
+  }
 
   ngOnInit(): void {
     void this.charger();
@@ -298,6 +307,26 @@ export class FicheDuCentreDuBackOffice implements OnInit {
           ? 'Le centre est suspendu : il est en lecture seule'
           : 'Le centre est réactivé',
       );
+    });
+  }
+
+  // ----- EDI-06 : relancer -----
+
+  protected async relancer(): Promise<void> {
+    await this.whatsApp('/relance/whatsapp');
+  }
+
+  // ----- EDI-08 : supprimer -----
+
+  protected async supprimer(): Promise<void> {
+    const fiche = this.fiche();
+    if (!fiche || this.nomRetape.value.trim() !== fiche.nom) {
+      this.message.set('Retapez exactement le nom du centre pour confirmer la suppression');
+      return;
+    }
+    await this.agir(async () => {
+      await firstValueFrom(this.http.post(this.adresse('/suppression'), { nom: this.nomRetape.value.trim() }));
+      await this.router.navigate(['/editeur'], { queryParams: { supprime: fiche.nom } });
     });
   }
 

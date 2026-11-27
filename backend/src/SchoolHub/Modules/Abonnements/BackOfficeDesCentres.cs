@@ -19,9 +19,9 @@ public sealed record Issue<T>(T? Valeur, int Statut, string? Message) where T : 
 }
 
 /// <summary>
-/// Le back office de l'Éditeur (EDI-01 à EDI-05) : les centres, leurs abonnements, leurs paiements et l'invitation
-/// de leur premier propriétaire. L'Éditeur n'a pas de centre courant : chaque lecture vise le centre demandé,
-/// et rien ne lit les données du centre lui-même (élèves, groupes, argent).
+/// Le back office de l'Éditeur (EDI-01 à EDI-06, EDI-08) : les centres, leurs abonnements, leurs paiements, l'invitation
+/// de leur premier propriétaire, leurs relances et la suppression d'un centre parti. L'Éditeur n'a pas de centre courant :
+/// chaque lecture vise le centre demandé, et rien ne lit les données du centre lui-même (voir <see cref="AccesSupport"/>).
 /// </summary>
 public sealed class BackOfficeDesCentres(
     SchoolHubDbContext contexte,
@@ -54,6 +54,8 @@ public sealed class BackOfficeDesCentres(
     public const string DejaSuspendu = "Ce centre est déjà suspendu";
     public const string PasSuspendu = "Ce centre n'est pas suspendu";
     public const string PaiementIntrouvable = "Paiement introuvable";
+    public const string RienARelancer = "Ce centre n'a pas de fin d'abonnement à rappeler";
+    public const string NomARetaper = "Retapez exactement le nom du centre pour confirmer la suppression";
 
     private DateOnly Aujourdhui => DateDeTunis.Aujourdhui(temps);
 
@@ -63,18 +65,21 @@ public sealed class BackOfficeDesCentres(
 
     // ----- La liste et la fiche -----
 
-    /// <summary>Les centres, par nom, avec l'état de leur abonnement aujourd'hui.</summary>
-    public async Task<List<LigneDeCentre>> ListerAsync(CancellationToken annulation = default)
+    /// <summary>
+    /// Les centres, par nom, avec l'état de leur abonnement aujourd'hui. <paramref name="filtre"/> : « a-relancer » (fin dans
+    /// 7 jours ou moins, ou En retard, EDI-06), « a-supprimer » (Suspendus depuis 12 mois, EDI-08), ou rien pour tous.
+    /// </summary>
+    public async Task<List<LigneDeCentre>> ListerAsync(string? filtre = null, CancellationToken annulation = default)
     {
         var centres = await contexte.Centres.AsNoTracking().OrderBy(c => c.Nom).ToListAsync(annulation);
         var abonnements = await contexte.Set<Abonnement>().AsNoTracking().ToDictionaryAsync(a => a.CentreId, annulation);
         var premiers = (await contexte.Users.AsNoTracking()
                 .Where(c => c.Role == RoleDuCompte.Proprietaire)
                 .OrderBy(c => c.Id)
-                .Select(c => new { CentreId = c.CentreId!.Value, c.Prenom, c.Nom })
+                .Select(c => new { CentreId = c.CentreId!.Value, c.Prenom, c.Nom, c.PhoneNumber })
                 .ToListAsync(annulation))
             .GroupBy(c => c.CentreId)
-            .ToDictionary(g => g.Key, g => $"{g.First().Prenom} {g.First().Nom}");
+            .ToDictionary(g => g.Key, g => g.First());
         var nombres = await contexte.Users.AsNoTracking()
             .Where(c => c.CentreId != null)
             .GroupBy(c => c.CentreId!.Value)
@@ -82,10 +87,11 @@ public sealed class BackOfficeDesCentres(
             .ToDictionaryAsync(g => g.Centre, g => g.Nombre, annulation);
 
         var aujourdhui = Aujourdhui;
-        return centres.Select(centre =>
+        var lignes = centres.Select(centre =>
         {
             var abonnement = abonnements.GetValueOrDefault(centre.Id);
             var situation = SituationDeLAbonnement.Calculer(abonnement, aujourdhui);
+            var proprietaire = premiers.GetValueOrDefault(centre.Id);
             return new LigneDeCentre(
                 centre.Id,
                 centre.Nom,
@@ -94,9 +100,20 @@ public sealed class BackOfficeDesCentres(
                 situation.PayeJusquAu,
                 abonnement?.PrixMensuel ?? PrixDeLOffre,
                 nombres.GetValueOrDefault(centre.Id),
-                premiers.GetValueOrDefault(centre.Id),
-                situation.ReactiveJusquAu);
-        }).ToList();
+                proprietaire is null ? null : $"{proprietaire.Prenom} {proprietaire.Nom}",
+                situation.ReactiveJusquAu,
+                situation.ARelancer,
+                situation.ASupprimer,
+                situation.SuppressionPossibleLe,
+                proprietaire?.PhoneNumber is not null);
+        });
+
+        return filtre switch
+        {
+            "a-relancer" => lignes.Where(l => l.ARelancer).OrderBy(l => l.PayeJusquAu).ToList(),
+            "a-supprimer" => lignes.Where(l => l.ASupprimer).OrderBy(l => l.SuppressionPossibleLe).ToList(),
+            _ => lignes.ToList(),
+        };
     }
 
     public async Task<FicheDuCentre?> FicheAsync(Guid id, CancellationToken annulation = default)
@@ -147,7 +164,13 @@ public sealed class BackOfficeDesCentres(
                 p.SaisiPar,
                 envois.Where(e => e.PaiementId == p.Id).Select(EnvoiVu.De).ToList())).ToList(),
             envois.Where(e => e.Objet == ObjetDeLEnvoi.Invitation).Select(EnvoiVu.De).ToList(),
-            situation.ReactiveJusquAu);
+            envois.Where(e => e.Objet is ObjetDeLEnvoi.Relance or ObjetDeLEnvoi.RelanceAvantLaFin or ObjetDeLEnvoi.RelanceDeLaFin)
+                .Select(EnvoiVu.De).ToList(),
+            situation.ReactiveJusquAu,
+            situation.ARelancer,
+            situation.ASupprimer,
+            situation.SuppressionPossibleLe,
+            abonnement is not null && abonnement.SupportOuvert(temps.GetUtcNow()) ? abonnement.SupportAutoriseJusquAu : null);
     }
 
     // ----- EDI-01 : créer un centre, son prix -----
@@ -460,6 +483,64 @@ public sealed class BackOfficeDesCentres(
         return await FicheEnIssueAsync(id, annulation);
     }
 
+    // ----- EDI-06 : relancer -----
+
+    /// <summary>Le message de relance pré-écrit dans WhatsApp, depuis la liste « à relancer » ; la date du clic est notée.</summary>
+    public async Task<Issue<LienWhatsApp>> RelancerParWhatsAppAsync(Guid id, CancellationToken annulation = default)
+    {
+        var abonnement = await contexte.Set<Abonnement>().AsNoTracking().SingleOrDefaultAsync(a => a.CentreId == id, annulation);
+        if (abonnement?.PayeJusquAu is not { } fin)
+            return await contexte.Centres.AnyAsync(c => c.Id == id, annulation)
+                ? Issue<LienWhatsApp>.Refusee(StatusCodes.Status409Conflict, RienARelancer)
+                : Issue<LienWhatsApp>.Refusee(StatusCodes.Status404NotFound, Introuvable);
+
+        return await WhatsAppAsync(
+            id,
+            ObjetDeLEnvoi.Relance,
+            (centre, proprietaire) => Task.FromResult(MessagesAuProprietaire.Relance(proprietaire.Prenom, centre.Nom, fin, abonnement.PrixMensuel)),
+            paiementId: null,
+            exigerUnPaiement: false,
+            annulation,
+            echeance: fin);
+    }
+
+    // ----- EDI-08 : supprimer un centre parti -----
+
+    /// <summary>
+    /// Supprime un centre Suspendu depuis 12 mois, quand l'Éditeur retape exactement son nom : le centre, ses comptes, son
+    /// abonnement, ses paiements, son journal et toutes ses données. Rien n'est supprimé automatiquement.
+    /// Une ligne reste au journal de l'Éditeur.
+    /// </summary>
+    public async Task<Issue<Avis>> SupprimerAsync(Compte editeur, Guid id, ConfirmationDeSuppression confirmation, CancellationToken annulation = default)
+    {
+        var centre = await contexte.Centres.AsNoTracking().SingleOrDefaultAsync(c => c.Id == id, annulation);
+        if (centre is null)
+            return Issue<Avis>.Refusee(StatusCodes.Status404NotFound, Introuvable);
+
+        var abonnement = await contexte.Set<Abonnement>().AsNoTracking().SingleOrDefaultAsync(a => a.CentreId == id, annulation);
+        var situation = SituationDeLAbonnement.Calculer(abonnement, Aujourdhui);
+        if (!situation.ASupprimer)
+            return Issue<Avis>.Refusee(
+                StatusCodes.Status409Conflict,
+                situation.SuppressionPossibleLe is { } le
+                    ? $"Ce centre ne pourra être supprimé qu'à partir du {MessagesAuProprietaire.Date(le)}, 12 mois après sa suspension"
+                    : "Seul un centre Suspendu depuis 12 mois peut être supprimé");
+        if (!string.Equals(confirmation.Nom?.Trim(), centre.Nom, StringComparison.Ordinal))
+            return Issue<Avis>.Refusee(StatusCodes.Status400BadRequest, NomARetaper);
+
+        await SuppressionDUnCentre.SupprimerAsync(contexte, id, annulation, avantDeValider: async () =>
+        {
+            journal.Noter(
+                editeur,
+                ActionDeLEditeur.CentreSupprime,
+                id,
+                centre.Nom,
+                $"Données supprimées · Suspendu le {MessagesAuProprietaire.Date(situation.SuspenduLe!.Value)}");
+            await contexte.SaveChangesAsync(annulation);
+        });
+        return Issue<Avis>.Reussie(new Avis($"Le {centre.Nom} et toutes ses données sont supprimés."));
+    }
+
     public Task<List<LigneDuJournalVue>> JournalAsync(CancellationToken annulation = default) =>
         contexte.Set<LigneDuJournalDeLEditeur>().AsNoTracking()
             .OrderByDescending(l => l.Quand)
@@ -567,7 +648,8 @@ public sealed class BackOfficeDesCentres(
         Func<Centre, Compte, Task<string>> message,
         Guid? paiementId,
         bool exigerUnPaiement,
-        CancellationToken annulation)
+        CancellationToken annulation,
+        DateOnly? echeance = null)
     {
         var centre = await contexte.Centres.AsNoTracking().SingleOrDefaultAsync(c => c.Id == id, annulation);
         var proprietaire = centre is null ? null : await ProprietaireAsync(id, suivi: false, annulation);
@@ -580,7 +662,7 @@ public sealed class BackOfficeDesCentres(
 
         var lien = WhatsApp.Lien(telephone, await message(centre, proprietaire));
         contexte.Set<EnvoiAuProprietaire>().Add(new EnvoiAuProprietaire(
-            id, objet, CanalDEnvoi.WhatsApp, temps.GetUtcNow(), telephone, paiementId));
+            id, objet, CanalDEnvoi.WhatsApp, temps.GetUtcNow(), telephone, paiementId, echeance));
         await contexte.SaveChangesAsync(annulation);
         return Issue<LienWhatsApp>.Reussie(new LienWhatsApp(lien, (await FicheAsync(id, annulation))!));
     }

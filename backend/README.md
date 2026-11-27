@@ -61,6 +61,8 @@ dotnet run --project src/SchoolHub -- creer-editeur --email lassad@exemple.tn --
 - L'Éditeur reçoit une invitation, choisit son mot de passe, puis scanne le QR code avec son application d'authentification (Google Authenticator, Microsoft Authenticator…). Ensuite, chaque connexion demande le code à 6 chiffres.
 - Sans double authentification active, aucune adresse `/api/editeur` ne répond.
 - Le prix mensuel de l'offre se règle dans la section `Abonnements:PrixMensuel` de la configuration (90 dinars par défaut).
+- Les relances (EDI-06) partent toutes seules, d'une tâche de fond lancée toutes les heures ; `Abonnements:RelancesAutomatiques=false` la coupe (les tests le font).
+- La suppression d'un centre (EDI-08) efface toute donnée qui implémente `IAppartientAuCentre`, dans l'ordre de leurs clés étrangères (`SuppressionDUnCentre.OrdreDeSuppression`) : un nouveau module n'a rien à inscrire. Le journal du centre ne s'efface qu'à ce moment-là.
 - Un centre Suspendu est en lecture seule : toute écriture d'un de ses comptes reçoit 403 (`Modules/Abonnements/LectureSeule.cs`). Une adresse en POST qui ne modifie rien se marque `.PermiseEnLectureSeule()`.
 
 ## Lancer les tests

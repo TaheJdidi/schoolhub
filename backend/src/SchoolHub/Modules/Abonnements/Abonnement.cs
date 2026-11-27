@@ -5,7 +5,7 @@ using SchoolHub.Socle.Centres;
 namespace SchoolHub.Modules.Abonnements;
 
 /// <summary>
-/// L'abonnement d'un centre : le droit d'utiliser SchoolUp que l'Éditeur accorde et suspend (EDI-01 à EDI-05).
+/// L'abonnement d'un centre : le droit d'utiliser SchoolUp que l'Éditeur accorde et suspend (EDI-01 à EDI-08).
 /// Une seule offre, avec un prix mensuel que l'Éditeur ajuste par centre. C'est une donnée de l'Éditeur sur le centre,
 /// lue dans le back office pour tous les centres : elle n'est pas filtrée par centre, et chaque lecture côté centre
 /// passe par le centre courant.
@@ -34,7 +34,17 @@ public sealed class Abonnement(Guid centreId, decimal prixMensuel)
     /// <summary>Le jour où l'Éditeur a suspendu ou réactivé ce centre à la main.</summary>
     public DateOnly? ForceLe { get; private set; }
 
+    /// <summary>La fin de l'accès support que le propriétaire a donné (EDI-07), ou <c>null</c>.</summary>
+    public DateTimeOffset? SupportAutoriseJusquAu { get; private set; }
+
     public void ChangerLePrix(decimal prix) => PrixMensuel = prix;
+
+    public void AutoriserLeSupport(DateTimeOffset jusquAu) => SupportAutoriseJusquAu = jusquAu;
+
+    public void RetirerLeSupport() => SupportAutoriseJusquAu = null;
+
+    /// <summary>L'accès support est-il ouvert à ce moment ?</summary>
+    public bool SupportOuvert(DateTimeOffset maintenant) => SupportAutoriseJusquAu is { } fin && maintenant < fin;
 
     /// <summary>Un paiement prolonge l'abonnement jusqu'à la fin de sa période, et lève tout état posé à la main (EDI-05).</summary>
     public void Prolonger(DateOnly jusquAu)

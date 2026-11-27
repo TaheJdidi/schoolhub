@@ -132,6 +132,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("numeric(12,3)")
                         .HasColumnName("prix_mensuel");
 
+                    b.Property<DateTimeOffset?>("SupportAutoriseJusquAu")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("support_autorise_jusqu_au");
+
                     b.HasKey("CentreId")
                         .HasName("pk_abonnements");
 
@@ -161,6 +165,10 @@ namespace SchoolHub.Socle.Donnees.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("destinataire");
 
+                    b.Property<DateOnly?>("Echeance")
+                        .HasColumnType("date")
+                        .HasColumnName("echeance");
+
                     b.Property<string>("Objet")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -183,6 +191,11 @@ namespace SchoolHub.Socle.Donnees.Migrations
 
                     b.HasIndex("PaiementId")
                         .HasDatabaseName("ix_envois_au_proprietaire_paiement_id");
+
+                    b.HasIndex("CentreId", "Objet", "Echeance")
+                        .IsUnique()
+                        .HasDatabaseName("ix_envois_une_relance_automatique_par_echeance")
+                        .HasFilter("objet IN ('RelanceAvantLaFin', 'RelanceDeLaFin')");
 
                     b.ToTable("envois_au_proprietaire", (string)null);
                 });

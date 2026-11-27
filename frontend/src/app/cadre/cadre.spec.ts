@@ -112,7 +112,7 @@ describe('le cadre', () => {
     const page = await ouvrir('/aujourdhui', HEDI);
     const menu = page.querySelector('.rail') as HTMLElement;
 
-    expect(menu.querySelectorAll('a')).toHaveLength(13);
+    expect(menu.querySelectorAll('a')).toHaveLength(14);
     expect(menu.textContent).toContain('Propriétaire');
     expect(menu.querySelector('a[href="/parametres"]')).not.toBeNull();
   });
